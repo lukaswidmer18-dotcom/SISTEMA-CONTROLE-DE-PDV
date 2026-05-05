@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/location';
 
 const prisma = new PrismaClient();
 
@@ -36,6 +37,12 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  const coordinates = parseRequiredCoordinates({ latitude, longitude });
+  if (!coordinates) {
+    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
+    return;
+  }
+
   const { start, end } = getTodayRange();
   const todayPontos = await prisma.ponto.findMany({
     where: {
@@ -53,8 +60,6 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
 
   const lastPonto = todayPontos[todayPontos.length - 1];
   const lastIndex = lastPonto ? PONTO_SEQUENCE.indexOf(lastPonto.type) : -1;
-  const typeIndex = PONTO_SEQUENCE.indexOf(type);
-
   if (type === 'ENTRADA' && todayPontos.length === 0) {
     // ok
   } else if (type === 'SAIDA' && (lastPonto?.type === 'ENTRADA' || lastPonto?.type === 'RETORNO_ALMOCO')) {
@@ -74,14 +79,13 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const locationAvailable = latitude != null && longitude != null;
   const ponto = await prisma.ponto.create({
     data: {
       userId: authReq.user.userId,
       type,
-      latitude: locationAvailable ? parseFloat(latitude) : null,
-      longitude: locationAvailable ? parseFloat(longitude) : null,
-      locationAvailable,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      locationAvailable: true,
     },
   });
 

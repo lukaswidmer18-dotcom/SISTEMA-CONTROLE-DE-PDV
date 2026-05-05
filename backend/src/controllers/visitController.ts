@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
 import fs from 'fs';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/location';
 
 const prisma = new PrismaClient();
 
@@ -11,6 +11,12 @@ export async function startVisit(req: Request, res: Response): Promise<void> {
 
   if (!pdvId) {
     res.status(400).json({ success: false, error: 'PDV é obrigatório.' });
+    return;
+  }
+
+  const coordinates = parseRequiredCoordinates({ latitude, longitude });
+  if (!coordinates) {
+    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
     return;
   }
 
@@ -32,8 +38,8 @@ export async function startVisit(req: Request, res: Response): Promise<void> {
     data: {
       promotorId: authReq.user.userId,
       pdvId,
-      latitudeStart: latitude ? parseFloat(latitude) : null,
-      longitudeStart: longitude ? parseFloat(longitude) : null,
+      latitudeStart: coordinates.latitude,
+      longitudeStart: coordinates.longitude,
     },
     include: {
       pdv: true,
@@ -79,13 +85,20 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const coordinates = parseRequiredCoordinates({ latitude, longitude });
+  if (!coordinates) {
+    fs.unlink(req.file.path, () => undefined);
+    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
+    return;
+  }
+
   const photo = await prisma.photo.create({
     data: {
       visitId,
       filePath: req.file.path,
       fileName: req.file.filename,
-      latitude: latitude ? parseFloat(latitude) : null,
-      longitude: longitude ? parseFloat(longitude) : null,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
     },
   });
 
@@ -166,6 +179,12 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const coordinates = parseRequiredCoordinates({ latitude, longitude });
+  if (!coordinates) {
+    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
+    return;
+  }
+
   if (visit.photos.length < 10) {
     res.status(422).json({
       success: false,
@@ -189,8 +208,8 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
       status: 'COMPLETED',
       completedAt: new Date(),
       noProductsFound: skipValidity,
-      latitudeEnd: latitude ? parseFloat(latitude) : null,
-      longitudeEnd: longitude ? parseFloat(longitude) : null,
+      latitudeEnd: coordinates.latitude,
+      longitudeEnd: coordinates.longitude,
     },
     include: {
       pdv: true,

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { Ponto } from '../../types';
+import { getRequiredLocation } from '../../services/geolocation';
+import { getOfflinePendingCount, isNetworkError, queueOfflineAction, syncOfflineQueue } from '../../services/offlineQueue';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CheckCircle, Clock, MapPin } from 'lucide-react';
@@ -53,40 +55,95 @@ export default function PontoPage() {
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
+
+  async function refreshPendingCount() {
+    setPendingCount(await getOfflinePendingCount());
+  }
 
   async function load() {
     try {
       const { data } = await api.get('/ponto/today');
       setPontos(data.data || []);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        setError('Modo offline ativo. Os registros serão sincronizados quando a internet voltar.');
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    refreshPendingCount();
+
+    async function handleOnline() {
+      try {
+        const result = await syncOfflineQueue();
+        await refreshPendingCount();
+        if (result.synced > 0) {
+          setSuccess(`${result.synced} registro(s) offline sincronizado(s).`);
+          load();
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.error || err.message || 'Não foi possível sincronizar os registros offline.');
+      }
+    }
+
+    function handleQueueUpdated() {
+      refreshPendingCount();
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline-queue-updated', handleQueueUpdated);
+    if (navigator.onLine) handleOnline();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline-queue-updated', handleQueueUpdated);
+    };
+  }, []);
 
   async function handleRegister(type: PontoType) {
     setError('');
     setSuccess('');
     setRegistering(true);
 
-    let latitude: number | undefined;
-    let longitude: number | undefined;
+    let location: { latitude: number; longitude: number };
+    try {
+      location = await getRequiredLocation();
+    } catch (err: any) {
+      setError(err.message || 'Localização obrigatória para registrar ponto.');
+      setRegistering(false);
+      return;
+    }
 
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-      );
-      latitude = pos.coords.latitude;
-      longitude = pos.coords.longitude;
-    } catch {}
-
-    try {
-      await api.post('/ponto', { type, latitude, longitude });
+      await api.post('/ponto', { type, ...location });
       setSuccess(`${PONTO_LABELS[type]} registrada com sucesso!`);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Erro ao registrar ponto.');
+      if (isNetworkError(err)) {
+        const { latitude, longitude } = location;
+        const queued = await queueOfflineAction({ kind: 'ponto', payload: { type, latitude, longitude } });
+        setPontos(prev => [
+          ...prev,
+          {
+            id: queued.id,
+            userId: 'offline',
+            type,
+            timestamp: queued.createdAt,
+            latitude,
+            longitude,
+            locationAvailable: true,
+          },
+        ]);
+        setSuccess(`${PONTO_LABELS[type]} salva em modo offline. A sincronização será feita quando a internet voltar.`);
+        await refreshPendingCount();
+      } else {
+        setError(err.response?.data?.error || err.message || 'Erro ao registrar ponto.');
+      }
     } finally {
       setRegistering(false);
     }
@@ -102,7 +159,16 @@ export default function PontoPage() {
         <p className="text-sm text-gray-500 mt-0.5">
           {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
         </p>
+        <p className="text-xs text-pluma-700 mt-1 flex items-center gap-1">
+          <MapPin size={12} /> Localização obrigatória para todos os registros.
+        </p>
       </div>
+
+      {pendingCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3 mb-4">
+          Modo offline: {pendingCount} ação(ões) aguardando sincronização.
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>
