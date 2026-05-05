@@ -15,10 +15,6 @@ export async function startVisit(req: Request, res: Response): Promise<void> {
   }
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
-  if (!coordinates) {
-    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
-    return;
-  }
 
   const pdv = await prisma.pDV.findUnique({ where: { id: pdvId } });
   if (!pdv || !pdv.active) {
@@ -86,11 +82,6 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   }
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
-  if (!coordinates) {
-    fs.unlink(req.file.path, () => undefined);
-    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
-    return;
-  }
 
   const photo = await prisma.photo.create({
     data: {
@@ -160,6 +151,37 @@ export async function deleteValidity(req: Request, res: Response): Promise<void>
   res.json({ success: true, data: null });
 }
 
+export async function deletePhoto(req: Request, res: Response): Promise<void> {
+  const authReq = req as any;
+  const { visitId, photoId } = req.params;
+
+  const photo = await prisma.photo.findUnique({
+    where: { id: photoId },
+    include: { visit: true },
+  });
+
+  if (!photo || photo.visitId !== visitId || photo.visit.promotorId !== authReq.user.userId) {
+    res.status(404).json({ success: false, error: 'Foto não encontrada.' });
+    return;
+  }
+  if (photo.visit.status !== 'IN_PROGRESS') {
+    res.status(422).json({ success: false, error: 'Visita já finalizada.' });
+    return;
+  }
+
+  // Deletar o arquivo físico
+  if (photo.filePath && fs.existsSync(photo.filePath)) {
+    try {
+      fs.unlinkSync(photo.filePath);
+    } catch (err) {
+      console.error('Erro ao deletar arquivo:', err);
+    }
+  }
+
+  await prisma.photo.delete({ where: { id: photoId } });
+  res.json({ success: true, data: null });
+}
+
 export async function finishVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
   const { visitId } = req.params;
@@ -180,10 +202,6 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   }
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
-  if (!coordinates) {
-    res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
-    return;
-  }
 
   if (visit.photos.length < 10) {
     res.status(422).json({

@@ -165,6 +165,11 @@ export async function getOfflinePendingCount() {
   return withStore<number>('readonly', (store) => store.count());
 }
 
+export async function removeFromOfflineQueue(id: string) {
+  await deleteOfflineAction(id);
+  window.dispatchEvent(new CustomEvent('offline-queue-updated'));
+}
+
 async function deleteOfflineAction(id: string) {
   await withStore('readwrite', (store) => store.delete(id));
 }

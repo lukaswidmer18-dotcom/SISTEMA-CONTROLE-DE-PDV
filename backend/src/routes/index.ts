@@ -5,7 +5,7 @@ import { listPDVs, createPDV, updatePDV, togglePDVActive } from '../controllers/
 import { listProducts, createProduct, updateProduct, toggleProductActive } from '../controllers/productController';
 import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pontoController';
 import {
-  startVisit, getActiveVisit, addPhoto, addValidity, deleteValidity,
+  startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
   finishVisit, getMyVisits, getVisitDetail, listAllVisits,
 } from '../controllers/visitController';
 import { authenticate, requireAdmin } from '../middleware/auth';
@@ -47,6 +47,7 @@ router.get('/visits/my', authenticate, getMyVisits);
 router.get('/visits/all', authenticate, requireAdmin, listAllVisits);
 router.get('/visits/:visitId', authenticate, getVisitDetail);
 router.post('/visits/:visitId/photos', authenticate, upload.single('photo'), addPhoto);
+router.delete('/visits/:visitId/photos/:photoId', authenticate, deletePhoto);
 router.post('/visits/:visitId/validities', authenticate, addValidity);
 router.delete('/visits/:visitId/validities/:validityId', authenticate, deleteValidity);
 router.patch('/visits/:visitId/finish', authenticate, finishVisit);

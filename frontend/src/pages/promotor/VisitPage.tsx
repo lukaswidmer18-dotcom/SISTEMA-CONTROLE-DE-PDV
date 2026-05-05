@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import api from '../../services/api';
 import { Visit, PDV, Product, Validity } from '../../types';
 import { getRequiredLocation } from '../../services/geolocation';
-import { getOfflinePendingCount, isNetworkError, queueOfflineAction, syncOfflineQueue } from '../../services/offlineQueue';
+import { getOfflinePendingCount, isNetworkError, queueOfflineAction, removeFromOfflineQueue, syncOfflineQueue } from '../../services/offlineQueue';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Camera, Plus, Trash2, CheckCircle, AlertCircle, MapPin, X } from 'lucide-react';
@@ -108,17 +108,10 @@ function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visi
     setError('');
     setLoading(true);
 
-    let location: { latitude: number; longitude: number };
-    try {
-      location = await getRequiredLocation();
-    } catch (err: any) {
-      setError(err.message || 'Localização obrigatória para iniciar visita.');
-      setLoading(false);
-      return;
-    }
+    const location = await getRequiredLocation();
 
     try {
-      await api.post('/visits', { pdvId: selectedPdv, ...location });
+      await api.post('/visits', { pdvId: selectedPdv, latitude: location.latitude, longitude: location.longitude });
       onStart();
     } catch (err: any) {
       if (isNetworkError(err)) {
@@ -137,7 +130,7 @@ function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visi
         await queueOfflineAction({
           kind: 'startVisit',
           localVisitId,
-          payload: { pdvId: selectedPdv, ...location },
+          payload: { pdvId: selectedPdv, latitude: location.latitude, longitude: location.longitude },
         });
         onStart(toVisit(offlineVisit));
       } else {
@@ -255,6 +248,9 @@ export default function VisitPage() {
   const [finishing, setFinishing] = useState(false);
   const [noProducts, setNoProducts] = useState(false);
   const [showValidityModal, setShowValidityModal] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+  const [deletingPhoto, setDeletingPhoto] = useState(false);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [success, setSuccess] = useState('');
@@ -336,20 +332,13 @@ export default function VisitPage() {
 
     for (const file of files) {
       setUploading(true);
-      let location: { latitude: number; longitude: number };
-      try {
-        location = await getRequiredLocation();
-      } catch (err: any) {
-        setError(err.message || 'Localização obrigatória para enviar foto.');
-        setUploading(false);
-        break;
-      }
+      const location = await getRequiredLocation();
 
       try {
         const formData = new FormData();
         formData.append('photo', file);
-        formData.append('latitude', String(location.latitude));
-        formData.append('longitude', String(location.longitude));
+        if (location.latitude !== null) formData.append('latitude', String(location.latitude));
+        if (location.longitude !== null) formData.append('longitude', String(location.longitude));
         await api.post(`/visits/${visit.id}/photos`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -362,8 +351,8 @@ export default function VisitPage() {
             payload: {
               file,
               fileName: file.name,
-              latitude: location.latitude,
-              longitude: location.longitude,
+              latitude: location.latitude ?? 0,
+              longitude: location.longitude ?? 0,
             },
           });
           const photo = {
@@ -371,8 +360,8 @@ export default function VisitPage() {
             visitId: visit.id,
             filePath: 'offline',
             fileName: file.name,
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: location.latitude ?? 0,
+            longitude: location.longitude ?? 0,
             uploadedAt: queued.createdAt,
           };
 
@@ -418,6 +407,36 @@ export default function VisitPage() {
     }
   }
 
+  async function confirmDeletePhoto() {
+    if (!visit || !photoToDelete) return;
+    setDeletingPhoto(true);
+    const photoId = photoToDelete;
+    setPhotoToDelete(null);
+
+    if (photoId.startsWith('offline-')) {
+      setVisit(prev => prev ? { ...prev, photos: (prev.photos || []).filter(p => p.id !== photoId) } : prev);
+      if (isLocalVisit(visit.id)) {
+        updateOfflineActiveVisit(current => ({
+          ...current,
+          photos: current.photos.filter(p => p.id !== photoId),
+        }));
+      }
+      await removeFromOfflineQueue(photoId);
+      await refreshPendingCount();
+      setDeletingPhoto(false);
+      return;
+    }
+
+    try {
+      await api.delete(`/visits/${visit.id}/photos/${photoId}`);
+      await load();
+    } catch (err: any) {
+      setError(getErrorMessage(err, 'Erro ao remover foto.'));
+    } finally {
+      setDeletingPhoto(false);
+    }
+  }
+
   async function handleFinish() {
     if (!visit) return;
     setError('');
@@ -435,14 +454,7 @@ export default function VisitPage() {
     }
 
     setFinishing(true);
-    let location: { latitude: number; longitude: number };
-    try {
-      location = await getRequiredLocation();
-    } catch (err: any) {
-      setError(err.message || 'Localização obrigatória para finalizar visita.');
-      setFinishing(false);
-      return;
-    }
+    const location = await getRequiredLocation();
 
     try {
       await api.patch(`/visits/${visit.id}/finish`, { ...location, noProductsFound: noProducts });
@@ -577,7 +589,13 @@ export default function VisitPage() {
         {visit.photos && visit.photos.length > 0 ? (
           <div className="grid grid-cols-3 gap-1.5">
             {visit.photos.map((photo) => (
-              <div key={photo.id} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+              <div
+                key={photo.id}
+                className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group cursor-pointer"
+                onClick={() => {
+                  if (photo.filePath !== 'offline') setExpandedPhoto(`/uploads/${photo.fileName}`);
+                }}
+              >
                 {photo.filePath === 'offline' ? (
                   <div className="w-full h-full bg-amber-50 text-amber-700 flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-center px-1">
                     <Camera size={16} />
@@ -586,6 +604,18 @@ export default function VisitPage() {
                 ) : (
                   <img src={`/uploads/${photo.fileName}`} alt="Foto da visita" className="w-full h-full object-cover" />
                 )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPhotoToDelete(photo.id);
+                  }}
+                  className="absolute top-1 right-1 z-10 p-2 bg-red-600 text-white rounded-full shadow-lg active:bg-red-700 transition-colors"
+                  title="Excluir foto"
+                  type="button"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
             {Array.from({ length: Math.max(0, 10 - photoCount) }).map((_, i) => (
@@ -688,6 +718,56 @@ export default function VisitPage() {
             }
           }}
         />
+      )}
+
+      {photoToDelete && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
+          <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-8">
+            <h3 className="font-semibold text-gray-800 mb-2">Excluir foto?</h3>
+            <p className="text-sm text-gray-500 mb-5">Esta ação não pode ser desfeita. A foto será removida permanentemente.</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPhotoToDelete(null)}
+                className="btn-secondary flex-1"
+                disabled={deletingPhoto}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletePhoto}
+                className="btn-primary flex-1 bg-red-600 hover:bg-red-700 border-red-600"
+                disabled={deletingPhoto}
+              >
+                {deletingPhoto ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {expandedPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+          onClick={() => setExpandedPhoto(null)}
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 p-2 text-white bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+            onClick={() => setExpandedPhoto(null)}
+            title="Fechar"
+          >
+            <X size={22} />
+          </button>
+          <img
+            src={expandedPhoto}
+            alt="Foto expandida"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxHeight: '90dvh', maxWidth: '95dvw' }}
+          />
+        </div>
       )}
     </div>
   );
