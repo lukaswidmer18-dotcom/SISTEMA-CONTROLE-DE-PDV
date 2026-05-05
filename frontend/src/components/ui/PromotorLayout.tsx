@@ -22,11 +22,11 @@ export default function PromotorLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 max-w-lg mx-auto relative">
       {/* Top header */}
-      <header className="bg-pluma-800 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <header className="bg-gradient-to-br from-pluma-950 via-pluma-800 to-pluma-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-glow-pluma border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="leading-none select-none">
             <p className="text-gold-400 text-[9px] font-semibold tracking-[0.22em] uppercase">Grupo</p>
-            <p className="text-white text-lg font-black tracking-tight leading-none">PLUMA</p>
+            <p className="text-white text-lg font-black leading-none">PLUMA</p>
           </div>
           <div className="h-7 w-px bg-pluma-600" />
           <div>
@@ -34,7 +34,7 @@ export default function PromotorLayout() {
             <p className="text-white text-xs font-semibold leading-none mt-0.5 truncate max-w-[120px]">{user?.name}</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-1.5 text-pluma-300 hover:text-white text-xs py-1.5 px-2.5 rounded-lg hover:bg-pluma-700 transition-colors">
+        <button onClick={handleLogout} className="flex items-center gap-1.5 text-pluma-300 hover:text-white text-xs py-1.5 px-2.5 rounded-lg hover:bg-white/10 transition-colors">
           <LogOut size={14} />
           Sair
         </button>
@@ -49,7 +49,7 @@ export default function PromotorLayout() {
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-gray-200 flex z-30 shadow-lg">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white/[0.86] backdrop-blur-xl border-t border-white/70 flex z-30 shadow-glass">
         {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -63,8 +63,8 @@ export default function PromotorLayout() {
           >
             {({ isActive }) => (
               <>
-                {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gold-500 rounded-full" />}
-                <Icon size={20} />
+                {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-gradient-to-r from-gold-300 via-gold-500 to-gold-300 rounded-b-full shadow-glow-gold" />}
+                <Icon size={20} className={isActive ? 'drop-shadow-sm' : ''} />
                 {label}
               </>
             )}

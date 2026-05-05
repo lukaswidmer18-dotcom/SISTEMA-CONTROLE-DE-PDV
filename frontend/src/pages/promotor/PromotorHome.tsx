@@ -40,17 +40,22 @@ export default function PromotorHome() {
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="bg-pluma-800 text-white rounded-xl p-4">
-        <p className="text-pluma-200 text-sm">Bom dia,</p>
-        <h2 className="text-xl font-bold">{user?.name}</h2>
-        <p className="text-pluma-200 text-xs mt-1">
-          {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-        </p>
+    <div className="p-4 space-y-4 animate-fade-in">
+      <div className="relative overflow-hidden bg-gradient-to-br from-pluma-950 via-pluma-800 to-pluma-700 text-white rounded-lg p-4 shadow-glow-pluma animate-slide-up">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-300/80 to-transparent" />
+        <div className="pointer-events-none absolute right-0 top-0 h-full w-2/3 bg-gradient-to-l from-gold-400/[0.14] to-transparent" />
+        <div className="pointer-events-none absolute left-4 bottom-0 h-0.5 w-24 bg-gradient-to-r from-gold-400 to-transparent" />
+        <div className="relative">
+          <p className="text-pluma-200 text-sm">Bom dia,</p>
+          <h2 className="text-xl font-bold">{user?.name}</h2>
+          <p className="text-pluma-200 text-xs mt-1">
+            {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+          </p>
+        </div>
       </div>
 
       {/* Ponto status */}
-      <div className="card">
+      <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up" style={{ animationDelay: '90ms' }}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Clock size={16} /> Ponto de Hoje</h3>
           <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-medium">Ver mais</Link>
@@ -89,7 +94,7 @@ export default function PromotorHome() {
       </div>
 
       {/* Active visit */}
-      <div className="card">
+      <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up" style={{ animationDelay: '160ms' }}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800 flex items-center gap-2"><MapPin size={16} /> Visita Atual</h3>
           <Link to="/promotor/visita" className="text-sm text-pluma-800 hover:text-pluma-600 font-medium">Ver mais</Link>
@@ -121,7 +126,7 @@ export default function PromotorHome() {
       </div>
 
       {/* History shortcut */}
-      <div className="card">
+      <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up" style={{ animationDelay: '230ms' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ClipboardList size={16} className="text-gray-600" />

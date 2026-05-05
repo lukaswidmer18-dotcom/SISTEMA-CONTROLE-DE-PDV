@@ -24,28 +24,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f2d29 0%, #17413B 50%, #1a433e 100%)' }}
-    >
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden surface-dots animate-fade-in">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10"
-          style={{ background: '#BC933F' }} />
-        <div className="absolute -bottom-48 -left-24 w-80 h-80 rounded-full opacity-5"
-          style={{ background: '#BC933F' }} />
-        <div className="absolute top-1/3 right-1/4 w-2 h-2 rounded-full opacity-30"
-          style={{ background: '#BC933F' }} />
-        <div className="absolute top-2/3 left-1/3 w-1.5 h-1.5 rounded-full opacity-20"
-          style={{ background: '#BC933F' }} />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] via-transparent to-pluma-950/30" />
+        <div className="absolute left-[-10%] top-24 h-px w-[120%] bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+        <div className="absolute left-[-10%] bottom-20 h-px w-[120%] bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
       </div>
 
-      <div className="w-full max-w-sm relative z-10">
+      <div className="w-full max-w-[390px] relative z-10">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-7 animate-slide-up">
           <div className="inline-flex flex-col items-center leading-none select-none mb-4">
-            <p className="text-gold-400 text-sm font-semibold tracking-[0.4em] uppercase mb-1">Grupo</p>
-            <p className="text-white font-black tracking-tight"
-              style={{ fontSize: '3.5rem', lineHeight: 1, letterSpacing: '-0.02em' }}>
+            <p className="text-gold-400 text-xs font-semibold tracking-[0.42em] uppercase mb-2">Grupo</p>
+            <p className="text-white font-black"
+              style={{ fontSize: '3.35rem', lineHeight: 1 }}>
               PLUMA
             </p>
           </div>
@@ -54,13 +47,19 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div
+          className="bg-white/95 backdrop-blur-sm rounded-lg border border-white/80 overflow-hidden animate-slide-up"
+          style={{
+            animationDelay: '110ms',
+            boxShadow: '0 24px 60px rgba(8, 26, 23, 0.3), 0 2px 8px rgba(8, 26, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+          }}
+        >
           {/* Gold accent bar */}
-          <div className="h-1 w-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600" />
+          <div className="h-1.5 w-full bg-gradient-to-r from-gold-700 via-gold-300 to-gold-700 animate-shimmer" />
 
-          <div className="p-7">
+          <div className="px-7 py-7 sm:px-8">
             <h2 className="text-pluma-800 font-bold text-lg mb-1">Acesso ao sistema</h2>
-            <p className="text-gray-400 text-sm mb-6">Entre com suas credenciais corporativas</p>
+            <p className="text-gray-500 text-sm mb-6">Entre com suas credenciais corporativas</p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -111,7 +110,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-pluma-400 text-[11px] mt-6">
+        <p className="text-center text-pluma-200 text-[11px] mt-6 animate-fade-in" style={{ animationDelay: '240ms' }}>
           © 2026 Grupo Pluma • Desenvolvido por Lukas Widmer
         </p>
       </div>

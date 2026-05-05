@@ -32,20 +32,25 @@ export default function AdminDashboard() {
   }, []);
 
   const cards = [
-    { label: 'Usuários', value: stats.users, icon: Users, color: 'bg-pluma-800', to: '/admin/usuarios' },
-    { label: 'PDVs', value: stats.pdvs, icon: MapPin, color: 'bg-pluma-600', to: '/admin/pdvs' },
-    { label: 'Produtos', value: stats.products, icon: Package, color: 'bg-gold-500', to: '/admin/produtos' },
-    { label: 'Visitas Hoje', value: stats.todayVisits, icon: TrendingUp, color: 'bg-emerald-600', to: '/admin/visitas' },
-    { label: 'Total Visitas', value: stats.visits, icon: ClipboardList, color: 'bg-gray-500', to: '/admin/visitas' },
+    { label: 'Usuários', value: stats.users, icon: Users, iconClass: 'from-pluma-950 to-pluma-600 shadow-glow-pluma', to: '/admin/usuarios' },
+    { label: 'PDVs', value: stats.pdvs, icon: MapPin, iconClass: 'from-pluma-700 to-pluma-400 shadow-glow-pluma', to: '/admin/pdvs' },
+    { label: 'Produtos', value: stats.products, icon: Package, iconClass: 'from-gold-700 to-gold-400 shadow-glow-gold', to: '/admin/produtos' },
+    { label: 'Visitas Hoje', value: stats.todayVisits, icon: TrendingUp, iconClass: 'from-emerald-700 to-emerald-500 shadow-lg', to: '/admin/visitas' },
+    { label: 'Total Visitas', value: stats.visits, icon: ClipboardList, iconClass: 'from-gray-700 to-gray-500 shadow-lg', to: '/admin/visitas' },
   ];
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h2>
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {cards.map(({ label, value, icon: Icon, color, to }) => (
-          <Link key={label} to={to} className="card hover:shadow-md transition-shadow group">
-            <div className={`inline-flex p-2.5 rounded-lg ${color} text-white mb-3`}>
+        {cards.map(({ label, value, icon: Icon, iconClass, to }, index) => (
+          <Link
+            key={label}
+            to={to}
+            className="card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 group animate-slide-up"
+            style={{ animationDelay: `${index * 70}ms` }}
+          >
+            <div className={`inline-flex p-2.5 rounded-lg bg-gradient-to-br ${iconClass} text-white mb-3 transition-transform duration-300 group-hover:scale-105`}>
               <Icon size={20} />
             </div>
             <div className="text-2xl font-bold text-gray-800">{value}</div>
@@ -55,7 +60,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-8 grid lg:grid-cols-2 gap-6">
-        <div className="card">
+        <div className="card animate-slide-up" style={{ animationDelay: '360ms' }}>
           <h3 className="font-semibold text-gray-800 mb-3">Acesso Rápido</h3>
           <div className="space-y-2">
             <Link to="/admin/usuarios" className="flex items-center gap-2 text-sm text-pluma-800 hover:text-pluma-600 py-1 font-medium">
@@ -73,7 +78,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="card border-l-4 border-gold-500">
+        <div className="card border-l-4 border-gold-500 animate-slide-up" style={{ animationDelay: '430ms' }}>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1.5 h-1.5 rounded-full bg-gold-500" />
             <h3 className="font-semibold text-gray-800">Grupo Pluma — Sistema PDV v1.0</h3>
