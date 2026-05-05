@@ -14,6 +14,15 @@ const navItems = [
   { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
 ];
 
+function GrupoPlumaSidebarLogo() {
+  return (
+    <div className="leading-none select-none">
+      <p className="text-gold-500 text-[10px] font-semibold tracking-[0.25em] uppercase">Grupo</p>
+      <p className="text-white text-2xl font-black tracking-tight leading-none">PLUMA</p>
+    </div>
+  );
+}
+
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -27,18 +36,23 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-blue-900 text-white flex flex-col transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between p-4 border-b border-blue-800">
-          <div>
-            <h1 className="font-bold text-lg">Sistema PDV</h1>
-            <p className="text-blue-300 text-xs">Administrador</p>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded hover:bg-blue-800">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-pluma-800 text-white flex flex-col transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+
+        {/* Logo header */}
+        <div className="flex items-center justify-between px-5 py-5 border-b border-pluma-700">
+          <GrupoPlumaSidebarLogo />
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded hover:bg-pluma-700 transition-colors">
             <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* System label */}
+        <div className="px-5 py-2.5 border-b border-pluma-700/50">
+          <p className="text-pluma-200 text-[11px] font-medium tracking-wide uppercase">Sistema de Controle de PDV</p>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -46,45 +60,59 @@ export default function AdminLayout() {
               end={end}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-blue-700 text-white' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}`
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-gold-500/20 text-gold-400 border-l-2 border-gold-500 pl-[10px]'
+                    : 'text-pluma-200 hover:bg-pluma-700 hover:text-white border-l-2 border-transparent pl-[10px]'
+                }`
               }
             >
-              <Icon size={18} />
+              <Icon size={17} />
               {label}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-blue-800">
-          <div className="text-blue-300 text-xs mb-2 truncate">{user?.name}</div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-blue-200 hover:text-white text-sm w-full px-2 py-1.5 rounded hover:bg-blue-800 transition-colors">
-            <LogOut size={16} />
-            Sair
+        {/* User / logout */}
+        <div className="p-4 border-t border-pluma-700">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-full bg-gold-500/30 flex items-center justify-center flex-shrink-0">
+              <span className="text-gold-400 text-xs font-bold">{user?.name?.[0]?.toUpperCase()}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-white text-xs font-semibold truncate">{user?.name}</p>
+              <p className="text-pluma-300 text-[10px] truncate">{user?.email}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 text-pluma-300 hover:text-white text-xs w-full px-2 py-1.5 rounded-lg hover:bg-pluma-700 transition-colors">
+            <LogOut size={14} />
+            Sair do sistema
           </button>
         </div>
 
-        <div className="px-4 pb-4 text-center">
-          <p className="text-blue-400 text-[10px] leading-snug">
-            © 2026 Grupo Pluma
-          </p>
-          <p className="text-blue-500 text-[10px]">
-            Desenvolvido por Lukas Widmer
-          </p>
+        {/* Brand signature */}
+        <div className="px-5 pb-4 text-center border-t border-pluma-700/50 pt-3">
+          <p className="text-gold-600 text-[10px] leading-relaxed">© 2026 Grupo Pluma</p>
+          <p className="text-pluma-500 text-[10px]">Desenvolvido por Lukas Widmer</p>
         </div>
       </aside>
 
       {/* Overlay mobile */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 lg:hidden sticky top-0 z-30">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-100">
+        {/* Mobile top bar */}
+        <header className="bg-pluma-800 text-white px-4 py-3 flex items-center gap-3 lg:hidden sticky top-0 z-30 shadow-md">
+          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-pluma-700 transition-colors">
             <Menu size={20} />
           </button>
-          <h1 className="font-semibold text-gray-800">Sistema PDV</h1>
+          <div className="leading-none">
+            <p className="text-gold-400 text-[9px] font-semibold tracking-widest uppercase">Grupo</p>
+            <p className="text-white text-base font-black tracking-tight leading-none">PLUMA</p>
+          </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-6 overflow-auto">

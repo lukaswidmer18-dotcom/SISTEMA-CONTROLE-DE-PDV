@@ -41,10 +41,10 @@ export default function PromotorHome() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="bg-blue-600 text-white rounded-xl p-4">
-        <p className="text-blue-200 text-sm">Bom dia,</p>
+      <div className="bg-pluma-800 text-white rounded-xl p-4">
+        <p className="text-pluma-200 text-sm">Bom dia,</p>
         <h2 className="text-xl font-bold">{user?.name}</h2>
-        <p className="text-blue-200 text-xs mt-1">
+        <p className="text-pluma-200 text-xs mt-1">
           {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
         </p>
       </div>
@@ -53,11 +53,11 @@ export default function PromotorHome() {
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Clock size={16} /> Ponto de Hoje</h3>
-          <Link to="/promotor/ponto" className="text-sm text-blue-600 hover:text-blue-800 font-medium">Ver mais</Link>
+          <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-medium">Ver mais</Link>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" /></div>
+          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-pluma-800 border-t-transparent" /></div>
         ) : pontos.length === 0 ? (
           <div className="flex items-center gap-2 text-orange-600 bg-orange-50 rounded-lg p-3 text-sm">
             <AlertCircle size={16} />
@@ -92,11 +92,11 @@ export default function PromotorHome() {
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800 flex items-center gap-2"><MapPin size={16} /> Visita Atual</h3>
-          <Link to="/promotor/visita" className="text-sm text-blue-600 hover:text-blue-800 font-medium">Ver mais</Link>
+          <Link to="/promotor/visita" className="text-sm text-pluma-800 hover:text-pluma-600 font-medium">Ver mais</Link>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" /></div>
+          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-pluma-800 border-t-transparent" /></div>
         ) : activeVisit ? (
           <div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
@@ -127,7 +127,7 @@ export default function PromotorHome() {
             <ClipboardList size={16} className="text-gray-600" />
             <span className="font-semibold text-gray-800">Histórico de Visitas</span>
           </div>
-          <Link to="/promotor/historico" className="text-sm text-blue-600 hover:text-blue-800 font-medium">Ver tudo</Link>
+          <Link to="/promotor/historico" className="text-sm text-pluma-800 hover:text-pluma-600 font-medium">Ver tudo</Link>
         </div>
       </div>
     </div>

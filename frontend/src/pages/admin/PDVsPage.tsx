@@ -91,7 +91,7 @@ export default function PDVsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">
@@ -115,7 +115,7 @@ export default function PDVsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setModal({ open: true, pdv: p })} className="p-1.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50">
+                      <button onClick={() => setModal({ open: true, pdv: p })} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
                         <Pencil size={15} />
                       </button>
                       <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>

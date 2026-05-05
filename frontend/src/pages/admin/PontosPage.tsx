@@ -68,7 +68,7 @@ export default function PontosPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">

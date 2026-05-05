@@ -14,69 +14,106 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Erro ao fazer login.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao fazer login.';
+      const axiosMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(axiosMsg || message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0f2d29 0%, #17413B 50%, #1a433e 100%)' }}
+    >
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10"
+          style={{ background: '#BC933F' }} />
+        <div className="absolute -bottom-48 -left-24 w-80 h-80 rounded-full opacity-5"
+          style={{ background: '#BC933F' }} />
+        <div className="absolute top-1/3 right-1/4 w-2 h-2 rounded-full opacity-30"
+          style={{ background: '#BC933F' }} />
+        <div className="absolute top-2/3 left-1/3 w-1.5 h-1.5 rounded-full opacity-20"
+          style={{ background: '#BC933F' }} />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
+          <div className="inline-flex flex-col items-center leading-none select-none mb-4">
+            <p className="text-gold-400 text-sm font-semibold tracking-[0.4em] uppercase mb-1">Grupo</p>
+            <p className="text-white font-black tracking-tight"
+              style={{ fontSize: '3.5rem', lineHeight: 1, letterSpacing: '-0.02em' }}>
+              PLUMA
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-white">Sistema PDV</h1>
-          <p className="text-blue-200 text-sm mt-1">Controle de Promotores</p>
+          <div className="w-16 h-0.5 bg-gold-500 mx-auto mb-4 rounded-full" />
+          <p className="text-pluma-200 text-sm font-medium tracking-wide">Sistema de Controle de PDV</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field"
-                placeholder="••••••••"
-              />
-            </div>
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Gold accent bar */}
+          <div className="h-1 w-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600" />
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
-                {error}
+          <div className="p-7">
+            <h2 className="text-pluma-800 font-bold text-lg mb-1">Acesso ao sistema</h2>
+            <p className="text-gray-400 text-sm mb-6">Entre com suas credenciais corporativas</p>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="seu@email.com"
+                />
               </div>
-            )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                  Senha
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base">
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Entrando...
-                </span>
-              ) : 'Entrar'}
-            </button>
-          </form>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-sm mt-2">
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    Autenticando...
+                  </span>
+                ) : 'Entrar'}
+              </button>
+            </form>
+          </div>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-pluma-400 text-[11px] mt-6">
+          © 2026 Grupo Pluma • Desenvolvido por Lukas Widmer
+        </p>
       </div>
     </div>
   );

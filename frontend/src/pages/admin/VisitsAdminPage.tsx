@@ -80,7 +80,7 @@ export default function VisitsAdminPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" /></div>
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">
@@ -117,7 +117,7 @@ export default function VisitsAdminPage() {
                     {v.noProductsFound ? <span className="text-orange-500 text-xs">S/ produtos</span> : v._count?.validities || 0}
                   </td>
                   <td className="px-4 py-3">
-                    <Link to={`/admin/visitas/${v.id}`} className="p-1.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 inline-flex">
+                    <Link to={`/admin/visitas/${v.id}`} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50 inline-flex">
                       <Eye size={15} />
                     </Link>
                   </td>

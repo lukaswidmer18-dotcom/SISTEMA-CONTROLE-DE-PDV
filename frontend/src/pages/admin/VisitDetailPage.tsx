@@ -24,7 +24,7 @@ export default function VisitDetailPage() {
     load();
   }, [visitId]);
 
-  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" /></div>;
+  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>;
   if (!visit) return <div className="text-center py-12 text-gray-400">Visita não encontrada.</div>;
 
   return (
@@ -111,7 +111,7 @@ export default function VisitDetailPage() {
               <button
                 key={photo.id}
                 onClick={() => setLightbox(`/uploads/${photo.fileName}`)}
-                className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-blue-400 transition-colors"
+                className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-pluma-400 transition-colors"
               >
                 <img src={`/uploads/${photo.fileName}`} alt="Foto" className="w-full h-full object-cover" />
               </button>

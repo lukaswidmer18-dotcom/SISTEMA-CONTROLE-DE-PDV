@@ -18,7 +18,7 @@ const PONTO_LABELS: Record<PontoType, string> = {
 const PONTO_COLORS: Record<PontoType, string> = {
   ENTRADA: 'bg-green-100 text-green-800',
   SAIDA_ALMOCO: 'bg-yellow-100 text-yellow-800',
-  RETORNO_ALMOCO: 'bg-blue-100 text-blue-800',
+  RETORNO_ALMOCO: 'bg-pluma-100 text-pluma-800',
   SAIDA: 'bg-red-100 text-red-800',
 };
 
@@ -119,7 +119,7 @@ export default function PontoPage() {
           <Clock size={15} /> Registros de Hoje
         </h3>
         {loading ? (
-          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" /></div>
+          <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-pluma-800 border-t-transparent" /></div>
         ) : pontos.length === 0 ? (
           <p className="text-sm text-gray-400">Nenhum registro ainda.</p>
         ) : (
@@ -128,7 +128,7 @@ export default function PontoPage() {
             <div className="space-y-3">
               {pontos.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 pl-10 relative">
-                  <div className="absolute left-2.5 w-3 h-3 rounded-full bg-blue-500 ring-2 ring-white ring-offset-1" />
+                  <div className="absolute left-2.5 w-3 h-3 rounded-full bg-pluma-600 ring-2 ring-white ring-offset-1" />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PONTO_COLORS[p.type as PontoType]}`}>

@@ -24,7 +24,7 @@ export default function VisitHistoryPage() {
 
   if (loading) return (
     <div className="flex justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
+      <div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" />
     </div>
   );
 

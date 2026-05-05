@@ -217,7 +217,7 @@ export default function VisitPage() {
 
   if (loading) return (
     <div className="flex justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
+      <div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" />
     </div>
   );
 
@@ -238,10 +238,10 @@ export default function VisitPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="card bg-blue-50 border-blue-200">
+      <div className="card bg-pluma-50 border-pluma-200">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Visita em Andamento</p>
+            <p className="text-xs text-pluma-600 font-medium uppercase tracking-wide">Visita em Andamento</p>
             <h2 className="text-lg font-bold text-gray-800 mt-0.5">{visit.pdv?.name}</h2>
             {visit.pdv?.city && <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><MapPin size={10} />{visit.pdv.city}</p>}
           </div>
@@ -344,7 +344,7 @@ export default function VisitPage() {
         <label className="flex items-center gap-2 mt-3 cursor-pointer">
           <input
             type="checkbox"
-            className="w-4 h-4 text-blue-600 rounded"
+            className="w-4 h-4 text-pluma-800 rounded"
             checked={noProducts}
             onChange={e => setNoProducts(e.target.checked)}
           />

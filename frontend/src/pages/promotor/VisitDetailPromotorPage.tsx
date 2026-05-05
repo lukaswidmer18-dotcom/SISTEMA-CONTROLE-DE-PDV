@@ -26,7 +26,7 @@ export default function VisitDetailPromotorPage() {
 
   if (loading) return (
     <div className="flex justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent" />
+      <div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" />
     </div>
   );
   if (!visit) return <div className="p-4 text-center text-gray-400">Visita não encontrada.</div>;
