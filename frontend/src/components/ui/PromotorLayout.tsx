@@ -34,8 +34,11 @@ export default function PromotorLayout() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 pb-20">
+      <main className="flex-1 pb-24">
         <Outlet />
+        <div className="text-center py-3">
+          <p className="text-gray-400 text-[10px]">© 2026 Grupo Pluma • Desenvolvido por Lukas Widmer</p>
+        </div>
       </main>
 
       {/* Bottom nav */}

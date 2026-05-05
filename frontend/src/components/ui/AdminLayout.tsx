@@ -62,6 +62,15 @@ export default function AdminLayout() {
             Sair
           </button>
         </div>
+
+        <div className="px-4 pb-4 text-center">
+          <p className="text-blue-400 text-[10px] leading-snug">
+            © 2026 Grupo Pluma
+          </p>
+          <p className="text-blue-500 text-[10px]">
+            Desenvolvido por Lukas Widmer
+          </p>
+        </div>
       </aside>
 
       {/* Overlay mobile */}
