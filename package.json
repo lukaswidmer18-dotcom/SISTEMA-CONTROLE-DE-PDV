@@ -1,0 +1,12 @@
+{
+  "name": "pdv-sistema",
+  "version": "1.0.0",
+  "description": "Sistema de Controle de Promotores em PDV",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "setup": "cd backend && npm install && npx prisma migrate dev --name init && npx ts-node src/seed.ts",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "start /B cmd /c \"cd backend && npm run dev\" && cd frontend && npm run dev"
+  }
+}

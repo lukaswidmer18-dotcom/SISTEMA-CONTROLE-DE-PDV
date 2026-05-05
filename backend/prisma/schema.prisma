@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("PROMOTOR")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  pontos   Ponto[]
+  visits   Visit[]
+
+  @@map("users")
+}
+
+model PDV {
+  id        String   @id @default(uuid())
+  name      String
+  address   String   @default("")
+  city      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visits Visit[]
+
+  @@map("pdvs")
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  brand     String   @default("")
+  sku       String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  validities Validity[]
+
+  @@map("products")
+}
+
+model Ponto {
+  id                String   @id @default(uuid())
+  userId            String
+  type              String
+  timestamp         DateTime @default(now())
+  latitude          Float?
+  longitude         Float?
+  locationAvailable Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("pontos")
+}
+
+model Visit {
+  id               String    @id @default(uuid())
+  promotorId       String
+  pdvId            String
+  status           String    @default("IN_PROGRESS")
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  noProductsFound  Boolean   @default(false)
+  latitudeStart    Float?
+  longitudeStart   Float?
+  latitudeEnd      Float?
+  longitudeEnd     Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  promotor   User     @relation(fields: [promotorId], references: [id])
+  pdv        PDV      @relation(fields: [pdvId], references: [id])
+  photos     Photo[]
+  validities Validity[]
+
+  @@map("visits")
+}
+
+model Photo {
+  id         String   @id @default(uuid())
+  visitId    String
+  filePath   String
+  fileName   String
+  latitude   Float?
+  longitude  Float?
+  uploadedAt DateTime @default(now())
+
+  visit Visit @relation(fields: [visitId], references: [id])
+
+  @@map("photos")
+}
+
+model Validity {
+  id          String   @id @default(uuid())
+  visitId     String
+  productId   String
+  expiryDate  String
+  quantity    Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  visit   Visit   @relation(fields: [visitId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("validities")
+}
