@@ -5,7 +5,16 @@ import { Plus, Pencil, ToggleLeft, ToggleRight, X } from 'lucide-react';
 
 function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => void; onSaved: () => void }) {
   const isEdit = Boolean(pdv);
-  const [form, setForm] = useState({ name: pdv?.name || '', address: pdv?.address || '', city: pdv?.city || '' });
+  const [form, setForm] = useState({ 
+    name: pdv?.name || '', 
+    address: pdv?.address || '', 
+    city: pdv?.city || '',
+    state: pdv?.state || ''
+  });
+  const UFS = [
+    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+    'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  ];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,6 +56,17 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
             <input className="input-field" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estado (UF)</label>
+            <select 
+              className="input-field" 
+              value={form.state} 
+              onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+            >
+              <option value="">Selecione...</option>
+              {UFS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
@@ -92,43 +112,76 @@ export default function PDVsPage() {
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+      ) : pdvs.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">Nenhum PDV cadastrado.</div>
       ) : (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Endereço</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Cidade</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {pdvs.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{p.address || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{p.city || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setModal({ open: true, pdv: p })} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
-                        <Pencil size={15} />
-                      </button>
-                      <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
-                        {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                      </button>
-                    </div>
-                  </td>
+        <>
+          {/* Cards — mobile */}
+          <div className="space-y-3 md:hidden">
+            {pdvs.map(p => (
+              <div key={p.id} className="card">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">{p.name}</p>
+                    {(p.address || p.city || p.state) && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {[p.address, p.city, p.state].filter(Boolean).join(' — ')}
+                      </p>
+                    )}
+                  </div>
+                  <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
+                </div>
+                <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+                  <button onClick={() => setModal({ open: true, pdv: p })} className="p-2 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
+                    <Pencil size={15} />
+                  </button>
+                  <button onClick={() => toggleActive(p)} className={`p-2 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
+                    {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="card p-0 overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Endereço</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cidade</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">UF</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {pdvs.length === 0 && <div className="text-center py-8 text-gray-400">Nenhum PDV cadastrado.</div>}
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pdvs.map(p => (
+                  <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.address || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.city || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.state || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button onClick={() => setModal({ open: true, pdv: p })} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
+                          {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {modal.open && (

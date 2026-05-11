@@ -30,7 +30,10 @@ export async function getOptionalLocation(): Promise<OptionalLocation> {
   }
 }
 
-// Mantida por compatibilidade
-export async function getRequiredLocation(): Promise<OptionalLocation> {
-  return getOptionalLocation();
+export async function getRequiredLocation(): Promise<{ latitude: number; longitude: number }> {
+  const loc = await getOptionalLocation();
+  if (loc.latitude === null || loc.longitude === null) {
+    throw new Error('Não foi possível obter a localização. Verifique as permissões do dispositivo.');
+  }
+  return { latitude: loc.latitude, longitude: loc.longitude };
 }

@@ -21,6 +21,7 @@ export interface OfflinePontoAction extends OfflineActionBase {
     type: PontoType;
     latitude: number;
     longitude: number;
+    locationAvailable: boolean;
   };
 }
 
@@ -31,6 +32,7 @@ export interface OfflineStartVisitAction extends OfflineActionBase {
     pdvId: string;
     latitude: number;
     longitude: number;
+    locationAvailable: boolean;
   };
 }
 
@@ -43,6 +45,7 @@ export interface OfflinePhotoAction extends OfflineActionBase {
     fileName: string;
     latitude: number;
     longitude: number;
+    locationAvailable: boolean;
   };
 }
 
@@ -65,6 +68,7 @@ export interface OfflineFinishVisitAction extends OfflineActionBase {
     latitude: number;
     longitude: number;
     noProductsFound: boolean;
+    locationAvailable: boolean;
   };
 }
 
@@ -197,6 +201,7 @@ async function syncAction(action: OfflineAction, visitMap: Record<string, string
     formData.append('photo', action.payload.file, action.payload.fileName);
     formData.append('latitude', String(action.payload.latitude));
     formData.append('longitude', String(action.payload.longitude));
+    formData.append('locationAvailable', String(action.payload.locationAvailable));
 
     await api.post(`/visits/${visitId}/photos`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

@@ -106,49 +106,83 @@ export default function UsersPage() {
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+      ) : users.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">Nenhum usuário cadastrado.</div>
       ) : (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">E-mail</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {users.map(u => (
-                <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{u.email}</td>
-                  <td className="px-4 py-3">
+        <>
+          {/* Cards — mobile */}
+          <div className="space-y-3 md:hidden">
+            {users.map(u => (
+              <div key={u.id} className="card">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">{u.name}</p>
+                    <p className="text-xs text-gray-500">{u.email}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
                     <span className={u.role === 'ADMIN' ? 'badge-blue' : 'badge-green'}>
                       {u.role === 'ADMIN' ? 'Admin' : 'Promotor'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
                     <span className={u.active ? 'badge-green' : 'badge-red'}>
                       {u.active ? 'Ativo' : 'Inativo'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setModal({ open: true, user: u })} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
-                        <Pencil size={15} />
-                      </button>
-                      <button onClick={() => toggleActive(u)} className={`p-1.5 rounded ${u.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
-                        {u.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                      </button>
-                    </div>
-                  </td>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
+                  <button onClick={() => setModal({ open: true, user: u })} className="p-2 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
+                    <Pencil size={15} />
+                  </button>
+                  <button onClick={() => toggleActive(u)} className={`p-2 rounded ${u.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
+                    {u.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="card p-0 overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {users.length === 0 && <div className="text-center py-8 text-gray-400">Nenhum usuário cadastrado.</div>}
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users.map(u => (
+                  <tr key={u.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={u.role === 'ADMIN' ? 'badge-blue' : 'badge-green'}>
+                        {u.role === 'ADMIN' ? 'Admin' : 'Promotor'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={u.active ? 'badge-green' : 'badge-red'}>
+                        {u.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 justify-end">
+                        <button onClick={() => setModal({ open: true, user: u })} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => toggleActive(u)} className={`p-1.5 rounded ${u.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
+                          {u.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {modal.open && (

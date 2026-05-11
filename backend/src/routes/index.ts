@@ -6,7 +6,7 @@ import { listProducts, createProduct, updateProduct, toggleProductActive } from 
 import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pontoController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
-  finishVisit, getMyVisits, getVisitDetail, listAllVisits,
+  finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
 } from '../controllers/visitController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { upload } from '../middleware/upload';
@@ -51,5 +51,8 @@ router.delete('/visits/:visitId/photos/:photoId', authenticate, deletePhoto);
 router.post('/visits/:visitId/validities', authenticate, addValidity);
 router.delete('/visits/:visitId/validities/:validityId', authenticate, deleteValidity);
 router.patch('/visits/:visitId/finish', authenticate, finishVisit);
+
+// Admin Map
+router.get('/admin/map/today', authenticate, requireAdmin, getMapData);
 
 export default router;

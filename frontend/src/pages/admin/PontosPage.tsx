@@ -69,38 +69,57 @@ export default function PontosPage() {
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+      ) : pontos.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">Nenhum registro encontrado.</div>
       ) : (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Promotor</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Horário</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Localização</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {pontos.map(p => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{p.user?.name || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={PONTO_COLORS[p.type] || 'badge-blue'}>{PONTO_LABELS[p.type] || p.type}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
+        <>
+          {/* Cards — mobile */}
+          <div className="space-y-3 md:hidden">
+            {pontos.map(p => (
+              <div key={p.id} className="card flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-gray-800 text-sm">{p.user?.name || '-'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
                     {format(new Date(p.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">
-                    {p.locationAvailable && p.latitude && p.longitude
-                      ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
-                      : 'Não disponível'}
-                  </td>
+                  </p>
+                </div>
+                <span className={PONTO_COLORS[p.type] || 'badge-blue'}>{PONTO_LABELS[p.type] || p.type}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabela — desktop */}
+          <div className="card p-0 overflow-hidden hidden md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Promotor</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Horário</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Localização</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {pontos.length === 0 && <div className="text-center py-8 text-gray-400">Nenhum registro encontrado.</div>}
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pontos.map(p => (
+                  <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{p.user?.name || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className={PONTO_COLORS[p.type] || 'badge-blue'}>{PONTO_LABELS[p.type] || p.type}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {format(new Date(p.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">
+                      {p.locationAvailable && p.latitude && p.longitude
+                        ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
+                        : 'Não disponível'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

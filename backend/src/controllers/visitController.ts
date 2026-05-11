@@ -5,6 +5,16 @@ import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/lo
 
 const prisma = new PrismaClient();
 
+async function validateVisitInProgress(visitId: string, userId: string) {
+  const visit = await prisma.visit.findUnique({ 
+    where: { id: visitId },
+    include: { photos: true, validities: true } 
+  });
+  if (!visit || visit.promotorId !== userId) return { error: 'Visita não encontrada.', status: 404 };
+  if (visit.status !== 'IN_PROGRESS') return { error: 'Visita já finalizada.', status: 422 };
+  return { visit };
+}
+
 export async function startVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
   const { pdvId, latitude, longitude } = req.body;
@@ -66,15 +76,12 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   const { visitId } = req.params;
   const { latitude, longitude } = req.body;
 
-  const visit = await prisma.visit.findUnique({ where: { id: visitId } });
-  if (!visit || visit.promotorId !== authReq.user.userId) {
-    res.status(404).json({ success: false, error: 'Visita não encontrada.' });
+  const validation = await validateVisitInProgress(visitId, authReq.user.userId);
+  if (validation.error) {
+    res.status(validation.status!).json({ success: false, error: validation.error });
     return;
   }
-  if (visit.status !== 'IN_PROGRESS') {
-    res.status(422).json({ success: false, error: 'Visita já finalizada.' });
-    return;
-  }
+  const { visit } = validation;
 
   if (!req.file) {
     res.status(400).json({ success: false, error: 'Foto não enviada.' });
@@ -106,15 +113,12 @@ export async function addValidity(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const visit = await prisma.visit.findUnique({ where: { id: visitId } });
-  if (!visit || visit.promotorId !== authReq.user.userId) {
-    res.status(404).json({ success: false, error: 'Visita não encontrada.' });
+  const validation = await validateVisitInProgress(visitId, authReq.user.userId);
+  if (validation.error) {
+    res.status(validation.status!).json({ success: false, error: validation.error });
     return;
   }
-  if (visit.status !== 'IN_PROGRESS') {
-    res.status(422).json({ success: false, error: 'Visita já finalizada.' });
-    return;
-  }
+  const { visit } = validation;
 
   const validity = await prisma.validity.create({
     data: {
@@ -187,19 +191,12 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   const { visitId } = req.params;
   const { latitude, longitude, noProductsFound } = req.body;
 
-  const visit = await prisma.visit.findUnique({
-    where: { id: visitId },
-    include: { photos: true, validities: true },
-  });
-
-  if (!visit || visit.promotorId !== authReq.user.userId) {
-    res.status(404).json({ success: false, error: 'Visita não encontrada.' });
+  const validation = await validateVisitInProgress(visitId, authReq.user.userId);
+  if (validation.error) {
+    res.status(validation.status!).json({ success: false, error: validation.error });
     return;
   }
-  if (visit.status !== 'IN_PROGRESS') {
-    res.status(422).json({ success: false, error: 'Visita já finalizada.' });
-    return;
-  }
+  const { visit } = validation;
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
@@ -309,4 +306,81 @@ export async function listAllVisits(req: Request, res: Response): Promise<void> 
   });
 
   res.json({ success: true, data: visits });
+}
+
+export async function getMapData(req: Request, res: Response): Promise<void> {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  // Buscar todos os promotores ativos para garantir que apareçam no mapa se tiverem rastro
+  const users = await prisma.user.findMany({
+    where: { role: 'PROMOTOR', active: true },
+    select: { id: true, name: true, email: true },
+  });
+
+  // Buscar visitas de hoje
+  const visits = await prisma.visit.findMany({
+    where: {
+      startedAt: { gte: startOfDay, lte: endOfDay },
+    },
+    include: {
+      pdv: true,
+      promotor: { select: { id: true, name: true } },
+    },
+    orderBy: { startedAt: 'asc' },
+  });
+
+  // Buscar pontos de hoje
+  const pontos = await prisma.ponto.findMany({
+    where: {
+      timestamp: { gte: startOfDay, lte: endOfDay },
+    },
+    include: {
+      user: { select: { id: true, name: true } },
+    },
+    orderBy: { timestamp: 'asc' },
+  });
+
+  // Consolidar por promotor para facilitar o desenho do rastro no frontend
+  const mapData = users.map((user) => {
+    const userVisits = visits.filter((v) => v.promotorId === user.id);
+    const userPontos = pontos.filter((p) => p.userId === user.id);
+
+    // Determinar o status atual e última localização
+    let lastLocation = null;
+    let currentPDV = null;
+    let status = 'INATIVO'; // INATIVO, LOGADO, EM_VISITA
+
+    // Verificar se há visita em andamento
+    const activeVisit = userVisits.find((v) => v.status === 'IN_PROGRESS');
+    if (activeVisit) {
+      status = 'EM_VISITA';
+      currentPDV = activeVisit.pdv.name;
+      lastLocation = { lat: activeVisit.latitudeStart, lng: activeVisit.longitudeStart, time: activeVisit.startedAt };
+    } else if (userPontos.length > 0) {
+      status = 'LOGADO';
+      const lastPonto = userPontos[userPontos.length - 1];
+      lastLocation = { lat: lastPonto.latitude, lng: lastPonto.longitude, time: lastPonto.timestamp };
+    }
+
+    // Gerar o rastro (sequência de pontos temporais)
+    const trail = [
+      ...userPontos.map((p) => ({ lat: p.latitude, lng: p.longitude, time: p.timestamp, type: 'PONTO', label: p.type, state: null })),
+      ...userVisits.map((v) => ({ lat: v.latitudeStart, lng: v.longitudeStart, time: v.startedAt, type: 'VISITA_START', label: `Início: ${v.pdv.name}`, state: v.pdv.state })),
+      ...userVisits.filter(v => v.latitudeEnd).map((v) => ({ lat: v.latitudeEnd, lng: v.longitudeEnd, time: v.completedAt, type: 'VISITA_END', label: `Fim: ${v.pdv.name}`, state: v.pdv.state })),
+    ].sort((a, b) => new Date(a.time!).getTime() - new Date(b.time!).getTime());
+
+    return {
+      promotorId: user.id,
+      promotorName: user.name,
+      status,
+      currentPDV,
+      lastState: activeVisit?.pdv?.state || (userVisits.length > 0 ? userVisits[userVisits.length - 1].pdv.state : null),
+      lastLocation,
+      trail,
+    };
+  });
+
+  res.json({ success: true, data: mapData });
 }

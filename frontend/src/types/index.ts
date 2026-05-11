@@ -14,6 +14,7 @@ export interface PDV {
   name: string;
   address: string;
   city: string;
+  state: string;
   active: boolean;
   createdAt?: string;
 }
