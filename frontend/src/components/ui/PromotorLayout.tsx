@@ -7,6 +7,7 @@ import { OfflineSyncProvider } from '../../contexts/OfflineSyncContext';
 const navItems = [
   { to: '/promotor', label: 'Início', icon: Home, end: true },
   { to: '/promotor/ponto', label: 'Jornada', icon: Clock },
+  { to: '/promotor/visita', label: 'Visitas', icon: MapPin },
   { to: '/promotor/historico', label: 'Histórico', icon: ClipboardList },
 ];
 

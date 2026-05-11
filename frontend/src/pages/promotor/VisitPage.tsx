@@ -725,18 +725,6 @@ export default function VisitPage() {
               </label>
 
               <div className="pt-6 border-t border-gray-100">
-                <button 
-                  onClick={handleFinish} 
-                  disabled={finishing || photoCount < 10} 
-                  className={`w-full py-5 text-xl font-black rounded-2xl transition-all flex items-center justify-center gap-3 ${photoCount >= 10 ? 'bg-pluma-800 text-white shadow-glow-pluma hover:bg-pluma-900' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                >
-                  {finishing ? (
-                    <><span className="animate-spin rounded-full h-5 w-5 border-3 border-current border-t-transparent" /> Finalizando...</>
-                  ) : (
-                    <><CheckCircle size={22} /> Finalizar Visita</>
-                  )}
-                </button>
-                
                 {photoCount < 10 && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between text-xs font-bold mb-2">
@@ -749,9 +737,15 @@ export default function VisitPage() {
                         style={{ width: `${(photoCount / 10) * 100}%` }} 
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase text-center italic">
-                      Faltam {10 - photoCount} fotos para liberar a finalização
+                    <p className="text-[10px] text-amber-600 font-bold mt-3 uppercase tracking-tight text-center italic">
+                      Finalize esta visita na aba "Jornada" após atingir 10 fotos.
                     </p>
+                  </div>
+                )}
+                {photoCount >= 10 && (
+                  <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-center">
+                    <p className="text-sm font-black text-green-700 uppercase">Fotos OK! ✅</p>
+                    <p className="text-[10px] text-green-600 font-bold mt-1">Vá para a aba "Jornada" para concluir este PDV.</p>
                   </div>
                 )}
               </div>
