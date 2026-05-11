@@ -55,6 +55,7 @@ model Product {
 model Ponto {
   id                String   @id @default(uuid())
   userId            String
+  visitId           String?
   type              String
   timestamp         DateTime @default(now())
   latitude          Float?
@@ -62,7 +63,8 @@ model Ponto {
   locationAvailable Boolean  @default(false)
   createdAt         DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user  User   @relation(fields: [userId], references: [id])
+  visit Visit? @relation(fields: [visitId], references: [id])
 
   @@map("pontos")
 }
@@ -86,6 +88,7 @@ model Visit {
   pdv        PDV      @relation(fields: [pdvId], references: [id])
   photos     Photo[]
   validities Validity[]
+  pontos     Ponto[]
 
   @@map("visits")
 }
