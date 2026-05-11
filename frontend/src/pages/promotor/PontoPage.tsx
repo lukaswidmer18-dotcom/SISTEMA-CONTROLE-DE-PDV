@@ -584,16 +584,21 @@ export default function PontoPage() {
 
           <div className="card h-full">
             <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <ClipboardList size={18} className="text-pluma-600" />
-              Minha Jornada
+              <Clock size={18} className="text-pluma-600" />
+              Jornada no PDV
             </h3>
             
             {loading ? (
               <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
+            ) : !visit ? (
+              <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 animate-fade-in">
+                <MapPin size={32} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-400 font-medium">Selecione um PDV à direita<br/>para iniciar a jornada.</p>
+              </div>
             ) : pontos.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
-                <Clock size={32} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-400 font-medium">Nenhum registro ainda hoje.</p>
+              <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 animate-fade-in">
+                <Play size={32} className="mx-auto text-pluma-300 mb-2" />
+                <p className="text-sm text-gray-400 font-medium">Visita iniciada!<br/>Registre o <span className="text-pluma-600 font-bold uppercase">Início</span> no botão ao lado.</p>
               </div>
             ) : (
               <div className="relative">
@@ -628,24 +633,16 @@ export default function PontoPage() {
         <div className="space-y-6 sticky top-24">
           {!loading && (
             <div className="space-y-6">
-              {/* Status da Jornada */}
-              <div className="card overflow-hidden">
-                <div className="bg-gray-900 -mx-6 -mt-6 p-6 mb-6">
-                  <p className="text-pluma-300 text-xs font-bold uppercase tracking-widest mb-1">Status da Jornada</p>
-                  <h4 className="text-white text-xl font-black">
-                    {hasSaida ? 'Jornada Finalizada' : hasEntrada ? 'Em Trabalho' : 'Aguardando Início'}
-                  </h4>
-                </div>
-
-                {hasSaida ? (
-                  <div className="text-center py-6">
-                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle size={40} className="text-green-500" />
-                    </div>
-                    <p className="font-black text-gray-900 text-xl mb-1">Tudo certo por hoje!</p>
-                    <p className="text-sm text-gray-500">Seus horários foram registrados com sucesso.</p>
+              {/* Status da Jornada - Visible ONLY if there's a visit active */}
+              {visit ? (
+                <div className="card overflow-hidden">
+                  <div className="bg-gray-900 -mx-6 -mt-6 p-6 mb-6">
+                    <p className="text-pluma-300 text-xs font-bold uppercase tracking-widest mb-1">Status da Visita</p>
+                    <h4 className="text-white text-xl font-black">
+                      {hasSaida ? 'Visita no PDV Encerrada' : hasEntrada ? 'Trabalhando no PDV' : 'Aguardando Início'}
+                    </h4>
                   </div>
-                ) : (
+
                   <div className="space-y-4">
                     {nextPonto && (
                       <div className="bg-pluma-50 border border-pluma-100 rounded-2xl p-4 mb-2">
@@ -660,7 +657,7 @@ export default function PontoPage() {
                               <span className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent" />
                               Processando...
                             </span>
-                          ) : nextPonto === 'ENTRADA' ? 'Iniciar Jornada' : `Registrar ${PONTO_LABELS[nextPonto]}`}
+                          ) : nextPonto === 'ENTRADA' ? 'Iniciar Trabalho' : `Registrar ${PONTO_LABELS[nextPonto]}`}
                         </button>
                       </div>
                     )}
@@ -671,19 +668,23 @@ export default function PontoPage() {
                         disabled={registering}
                         className="w-full py-3 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
                       >
-                        Pular almoço e Finalizar Dia
+                        Pular almoço e Encerrar PDV
                       </button>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                /* No Active Visit - Show Start Form */
+                <div className="card">
+                  <StartVisitForm pdvs={pdvs} onStart={() => load()} />
+                </div>
+              )}
 
-              {/* Visit Management Section - Only if Clocked In and not Clocked Out */}
-              {hasEntrada && !hasSaida && (
+              {/* Visit Management Section (Photos/Products) - Only if Visit is Active */}
+              {visit && (
                 <div className="animate-fade-in space-y-6">
-                  {visit ? (
-                    /* Active Visit Checklist */
-                    <div className="card border-l-4 border-l-pluma-600">
+                  {/* Active Visit Checklist Card */}
+                  <div className="card border-l-4 border-l-pluma-600">
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
                           <div className="p-2.5 bg-pluma-50 text-pluma-700 rounded-xl">
