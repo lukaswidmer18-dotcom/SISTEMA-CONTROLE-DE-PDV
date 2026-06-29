@@ -1,13 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, Trash2, MapPin, Route as RouteIcon, Store, Users } from 'lucide-react';
+import { Plus, Trash2, MapPin, Route as RouteIcon, Store, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, addDays, isSameDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const DAYS_SHORT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
-function DayColumn({ dayOfWeek, routes, availablePdvs, isToday, onAdd, onRemove }: {
+function getWeekStart(weekOffset: number): Date {
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return addDays(todayMidnight, -todayMidnight.getDay() + weekOffset * 7);
+}
+
+function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onRemove }: {
   dayOfWeek: number;
+  date: Date;
   routes: RotaVisita[];
   availablePdvs: PDV[];
   isToday: boolean;
@@ -28,7 +37,7 @@ function DayColumn({ dayOfWeek, routes, availablePdvs, isToday, onAdd, onRemove 
     <div className={`card min-h-[220px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <div>
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]}</span>
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]} · {format(date, 'dd/MM')}</span>
           <h4 className="text-sm font-black text-gray-900 tracking-tight">{DAYS[dayOfWeek]}</h4>
         </div>
         {isToday && (
@@ -83,10 +92,14 @@ export default function RoutesPage() {
   const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [routes, setRoutes] = useState<RotaVisita[]>([]);
   const [selectedPromotor, setSelectedPromotor] = useState('');
+  const [activeDays, setActiveDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
+  const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const today = new Date().getDay();
+  const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset]);
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const todayDate = new Date();
 
   async function load() {
     setLoading(true);
@@ -102,32 +115,46 @@ export default function RoutesPage() {
     }
   }
 
-  async function loadRoutes(promotorId: string) {
+  async function loadRoutes(promotorId: string, dates: Date[]) {
     if (!promotorId) {
       setRoutes([]);
       return;
     }
-    const { data } = await api.get('/routes', { params: { promotorId } });
+    const { data } = await api.get('/routes', {
+      params: { promotorId, from: format(dates[0], 'yyyy-MM-dd'), to: format(dates[6], 'yyyy-MM-dd') },
+    });
     setRoutes(data.data || []);
   }
 
   useEffect(() => { load(); }, []);
-  useEffect(() => { loadRoutes(selectedPromotor); }, [selectedPromotor]);
+  useEffect(() => { loadRoutes(selectedPromotor, weekDates); }, [selectedPromotor, weekOffset]);
 
   const routesByDay = useMemo(() => {
     const grouped: Record<number, RotaVisita[]> = {};
     for (let d = 0; d < 7; d++) grouped[d] = [];
-    for (const r of routes) grouped[r.dayOfWeek]?.push(r);
+    for (const r of routes) {
+      const idx = weekDates.findIndex(d => format(d, 'yyyy-MM-dd') === r.date.slice(0, 10));
+      if (idx !== -1) grouped[idx].push(r);
+    }
     return grouped;
-  }, [routes]);
+  }, [routes, weekDates]);
 
   const selectedPromotorName = promotores.find(p => p.id === selectedPromotor)?.name;
 
-  async function handleAdd(dayOfWeek: number, pdvId: string) {
+  function toggleDay(dayOfWeek: number) {
+    setActiveDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayOfWeek)) next.delete(dayOfWeek);
+      else next.add(dayOfWeek);
+      return next;
+    });
+  }
+
+  async function handleAdd(date: Date, pdvId: string) {
     setError('');
     try {
-      await api.post('/routes', { promotorId: selectedPromotor, pdvId, dayOfWeek });
-      await loadRoutes(selectedPromotor);
+      await api.post('/routes', { promotorId: selectedPromotor, pdvId, date: format(date, 'yyyy-MM-dd') });
+      await loadRoutes(selectedPromotor, weekDates);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao adicionar PDV à rota.');
     }
@@ -137,7 +164,7 @@ export default function RoutesPage() {
     setError('');
     try {
       await api.delete(`/routes/${routeId}`);
-      await loadRoutes(selectedPromotor);
+      await loadRoutes(selectedPromotor, weekDates);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao remover PDV da rota.');
     }
@@ -154,7 +181,7 @@ export default function RoutesPage() {
             Rotas de Visita
           </h2>
           <p className="text-sm text-gray-500 mt-1 font-medium">
-            Define quais PDVs cada promotor visita em cada dia da semana.
+            Define quais PDVs cada promotor visita em datas específicas.
           </p>
         </div>
         {selectedPromotor && (
@@ -182,6 +209,65 @@ export default function RoutesPage() {
         </p>
       </div>
 
+      {selectedPromotor && (
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWeekOffset(w => w - 1)}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <p className="text-sm font-black text-gray-800 tracking-tight min-w-[170px] text-center">
+                Semana de {format(weekDates[0], 'dd/MM', { locale: ptBR })} a {format(weekDates[6], 'dd/MM', { locale: ptBR })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setWeekOffset(w => w + 1)}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            {weekOffset !== 0 && (
+              <button type="button" onClick={() => setWeekOffset(0)} className="text-xs font-bold text-pluma-600 hover:text-pluma-800">
+                Voltar pra hoje
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2 ml-1">
+              Dias com visita
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {DAYS.map((_, dayOfWeek) => {
+                const active = activeDays.has(dayOfWeek);
+                return (
+                  <button
+                    key={dayOfWeek}
+                    type="button"
+                    onClick={() => toggleDay(dayOfWeek)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      active
+                        ? 'bg-pluma-800 text-white border-pluma-800 shadow-glow-pluma'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-pluma-200 hover:text-pluma-600'
+                    }`}
+                  >
+                    {DAYS_SHORT[dayOfWeek]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Rota vale só pra essa semana específica — não se repete sozinha. Pra manter o mesmo PDV na semana seguinte, adicione de novo navegando pra ela. Desmarque o dia em que o promotor não atende pra ocultar a coluna.
+            </p>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 flex items-center gap-3 animate-fade-in font-semibold">
           {error}
@@ -197,16 +283,21 @@ export default function RoutesPage() {
           </div>
           <p className="text-sm text-gray-400 font-medium">Selecione um promotor pra montar a rota da semana.</p>
         </div>
+      ) : activeDays.size === 0 ? (
+        <div className="card text-center py-12 text-gray-400 animate-fade-in">
+          Nenhum dia selecionado. Marque ao menos um dia acima.
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 animate-fade-in">
-          {DAYS.map((_, dayOfWeek) => (
+          {DAYS.map((_, dayOfWeek) => activeDays.has(dayOfWeek) && (
             <DayColumn
               key={dayOfWeek}
               dayOfWeek={dayOfWeek}
+              date={weekDates[dayOfWeek]}
               routes={routesByDay[dayOfWeek] || []}
               availablePdvs={pdvs}
-              isToday={dayOfWeek === today}
-              onAdd={(pdvId) => handleAdd(dayOfWeek, pdvId)}
+              isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
+              onAdd={(pdvId) => handleAdd(weekDates[dayOfWeek], pdvId)}
               onRemove={handleRemove}
             />
           ))}

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { geocodeAddress } from '../utils/geocoding';
+import { todayDateOnly } from '../utils/date';
 import { parseCoordinate } from '../utils/location';
 
 const prisma = new PrismaClient();
@@ -33,9 +34,8 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const dayOfWeek = new Date().getDay();
   const routeEntries = await prisma.rotaVisita.findMany({
-    where: { promotorId: authReq.user.userId, dayOfWeek, pdv: { active: true } },
+    where: { promotorId: authReq.user.userId, date: todayDateOnly(), pdv: { active: true } },
     include: { pdv: true },
     orderBy: { order: 'asc' },
   });

@@ -116,7 +116,7 @@ model RotaVisita {
   id         String   @id @default(uuid())
   promotorId String
   pdvId      String
-  dayOfWeek  Int
+  date       DateTime
   order      Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -124,7 +124,7 @@ model RotaVisita {
   promotor User @relation(fields: [promotorId], references: [id])
   pdv      PDV  @relation(fields: [pdvId], references: [id])
 
-  @@unique([promotorId, pdvId, dayOfWeek])
+  @@unique([promotorId, pdvId, date])
   @@map("rotas_visita")
 }
 

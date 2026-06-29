@@ -1,34 +1,46 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { parseDateOnly } from '../utils/date';
 
 const prisma = new PrismaClient();
 
 export async function listRoutes(req: Request, res: Response): Promise<void> {
-  const { promotorId } = req.query;
+  const { promotorId, from, to } = req.query;
+
+  const where: any = {};
+  if (promotorId) where.promotorId = promotorId as string;
+
+  const fromDate = parseDateOnly(from);
+  const toDate = parseDateOnly(to);
+  if (fromDate || toDate) {
+    where.date = {};
+    if (fromDate) where.date.gte = fromDate;
+    if (toDate) where.date.lte = toDate;
+  }
 
   const routes = await prisma.rotaVisita.findMany({
-    where: promotorId ? { promotorId: promotorId as string } : {},
+    where,
     include: {
       pdv: true,
       promotor: { select: { id: true, name: true, email: true } },
     },
-    orderBy: [{ promotorId: 'asc' }, { dayOfWeek: 'asc' }, { order: 'asc' }],
+    orderBy: [{ promotorId: 'asc' }, { date: 'asc' }, { order: 'asc' }],
   });
 
   res.json({ success: true, data: routes });
 }
 
 export async function createRouteEntry(req: Request, res: Response): Promise<void> {
-  const { promotorId, pdvId, dayOfWeek } = req.body;
+  const { promotorId, pdvId, date } = req.body;
 
-  if (!promotorId || !pdvId || dayOfWeek === undefined || dayOfWeek === null) {
-    res.status(400).json({ success: false, error: 'Promotor, PDV e dia da semana são obrigatórios.' });
+  if (!promotorId || !pdvId || !date) {
+    res.status(400).json({ success: false, error: 'Promotor, PDV e data são obrigatórios.' });
     return;
   }
 
-  const dayOfWeekNum = Number(dayOfWeek);
-  if (!Number.isInteger(dayOfWeekNum) || dayOfWeekNum < 0 || dayOfWeekNum > 6) {
-    res.status(400).json({ success: false, error: 'Dia da semana inválido.' });
+  const parsedDate = parseDateOnly(date);
+  if (!parsedDate) {
+    res.status(400).json({ success: false, error: 'Data inválida. Use o formato AAAA-MM-DD.' });
     return;
   }
 
@@ -45,17 +57,17 @@ export async function createRouteEntry(req: Request, res: Response): Promise<voi
   }
 
   const existing = await prisma.rotaVisita.findUnique({
-    where: { promotorId_pdvId_dayOfWeek: { promotorId, pdvId, dayOfWeek: dayOfWeekNum } },
+    where: { promotorId_pdvId_date: { promotorId, pdvId, date: parsedDate } },
   });
   if (existing) {
-    res.status(409).json({ success: false, error: 'Esse PDV já está na rota desse dia para esse promotor.' });
+    res.status(409).json({ success: false, error: 'Esse PDV já está na rota dessa data para esse promotor.' });
     return;
   }
 
-  const countForDay = await prisma.rotaVisita.count({ where: { promotorId, dayOfWeek: dayOfWeekNum } });
+  const countForDate = await prisma.rotaVisita.count({ where: { promotorId, date: parsedDate } });
 
   const route = await prisma.rotaVisita.create({
-    data: { promotorId, pdvId, dayOfWeek: dayOfWeekNum, order: countForDay },
+    data: { promotorId, pdvId, date: parsedDate, order: countForDate },
     include: { pdv: true, promotor: { select: { id: true, name: true, email: true } } },
   });
 

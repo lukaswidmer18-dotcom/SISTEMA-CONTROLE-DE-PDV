@@ -89,7 +89,7 @@ export interface RotaVisita {
   id: string;
   promotorId: string;
   pdvId: string;
-  dayOfWeek: number;
+  date: string;
   order: number;
   pdv?: PDV;
   promotor?: Pick<User, 'id' | 'name' | 'email'>;
