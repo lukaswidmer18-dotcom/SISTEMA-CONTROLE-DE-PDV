@@ -3,6 +3,7 @@ import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive } from '../controllers/userController';
 import { listPDVs, createPDV, updatePDV, togglePDVActive } from '../controllers/pdvController';
 import { listProducts, createProduct, updateProduct, toggleProductActive } from '../controllers/productController';
+import { listRoutes, createRouteEntry, deleteRouteEntry } from '../controllers/routeController';
 import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pontoController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
@@ -34,6 +35,11 @@ router.get('/products', authenticate, listProducts);
 router.post('/products', authenticate, requireAdmin, createProduct);
 router.put('/products/:id', authenticate, requireAdmin, updateProduct);
 router.patch('/products/:id/toggle', authenticate, requireAdmin, toggleProductActive);
+
+// Rotas de visita (admin)
+router.get('/routes', authenticate, requireAdmin, listRoutes);
+router.post('/routes', authenticate, requireAdmin, createRouteEntry);
+router.delete('/routes/:id', authenticate, requireAdmin, deleteRouteEntry);
 
 // Ponto
 router.get('/ponto/today', authenticate, getTodayPonto);

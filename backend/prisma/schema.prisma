@@ -19,6 +19,7 @@ model User {
 
   pontos   Ponto[]
   visits   Visit[]
+  rotas    RotaVisita[]
 
   @@map("users")
 }
@@ -37,6 +38,7 @@ model PDV {
   updatedAt    DateTime @updatedAt
 
   visits Visit[]
+  rotas  RotaVisita[]
 
   @@map("pdvs")
 }
@@ -108,6 +110,22 @@ model Photo {
   visit Visit @relation(fields: [visitId], references: [id])
 
   @@map("photos")
+}
+
+model RotaVisita {
+  id         String   @id @default(uuid())
+  promotorId String
+  pdvId      String
+  dayOfWeek  Int
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  promotor User @relation(fields: [promotorId], references: [id])
+  pdv      PDV  @relation(fields: [pdvId], references: [id])
+
+  @@unique([promotorId, pdvId, dayOfWeek])
+  @@map("rotas_visita")
 }
 
 model Validity {

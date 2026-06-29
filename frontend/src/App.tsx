@@ -9,6 +9,7 @@ import PromotorLayout from './components/ui/PromotorLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UsersPage from './pages/admin/UsersPage';
 import PDVsPage from './pages/admin/PDVsPage';
+import RoutesPage from './pages/admin/RoutesPage';
 import ProductsPage from './pages/admin/ProductsPage';
 import PontosPage from './pages/admin/PontosPage';
 import VisitsAdminPage from './pages/admin/VisitsAdminPage';
@@ -48,6 +49,7 @@ function AppRoutes() {
           <Route index element={<AdminDashboard />} />
           <Route path="usuarios" element={<UsersPage />} />
           <Route path="pdvs" element={<PDVsPage />} />
+          <Route path="rotas" element={<RoutesPage />} />
           <Route path="produtos" element={<ProductsPage />} />
           <Route path="pontos" element={<PontosPage />} />
           <Route path="visitas" element={<VisitsAdminPage />} />

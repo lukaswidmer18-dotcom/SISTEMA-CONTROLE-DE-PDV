@@ -85,6 +85,17 @@ export interface Visit {
   _count?: { photos: number; validities: number };
 }
 
+export interface RotaVisita {
+  id: string;
+  promotorId: string;
+  pdvId: string;
+  dayOfWeek: number;
+  order: number;
+  pdv?: PDV;
+  promotor?: Pick<User, 'id' | 'name' | 'email'>;
+  createdAt?: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;

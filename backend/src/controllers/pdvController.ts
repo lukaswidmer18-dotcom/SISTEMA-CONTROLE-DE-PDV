@@ -18,11 +18,20 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
   const isAdmin = authReq.user?.role === 'ADMIN';
 
-  const pdvs = await prisma.pDV.findMany({
-    where: isAdmin ? {} : { active: true },
-    orderBy: { name: 'asc' },
+  if (isAdmin) {
+    const pdvs = await prisma.pDV.findMany({ orderBy: { name: 'asc' } });
+    res.json({ success: true, data: pdvs });
+    return;
+  }
+
+  const dayOfWeek = new Date().getDay();
+  const routeEntries = await prisma.rotaVisita.findMany({
+    where: { promotorId: authReq.user.userId, dayOfWeek, pdv: { active: true } },
+    include: { pdv: true },
+    orderBy: { order: 'asc' },
   });
-  res.json({ success: true, data: pdvs });
+
+  res.json({ success: true, data: routeEntries.map((r) => r.pdv) });
 }
 
 export async function createPDV(req: Request, res: Response): Promise<void> {

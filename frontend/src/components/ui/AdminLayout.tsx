@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map,
+  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route,
 } from 'lucide-react';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/admin/mapa', label: 'Mapa', icon: Map },
   { to: '/admin/usuarios', label: 'Usuários', icon: Users },
   { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
+  { to: '/admin/rotas', label: 'Rotas', icon: Route },
   { to: '/admin/produtos', label: 'Produtos', icon: Package },
   { to: '/admin/pontos', label: 'Pontos', icon: Clock },
   { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
