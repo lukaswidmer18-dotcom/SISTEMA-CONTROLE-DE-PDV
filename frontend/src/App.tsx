@@ -18,7 +18,6 @@ import MapPage from './pages/admin/MapPage';
 
 import PromotorHome from './pages/promotor/PromotorHome';
 import PontoPage from './pages/promotor/PontoPage';
-import VisitPage from './pages/promotor/VisitPage';
 import VisitHistoryPage from './pages/promotor/VisitHistoryPage';
 import VisitDetailPromotorPage from './pages/promotor/VisitDetailPromotorPage';
 
@@ -66,7 +65,6 @@ function AppRoutes() {
       <Route path="/promotor" element={<PromotorLayout />}>
         <Route index element={<PromotorHome />} />
         <Route path="ponto" element={<PontoPage />} />
-        <Route path="visita" element={<VisitPage />} />
         <Route path="historico" element={<VisitHistoryPage />} />
         <Route path="historico/:visitId" element={<VisitDetailPromotorPage />} />
       </Route>

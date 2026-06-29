@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Ponto, Visit } from '../../types';
+import { Ponto, Visit, PDV } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   ENTRADA: 'Início',
@@ -14,21 +14,41 @@ const PONTO_LABELS: Record<string, string> = {
   SAIDA: 'Encerramento',
 };
 
+type PdvStatus = 'EM_ANDAMENTO' | 'VISITADA' | 'PENDENTE';
+
+const STATUS_LABELS: Record<PdvStatus, string> = {
+  EM_ANDAMENTO: 'Em andamento',
+  VISITADA: 'Visitada',
+  PENDENTE: 'Pendente',
+};
+
+const STATUS_COLORS: Record<PdvStatus, string> = {
+  EM_ANDAMENTO: 'bg-blue-50 text-blue-700 border-blue-100',
+  VISITADA: 'bg-green-50 text-green-700 border-green-100',
+  PENDENTE: 'bg-amber-50 text-amber-700 border-amber-100',
+};
+
 export default function PromotorHome() {
   const { user } = useAuth();
   const [pontos, setPontos] = useState<Ponto[]>([]);
   const [activeVisit, setActiveVisit] = useState<Visit | null>(null);
+  const [pdvsToday, setPdvsToday] = useState<PDV[]>([]);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [pontosRes, visitRes] = await Promise.all([
+        const [pontosRes, visitRes, pdvsRes, myVisitsRes] = await Promise.all([
           api.get('/ponto/today'),
           api.get('/visits/active'),
+          api.get('/pdvs'),
+          api.get('/visits/my'),
         ]);
         setPontos(pontosRes.data.data || []);
         setActiveVisit(visitRes.data.data);
+        setPdvsToday(pdvsRes.data.data || []);
+        setRecentVisits(myVisitsRes.data.data || []);
       } finally {
         setLoading(false);
       }
@@ -38,6 +58,15 @@ export default function PromotorHome() {
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
+
+  function getPdvStatus(pdvId: string): PdvStatus {
+    if (activeVisit?.pdvId === pdvId) return 'EM_ANDAMENTO';
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const visitedToday = recentVisits.some(
+      v => v.pdvId === pdvId && v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr
+    );
+    return visitedToday ? 'VISITADA' : 'PENDENTE';
+  }
 
   return (
     <div className="p-4 lg:p-0 space-y-6 animate-fade-in">
@@ -122,7 +151,7 @@ export default function PromotorHome() {
               </div>
               Visita em Andamento
             </h3>
-            <Link to="/promotor/visita" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Ver Visita</Link>
+            <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Ver Visita</Link>
           </div>
 
           <div className="flex-1">
@@ -159,10 +188,55 @@ export default function PromotorHome() {
             )}
           </div>
 
-          <Link to="/promotor/visita" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
+          <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
             {activeVisit ? 'Continuar Visita' : 'Iniciar Nova Visita'}
           </Link>
         </div>
+      </div>
+
+      {/* PDVs da Rota de Hoje */}
+      <div className="card animate-slide-up" style={{ animationDelay: '200ms' }}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
+            <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
+              <Store size={20} />
+            </div>
+            PDVs de Hoje
+          </h3>
+          <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Gerenciar</Link>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+        ) : pdvsToday.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+            <AlertCircle size={32} className="text-orange-400 mb-2" />
+            <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra hoje.</p>
+            <p className="text-xs text-gray-400 mt-1">Fale com o administrador pra montar sua rota.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pdvsToday.map(pdv => {
+              const status = getPdvStatus(pdv.id);
+              return (
+                <div key={pdv.id} className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
+                      <Store size={16} className="text-pluma-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{pdv.name}</p>
+                      {pdv.city && <p className="text-xs text-gray-400 truncate">{pdv.city}</p>}
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
+                    {STATUS_LABELS[status]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* History Shortcut — Full Width on PC */}
