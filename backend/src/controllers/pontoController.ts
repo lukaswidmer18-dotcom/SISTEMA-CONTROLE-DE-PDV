@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/location';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +34,7 @@ export async function getTodayPonto(req: Request, res: Response): Promise<void> 
 
 export async function registerPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { type, latitude, longitude } = req.body;
+  const { type, latitude, longitude, locationAvailable } = req.body;
 
   if (!type || !PONTO_SEQUENCE.includes(type)) {
     res.status(400).json({ success: false, error: 'Tipo de ponto inválido.' });
@@ -42,7 +42,8 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
   }
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
-  if (!coordinates) {
+  const gpsAvailable = locationAvailable !== false && locationAvailable !== 'false';
+  if (gpsAvailable && (coordinates.latitude === null || coordinates.longitude === null)) {
     res.status(422).json({ success: false, error: LOCATION_REQUIRED_MESSAGE });
     return;
   }
@@ -50,7 +51,31 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
   // Get Active Visit
   const activeVisit = await prisma.visit.findFirst({
     where: { promotorId: authReq.user.userId, status: 'IN_PROGRESS' },
+    include: { pdv: true },
   });
+
+  if (activeVisit) {
+    const geofence = checkGeofence(activeVisit.pdv, {
+      latitude: coordinates.latitude ?? 0,
+      longitude: coordinates.longitude ?? 0,
+    });
+    if (geofence.allowed === false) {
+      if (geofence.reason === 'NOT_CONFIGURED') {
+        res.status(422).json({
+          success: false,
+          error: 'PDV sem área de geolocalização configurada. Contate o administrador.',
+        });
+        return;
+      }
+      if (gpsAvailable) {
+        res.status(422).json({
+          success: false,
+          error: `Você está a ${Math.round(geofence.distanceMeters)}m do PDV. Distância máxima permitida: ${geofence.radiusMeters}m.`,
+        });
+        return;
+      }
+    }
+  }
 
   const todayPontos = await prisma.ponto.findMany({
     where: {
@@ -94,7 +119,7 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
       type,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
-      locationAvailable: true,
+      locationAvailable: gpsAvailable,
     },
   });
 

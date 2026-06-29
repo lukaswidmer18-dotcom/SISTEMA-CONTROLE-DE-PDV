@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, MapPin, MapPinOff } from 'lucide-react';
+
+function isGeofenceReady(pdv: PDV): boolean {
+  return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
+}
 
 function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => void; onSaved: () => void }) {
   const isEdit = Boolean(pdv);
-  const [form, setForm] = useState({ 
-    name: pdv?.name || '', 
-    address: pdv?.address || '', 
+  const [form, setForm] = useState({
+    name: pdv?.name || '',
+    address: pdv?.address || '',
     city: pdv?.city || '',
-    state: pdv?.state || ''
+    state: pdv?.state || '',
+    radiusMeters: pdv?.radiusMeters ? String(pdv.radiusMeters) : ''
   });
   const UFS = [
     'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -17,16 +22,27 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   ];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
+  // Guarda o id assim que o PDV é criado, pra resubmissões (corrigindo endereço após falha de geocode) virarem update, não outro create.
+  const [savedId, setSavedId] = useState<string | undefined>(pdv?.id);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setWarning('');
     setLoading(true);
     try {
-      if (isEdit && pdv) {
-        await api.put(`/pdvs/${pdv.id}`, form);
-      } else {
-        await api.post('/pdvs', form);
+      const { data } = savedId
+        ? await api.put(`/pdvs/${savedId}`, form)
+        : await api.post('/pdvs', form);
+
+      if (!savedId && data.data?.id) setSavedId(data.data.id);
+
+      if (data.warning) {
+        setWarning(data.warning);
+        setLoading(false);
+        onSaved();
+        return;
       }
       onSaved();
       onClose();
@@ -68,6 +84,22 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               {UFS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Raio de tolerância (metros) *</label>
+            <input
+              type="number"
+              min="1"
+              className="input-field"
+              required
+              placeholder="Ex: 150"
+              value={form.radiusMeters}
+              onChange={e => setForm(f => ({ ...f, radiusMeters: e.target.value }))}
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Distância máxima do endereço cadastrado para liberar ponto/visita neste PDV. Coordenada é obtida automaticamente a partir do endereço.
+            </p>
+          </div>
+          {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning} Ajuste o endereço e salve novamente para habilitar o PDV.</div>}
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
@@ -131,6 +163,13 @@ export default function PDVsPage() {
                   </div>
                   <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
                 </div>
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  {isGeofenceReady(p) ? (
+                    <span className="flex items-center gap-1 text-green-600"><MapPin size={12} /> Área configurada ({p.radiusMeters}m)</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-amber-600"><MapPinOff size={12} /> Sem área — ponto/visita bloqueados</span>
+                  )}
+                </div>
                 <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
                   <button onClick={() => setModal({ open: true, pdv: p })} className="p-2 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
                     <Pencil size={15} />
@@ -152,6 +191,7 @@ export default function PDVsPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Endereço</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Cidade</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">UF</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Geolocalização</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -163,6 +203,13 @@ export default function PDVsPage() {
                     <td className="px-4 py-3 text-gray-500">{p.address || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.city || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.state || '-'}</td>
+                    <td className="px-4 py-3">
+                      {isGeofenceReady(p) ? (
+                        <span className="flex items-center gap-1 text-green-600 text-xs font-medium"><MapPin size={13} /> {p.radiusMeters}m</span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-amber-600 text-xs font-medium"><MapPinOff size={13} /> Não configurada</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
                     </td>

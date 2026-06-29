@@ -15,6 +15,9 @@ export interface PDV {
   address: string;
   city: string;
   state: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusMeters?: number | null;
   active: boolean;
   createdAt?: string;
 }

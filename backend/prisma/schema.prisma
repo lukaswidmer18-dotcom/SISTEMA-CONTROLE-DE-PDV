@@ -24,14 +24,17 @@ model User {
 }
 
 model PDV {
-  id        String   @id @default(uuid())
-  name      String
-  address   String   @default("")
-  city      String   @default("")
-  state     String   @default("")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  address      String   @default("")
+  city         String   @default("")
+  state        String   @default("")
+  latitude     Float?
+  longitude    Float?
+  radiusMeters Int?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   visits Visit[]
 

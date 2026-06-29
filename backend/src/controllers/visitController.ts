@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/location';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
 
 const prisma = new PrismaClient();
 
@@ -17,7 +17,7 @@ async function validateVisitInProgress(visitId: string, userId: string) {
 
 export async function startVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { pdvId, latitude, longitude } = req.body;
+  const { pdvId, latitude, longitude, locationAvailable } = req.body;
 
   if (!pdvId) {
     res.status(400).json({ success: false, error: 'PDV é obrigatório.' });
@@ -30,6 +30,25 @@ export async function startVisit(req: Request, res: Response): Promise<void> {
   if (!pdv || !pdv.active) {
     res.status(404).json({ success: false, error: 'PDV não encontrado ou inativo.' });
     return;
+  }
+
+  const gpsAvailable = locationAvailable !== false && locationAvailable !== 'false';
+  const geofence = checkGeofence(pdv, { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 });
+  if (geofence.allowed === false) {
+    if (geofence.reason === 'NOT_CONFIGURED') {
+      res.status(422).json({
+        success: false,
+        error: 'PDV sem área de geolocalização configurada. Contate o administrador.',
+      });
+      return;
+    }
+    if (gpsAvailable) {
+      res.status(422).json({
+        success: false,
+        error: `Você está a ${Math.round(geofence.distanceMeters)}m do PDV. Distância máxima permitida: ${geofence.radiusMeters}m.`,
+      });
+      return;
+    }
   }
 
   const inProgress = await prisma.visit.findFirst({
