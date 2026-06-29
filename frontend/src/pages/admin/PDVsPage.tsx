@@ -14,7 +14,8 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     address: pdv?.address || '',
     city: pdv?.city || '',
     state: pdv?.state || '',
-    radiusMeters: pdv?.radiusMeters ? String(pdv.radiusMeters) : ''
+    radiusMeters: pdv?.radiusMeters ? String(pdv.radiusMeters) : '',
+    manualCoord: ''
   });
   const UFS = [
     'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -26,15 +27,40 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   // Guarda o id assim que o PDV é criado, pra resubmissões (corrigindo endereço após falha de geocode) virarem update, não outro create.
   const [savedId, setSavedId] = useState<string | undefined>(pdv?.id);
 
+  function parseManualCoord(value: string): { latitude: number; longitude: number } | null {
+    const trimmed = value.trim();
+    if (!trimmed) return { latitude: NaN, longitude: NaN }; // sentinel: campo vazio, não null (null = inválido)
+    const parts = trimmed.split(',').map(p => p.trim());
+    if (parts.length !== 2) return null;
+    const latitude = Number(parts[0]);
+    const longitude = Number(parts[1]);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+    return { latitude, longitude };
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setWarning('');
+
+    const manual = parseManualCoord(form.manualCoord);
+    if (manual === null) {
+      setError("Coordenada manual inválida. Use o formato 'lat, lng', ex: -24.9555, -53.4561.");
+      return;
+    }
+
     setLoading(true);
     try {
+      const payload: any = { name: form.name, address: form.address, city: form.city, state: form.state, radiusMeters: form.radiusMeters };
+      if (!Number.isNaN(manual.latitude)) {
+        payload.latitude = manual.latitude;
+        payload.longitude = manual.longitude;
+      }
+
       const { data } = savedId
-        ? await api.put(`/pdvs/${savedId}`, form)
-        : await api.post('/pdvs', form);
+        ? await api.put(`/pdvs/${savedId}`, payload)
+        : await api.post('/pdvs', payload);
 
       if (!savedId && data.data?.id) setSavedId(data.data.id);
 
@@ -99,7 +125,22 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               Distância máxima do endereço cadastrado para liberar ponto/visita neste PDV. Coordenada é obtida automaticamente a partir do endereço.
             </p>
           </div>
-          {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning} Ajuste o endereço e salve novamente para habilitar o PDV.</div>}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Coordenada manual (opcional)</label>
+            <input
+              className={`input-field ${warning ? 'border-amber-400 ring-1 ring-amber-200' : ''}`}
+              placeholder="-24.9555, -53.4561"
+              value={form.manualCoord}
+              onChange={e => setForm(f => ({ ...f, manualCoord: e.target.value }))}
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Use só se o endereço não for encontrado no mapa. No Google Maps, clique com o botão direito no local exato e copie as coordenadas (formato "lat, lng"). Se preenchido, tem prioridade sobre o endereço e ignora o geocoding automático.
+            </p>
+            {isEdit && pdv?.latitude != null && pdv?.longitude != null && (
+              <p className="text-xs text-gray-400 mt-1">Coordenada atual: {pdv.latitude}, {pdv.longitude}</p>
+            )}
+          </div>
+          {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning}</div>}
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>

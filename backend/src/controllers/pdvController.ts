@@ -1,17 +1,26 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { geocodeAddress } from '../utils/geocoding';
+import { parseCoordinate } from '../utils/location';
 
 const prisma = new PrismaClient();
 
 const GEOCODE_FAILED_MESSAGE =
-  'Não foi possível localizar este endereço no mapa. Verifique o endereço, cidade e UF e tente novamente.';
+  'Não foi possível localizar este endereço no mapa. Verifique o endereço, cidade e UF e tente novamente, ou informe a coordenada manual.';
 
 function parseRadiusMeters(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
   if (value === null || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+}
+
+function parseManualCoords(latitude: unknown, longitude: unknown): { latitude: number; longitude: number } | null {
+  const lat = parseCoordinate(latitude);
+  const lng = parseCoordinate(longitude);
+  if (lat === null || lng === null) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { latitude: lat, longitude: lng };
 }
 
 export async function listPDVs(req: Request, res: Response): Promise<void> {
@@ -35,7 +44,7 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
 }
 
 export async function createPDV(req: Request, res: Response): Promise<void> {
-  const { name, address, city, state, radiusMeters } = req.body;
+  const { name, address, city, state, radiusMeters, latitude, longitude } = req.body;
   if (!name) {
     res.status(400).json({ success: false, error: 'Nome é obrigatório.' });
     return;
@@ -45,7 +54,9 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
   const trimmedCity = city?.trim() || '';
   const trimmedState = state?.trim()?.toUpperCase() || '';
 
-  const geocoded = await geocodeAddress(trimmedAddress, trimmedCity, trimmedState);
+  const manual = parseManualCoords(latitude, longitude);
+  const geocoded = manual ? null : await geocodeAddress(trimmedAddress, trimmedCity, trimmedState);
+  const coords = manual ?? geocoded;
 
   const pdv = await prisma.pDV.create({
     data: {
@@ -53,8 +64,8 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
       address: trimmedAddress,
       city: trimmedCity,
       state: trimmedState,
-      latitude: geocoded?.latitude ?? null,
-      longitude: geocoded?.longitude ?? null,
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
       radiusMeters: parseRadiusMeters(radiusMeters) ?? null,
     },
   });
@@ -62,13 +73,13 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
   res.status(201).json({
     success: true,
     data: pdv,
-    ...(!geocoded && { warning: GEOCODE_FAILED_MESSAGE }),
+    ...(!coords && { warning: GEOCODE_FAILED_MESSAGE }),
   });
 }
 
 export async function updatePDV(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, city, state, active, radiusMeters } = req.body;
+  const { name, address, city, state, active, radiusMeters, latitude, longitude } = req.body;
 
   const pdv = await prisma.pDV.findUnique({ where: { id } });
   if (!pdv) {
@@ -89,8 +100,12 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
   const nextState = updateData.state ?? pdv.state;
   const addressChanged = nextAddress !== pdv.address || nextCity !== pdv.city || nextState !== pdv.state;
 
+  const manual = parseManualCoords(latitude, longitude);
   let geocodeFailed = false;
-  if (addressChanged) {
+  if (manual) {
+    updateData.latitude = manual.latitude;
+    updateData.longitude = manual.longitude;
+  } else if (addressChanged) {
     const geocoded = await geocodeAddress(nextAddress, nextCity, nextState);
     if (geocoded) {
       updateData.latitude = geocoded.latitude;
