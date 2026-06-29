@@ -6,7 +6,7 @@ import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../.
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play } from 'lucide-react';
 import { 
   createLocalId, 
   saveOfflineActiveVisit, 
@@ -763,12 +763,6 @@ export default function PontoPage() {
                         )}
                       </div>
                     </div>
-                  ) : (
-                    /* Start Visit Component */
-                    <div className="card">
-                      <StartVisitForm pdvs={pdvs} onStart={() => load()} />
-                    </div>
-                  )}
                 </div>
               )}
             </div>
