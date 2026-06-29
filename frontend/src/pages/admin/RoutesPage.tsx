@@ -1,12 +1,45 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, Trash2, MapPin, Route as RouteIcon, Store, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, MapPin, Route as RouteIcon, Store, Users, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
 const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const DAYS_SHORT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+const DAY_COLORS = ['#EAB308', '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#06B6D4'];
+const BRAZIL_CENTER: [number, number] = [-15.7801, -47.9292];
+
+function FitBounds({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 0) {
+      map.setView(BRAZIL_CENTER, 4);
+    } else if (points.length === 1) {
+      map.setView(points[0], 15);
+    } else {
+      map.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
+    }
+  }, [points, map]);
+  return null;
+}
+
+function dayNumberIcon(color: string, order: number) {
+  return L.divIcon({
+    className: 'route-day-marker',
+    html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:800;">${order}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
 
 function getWeekStart(weekOffset: number): Date {
   const now = new Date();
@@ -140,6 +173,27 @@ export default function RoutesPage() {
   }, [routes, weekDates]);
 
   const selectedPromotorName = promotores.find(p => p.id === selectedPromotor)?.name;
+
+  const mapDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, dayOfWeek) => dayOfWeek)
+      .filter(d => activeDays.has(d))
+      .map(dayOfWeek => {
+        const dayRoutes = routesByDay[dayOfWeek] || [];
+        const points = dayRoutes
+          .filter(r => r.pdv?.latitude != null && r.pdv?.longitude != null)
+          .map((r, i) => ({
+            position: [r.pdv!.latitude as number, r.pdv!.longitude as number] as [number, number],
+            name: r.pdv!.name,
+            order: i + 1,
+          }));
+        const missing = dayRoutes.filter(r => r.pdv?.latitude == null || r.pdv?.longitude == null);
+        return { dayOfWeek, color: DAY_COLORS[dayOfWeek], points, missing };
+      })
+      .filter(d => d.points.length > 0 || d.missing.length > 0);
+  }, [routesByDay, activeDays]);
+
+  const allMapPoints = useMemo(() => mapDays.flatMap(d => d.points.map(p => p.position)), [mapDays]);
+  const allMissing = useMemo(() => mapDays.flatMap(d => d.missing.map(r => ({ dayOfWeek: d.dayOfWeek, name: r.pdv?.name || '?' }))), [mapDays]);
 
   function toggleDay(dayOfWeek: number) {
     setActiveDays(prev => {
@@ -301,6 +355,58 @@ export default function RoutesPage() {
               onRemove={handleRemove}
             />
           ))}
+        </div>
+      )}
+
+      {selectedPromotor && activeDays.size > 0 && (
+        <div className="card animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <MapPin size={18} className="text-pluma-600" />
+              Mapa da Rota
+            </h3>
+            {mapDays.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3">
+                {mapDays.map(d => (
+                  <span key={d.dayOfWeek} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                    {DAYS_SHORT[d.dayOfWeek]}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="h-[420px] rounded-2xl overflow-hidden border border-gray-100 relative z-0">
+            <MapContainer center={BRAZIL_CENTER} zoom={4} className="h-full w-full" style={{ background: '#f8fafc' }}>
+              <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <FitBounds points={allMapPoints} />
+              {mapDays.map(d => (
+                <React.Fragment key={d.dayOfWeek}>
+                  {d.points.length > 1 && <Polyline positions={d.points.map(p => p.position)} color={d.color} weight={3} opacity={0.7} />}
+                  {d.points.map((p, i) => (
+                    <Marker key={`${d.dayOfWeek}-${i}`} position={p.position} icon={dayNumberIcon(d.color, p.order)}>
+                      <Popup>
+                        <div className="text-xs">
+                          <p className="font-bold text-gray-800">{p.name}</p>
+                          <p className="text-gray-500">{DAYS[d.dayOfWeek]} · {p.order}ª parada</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </React.Fragment>
+              ))}
+            </MapContainer>
+          </div>
+
+          {allMissing.length > 0 && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-xl p-3 flex items-start gap-2">
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
+              <p>
+                {allMissing.length} PDV{allMissing.length !== 1 ? 's' : ''} sem coordenada não aparece{allMissing.length !== 1 ? 'm' : ''} no mapa: {allMissing.map(m => `${m.name} (${DAYS_SHORT[m.dayOfWeek]})`).join(', ')}. Configure o endereço do PDV na tela de PDVs pra geocodificar.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
