@@ -105,7 +105,13 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -X POST http://localhost:3001/api/degustacoes -H \"Content-Type: application/json\" -d '{}')",
       "Bash(curl -s \"http://localhost:3001/api/degustacoes/public/minhas?nome=Maria\")",
       "Bash(curl -s -X POST http://localhost:3001/api/degustacoes/public -H \"Content-Type: application/json\" -d '{\"requesterName\":\"X\"}')",
-      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 27816 -Force\")"
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 27816 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 1424 -Force\")",
+      "Bash(npm run *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const arr=JSON.parse\\(d\\).data; console.log\\(arr.length,'visits'\\); arr.slice\\(0,3\\).forEach\\(v=>console.log\\(v.promotorName, 'salario/hora derivado:', v.hourlyCost, 'custo:', v.cost\\)\\)}\\)\")",
+      "Bash(powershell -Command \"Stop-Process -Id 26540 -Force\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).data.forEach\\(p=>console.log\\(p.user?.name,p.type,p.batteryLevel\\)\\)}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).data.forEach\\(p=>console.log\\(p.id,p.user?.name,p.type,p.batteryLevel\\)\\)}\\)\")"
     ]
   }
 }

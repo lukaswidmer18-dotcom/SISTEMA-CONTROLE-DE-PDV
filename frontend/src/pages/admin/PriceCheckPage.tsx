@@ -4,6 +4,7 @@ import { PriceCheck, Product, PDV } from '../../types';
 import { Tags, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatCurrency } from '../../utils/format';
 
 export default function PriceCheckPage() {
   const [priceChecks, setPriceChecks] = useState<PriceCheck[]>([]);
@@ -98,14 +99,14 @@ export default function PriceCheckPage() {
                     <td className="py-2.5 pr-4 text-gray-400 text-xs">{pc.createdAt ? format(new Date(pc.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}</td>
                     <td className="py-2.5 pr-4 font-bold text-gray-800">{pc.visit?.pdv?.name}</td>
                     <td className="py-2.5 pr-4 text-gray-700">{pc.product?.name}</td>
-                    <td className="py-2.5 pr-4 font-bold text-gray-800">R$ {pc.ownPrice.toFixed(2)}</td>
+                    <td className="py-2.5 pr-4 font-bold text-gray-800">{formatCurrency(pc.ownPrice)}</td>
                     <td className="py-2.5 pr-4 text-gray-500">{pc.competitorName || '-'}</td>
-                    <td className="py-2.5 pr-4 text-gray-500">{pc.competitorPrice != null ? `R$ ${pc.competitorPrice.toFixed(2)}` : '-'}</td>
+                    <td className="py-2.5 pr-4 text-gray-500">{pc.competitorPrice != null ? formatCurrency(pc.competitorPrice) : '-'}</td>
                     <td className="py-2.5 pr-4">
                       {diff != null ? (
                         <span className={`inline-flex items-center gap-1 font-bold ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
                           {diff > 0 ? <TrendingUp size={13} /> : diff < 0 ? <TrendingDown size={13} /> : null}
-                          R$ {Math.abs(diff).toFixed(2)} {diff > 0 ? 'mais caro' : diff < 0 ? 'mais barato' : ''}
+                          {formatCurrency(Math.abs(diff))} {diff > 0 ? 'mais caro' : diff < 0 ? 'mais barato' : ''}
                         </span>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>

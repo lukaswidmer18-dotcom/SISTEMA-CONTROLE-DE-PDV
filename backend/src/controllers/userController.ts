@@ -9,15 +9,15 @@ function normalizeRole(role: unknown): string {
   return VALID_ROLES.includes(role as string) ? (role as string) : 'PROMOTOR';
 }
 
-const INVALID_HOURLY_COST = Symbol('INVALID_HOURLY_COST');
+const INVALID_MONTHLY_SALARY = Symbol('INVALID_MONTHLY_SALARY');
 
-function parseHourlyCost(value: unknown): number | null | typeof INVALID_HOURLY_COST {
+function parseMonthlySalary(value: unknown): number | null | typeof INVALID_MONTHLY_SALARY {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : INVALID_HOURLY_COST;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : INVALID_MONTHLY_SALARY;
 }
 
-const USER_SELECT = { id: true, name: true, email: true, role: true, active: true, hourlyCost: true, createdAt: true };
+const USER_SELECT = { id: true, name: true, email: true, role: true, active: true, monthlySalary: true, createdAt: true };
 
 export async function listUsers(_req: Request, res: Response): Promise<void> {
   const users = await prisma.user.findMany({
@@ -28,16 +28,16 @@ export async function listUsers(_req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { name, email, password, role, hourlyCost } = req.body;
+  const { name, email, password, role, monthlySalary } = req.body;
 
   if (!name || !email || !password) {
     res.status(400).json({ success: false, error: 'Nome, e-mail e senha são obrigatórios.' });
     return;
   }
 
-  const parsedHourlyCost = parseHourlyCost(hourlyCost);
-  if (parsedHourlyCost === INVALID_HOURLY_COST) {
-    res.status(400).json({ success: false, error: 'Custo/hora deve ser um número maior ou igual a zero.' });
+  const parsedMonthlySalary = parseMonthlySalary(monthlySalary);
+  if (parsedMonthlySalary === INVALID_MONTHLY_SALARY) {
+    res.status(400).json({ success: false, error: 'Salário mensal deve ser um número maior ou igual a zero.' });
     return;
   }
 
@@ -54,7 +54,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       email: email.toLowerCase().trim(),
       passwordHash,
       role: normalizeRole(role),
-      hourlyCost: parsedHourlyCost,
+      monthlySalary: parsedMonthlySalary,
     },
     select: USER_SELECT,
   });
@@ -64,7 +64,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
 export async function updateUser(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, email, password, role, active, hourlyCost } = req.body;
+  const { name, email, password, role, active, monthlySalary } = req.body;
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
@@ -80,9 +80,9 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
   }
 
-  const parsedHourlyCost = parseHourlyCost(hourlyCost);
-  if (parsedHourlyCost === INVALID_HOURLY_COST) {
-    res.status(400).json({ success: false, error: 'Custo/hora deve ser um número maior ou igual a zero.' });
+  const parsedMonthlySalary = parseMonthlySalary(monthlySalary);
+  if (parsedMonthlySalary === INVALID_MONTHLY_SALARY) {
+    res.status(400).json({ success: false, error: 'Salário mensal deve ser um número maior ou igual a zero.' });
     return;
   }
 
@@ -92,7 +92,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   if (password) updateData.passwordHash = await bcrypt.hash(password, 10);
   if (role !== undefined) updateData.role = normalizeRole(role);
   if (active !== undefined) updateData.active = Boolean(active);
-  if (hourlyCost !== undefined) updateData.hourlyCost = parsedHourlyCost;
+  if (monthlySalary !== undefined) updateData.monthlySalary = parsedMonthlySalary;
 
   const updated = await prisma.user.update({
     where: { id },

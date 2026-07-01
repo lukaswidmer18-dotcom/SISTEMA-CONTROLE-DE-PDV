@@ -32,12 +32,26 @@ export async function getTodayPonto(req: Request, res: Response): Promise<void> 
   res.json({ success: true, data: pontos });
 }
 
+const INVALID_BATTERY_LEVEL = Symbol('INVALID_BATTERY_LEVEL');
+
+function parseBatteryLevel(value: unknown): number | null | typeof INVALID_BATTERY_LEVEL {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 100 ? parsed : INVALID_BATTERY_LEVEL;
+}
+
 export async function registerPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { type, latitude, longitude, locationAvailable } = req.body;
+  const { type, latitude, longitude, locationAvailable, batteryLevel } = req.body;
 
   if (!type || !PONTO_SEQUENCE.includes(type)) {
     res.status(400).json({ success: false, error: 'Tipo de ponto inválido.' });
+    return;
+  }
+
+  const parsedBatteryLevel = parseBatteryLevel(batteryLevel);
+  if (parsedBatteryLevel === INVALID_BATTERY_LEVEL) {
+    res.status(400).json({ success: false, error: 'Nível de bateria deve ser um número inteiro entre 0 e 100.' });
     return;
   }
 
@@ -120,6 +134,7 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
       locationAvailable: gpsAvailable,
+      batteryLevel: parsedBatteryLevel,
     },
   });
 

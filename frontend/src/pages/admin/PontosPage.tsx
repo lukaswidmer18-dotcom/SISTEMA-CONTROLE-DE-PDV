@@ -83,7 +83,10 @@ export default function PontosPage() {
                     {format(new Date(p.timestamp), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                   </p>
                 </div>
-                <span className={PONTO_COLORS[p.type] || 'badge-blue'}>{PONTO_LABELS[p.type] || p.type}</span>
+                <div className="text-right">
+                  <span className={PONTO_COLORS[p.type] || 'badge-blue'}>{PONTO_LABELS[p.type] || p.type}</span>
+                  {p.batteryLevel != null && <p className="text-[10px] text-gray-400 mt-1">Bateria: {p.batteryLevel}%</p>}
+                </div>
               </div>
             ))}
           </div>
@@ -97,6 +100,7 @@ export default function PontosPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Horário</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Localização</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Bateria</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -113,6 +117,9 @@ export default function PontosPage() {
                       {p.locationAvailable && p.latitude && p.longitude
                         ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
                         : 'Não disponível'}
+                    </td>
+                    <td className={`px-4 py-3 text-xs font-bold ${p.batteryLevel != null && p.batteryLevel <= 20 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {p.batteryLevel != null ? `${p.batteryLevel}%` : '-'}
                     </td>
                   </tr>
                 ))}

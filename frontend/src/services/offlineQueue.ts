@@ -22,6 +22,7 @@ export interface OfflinePontoAction extends OfflineActionBase {
     latitude: number;
     longitude: number;
     locationAvailable: boolean;
+    batteryLevel: number | null;
   };
 }
 

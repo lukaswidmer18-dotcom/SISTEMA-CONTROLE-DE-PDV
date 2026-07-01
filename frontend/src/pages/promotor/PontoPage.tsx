@@ -6,7 +6,8 @@ import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../.
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock } from 'lucide-react';
+import { formatCurrency } from '../../utils/format';
+import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock, BatteryMedium } from 'lucide-react';
 import { 
   createLocalId, 
   saveOfflineActiveVisit, 
@@ -478,6 +479,21 @@ export default function PontoPage() {
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [batteryLevel, setBatteryLevel] = useState('');
+
+  // Battery Status API: só existe em Chrome/Android. Preenche automaticamente quando
+  // disponível; se não, o promotor informa manualmente antes de iniciar a jornada.
+  useEffect(() => {
+    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; addEventListener: (event: string, cb: () => void) => void }> };
+    if (!nav.getBattery) return;
+    let battery: { level: number; addEventListener: (event: string, cb: () => void) => void } | null = null;
+    nav.getBattery().then((b) => {
+      battery = b;
+      setBatteryLevel(String(Math.round(b.level * 100)));
+      b.addEventListener('levelchange', () => setBatteryLevel(String(Math.round(b.level * 100))));
+    }).catch(() => {});
+    return () => { battery = null; };
+  }, []);
 
   // Visit States
   const [visit, setVisit] = useState<Visit | null>(null);
@@ -553,9 +569,10 @@ export default function PontoPage() {
 
 
   async function executeRegister(type: PontoType, location: { latitude: number; longitude: number }, locationAvailable = true) {
+    const battery = type === 'ENTRADA' && batteryLevel !== '' ? Number(batteryLevel) : null;
     try {
-      await api.post('/ponto', { type, ...location, locationAvailable });
-      setSuccess(locationAvailable 
+      await api.post('/ponto', { type, ...location, locationAvailable, batteryLevel: battery });
+      setSuccess(locationAvailable
         ? `Atividade de ${PONTO_LABELS[type]} registrada com sucesso!`
         : `Atividade de ${PONTO_LABELS[type]} registrada em Modo de Contingência (Sem GPS).`
       );
@@ -563,7 +580,7 @@ export default function PontoPage() {
     } catch (err: any) {
       if (isNetworkError(err)) {
         const { latitude, longitude } = location;
-        const queued = await queueOfflineAction({ kind: 'ponto', payload: { type, latitude, longitude, locationAvailable } });
+        const queued = await queueOfflineAction({ kind: 'ponto', payload: { type, latitude, longitude, locationAvailable, batteryLevel: battery } });
         setPontos(prev => [
           ...prev,
           {
@@ -574,6 +591,7 @@ export default function PontoPage() {
             latitude,
             longitude,
             locationAvailable,
+            batteryLevel: battery,
           },
         ]);
         setSuccess(`Atividade de ${PONTO_LABELS[type]} salva em modo offline.`);
@@ -961,6 +979,23 @@ export default function PontoPage() {
                   <div className="space-y-4">
                     {nextPonto && (
                       <div className="bg-pluma-50 border border-pluma-100 rounded-2xl p-4 mb-2">
+                        {nextPonto === 'ENTRADA' && (
+                          <div className="mb-3">
+                            <label className="flex items-center gap-1.5 text-[10px] font-black text-pluma-600 uppercase mb-1.5">
+                              <BatteryMedium size={13} /> Bateria do celular (%)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              inputMode="numeric"
+                              placeholder="Ex: 80"
+                              className="input-field text-sm py-2.5"
+                              value={batteryLevel}
+                              onChange={e => setBatteryLevel(e.target.value)}
+                            />
+                          </div>
+                        )}
                         <p className="text-[10px] font-bold text-pluma-600 uppercase mb-2">Próximo Passo:</p>
                         <button
                           onClick={() => handleRegister(nextPonto)}
@@ -1137,8 +1172,8 @@ export default function PontoPage() {
                                 <div className="min-w-0">
                                   <p className="text-xs font-bold text-gray-900 truncate">{p.product?.name}</p>
                                   <p className="text-[10px] text-gray-500 font-bold">
-                                    Nosso: R$ {p.ownPrice.toFixed(2)}
-                                    {p.competitorPrice != null && ` · ${p.competitorName}: R$ ${p.competitorPrice.toFixed(2)}`}
+                                    Nosso: {formatCurrency(p.ownPrice)}
+                                    {p.competitorPrice != null && ` · ${p.competitorName}: ${formatCurrency(p.competitorPrice)}`}
                                   </p>
                                 </div>
                                 <button onClick={() => handleDeletePriceCheck(p.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>

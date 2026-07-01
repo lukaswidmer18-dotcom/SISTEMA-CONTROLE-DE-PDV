@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Ponto, Visit, RotaVisita, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X } from 'lucide-react';
+import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   ENTRADA: 'Início',
@@ -195,6 +195,11 @@ export default function PromotorHome() {
                       <p className={`text-lg font-black ${p ? 'text-pluma-900' : 'text-gray-300'}`}>
                         {p ? format(new Date(p.timestamp), 'HH:mm') : '--:--'}
                       </p>
+                      {p?.batteryLevel != null && (
+                        <p className="text-[10px] font-bold text-gray-400 mt-0.5 flex items-center gap-1">
+                          <BatteryMedium size={11} /> {p.batteryLevel}%
+                        </p>
+                      )}
                     </div>
                   );
                 })}

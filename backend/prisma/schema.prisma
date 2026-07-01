@@ -8,15 +8,15 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         String   @default("PROMOTOR")
-  active       Boolean  @default(true)
-  hourlyCost   Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          String   @default("PROMOTOR")
+  active        Boolean  @default(true)
+  monthlySalary Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   pontos       Ponto[]
   visits       Visit[]
@@ -72,6 +72,7 @@ model Ponto {
   latitude          Float?
   longitude         Float?
   locationAvailable Boolean  @default(false)
+  batteryLevel      Int?
   createdAt         DateTime @default(now())
 
   user  User   @relation(fields: [userId], references: [id])
@@ -96,11 +97,11 @@ model Visit {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  promotor   User     @relation(fields: [promotorId], references: [id])
-  pdv        PDV      @relation(fields: [pdvId], references: [id])
-  photos     Photo[]
-  validities Validity[]
-  pontos     Ponto[]
+  promotor    User              @relation(fields: [promotorId], references: [id])
+  pdv         PDV               @relation(fields: [pdvId], references: [id])
+  photos      Photo[]
+  validities  Validity[]
+  pontos      Ponto[]
   rating      VisitRating?
   rupturas    RupturaRegistro[]
   priceChecks PriceCheck[]
@@ -109,13 +110,13 @@ model Visit {
 }
 
 model VisitRating {
-  id         String   @id @default(uuid())
-  visitId    String   @unique
-  score      Float
-  ratedById  String
-  ratedAt    DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  visitId   String   @unique
+  score     Float
+  ratedById String
+  ratedAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   visit   Visit @relation(fields: [visitId], references: [id])
   ratedBy User  @relation("RatedBy", fields: [ratedById], references: [id])
@@ -146,7 +147,7 @@ model ChecklistItem {
   requiredCount Int      @default(1)
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt     DateTime @updatedAt
 
   photos Photo[]
 
@@ -221,12 +222,12 @@ model PriceCheck {
 }
 
 model Validity {
-  id          String   @id @default(uuid())
-  visitId     String
-  productId   String
-  expiryDate  String
-  quantity    Int      @default(1)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  visitId    String
+  productId  String
+  expiryDate String
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now())
 
   visit   Visit   @relation(fields: [visitId], references: [id])
   product Product @relation(fields: [productId], references: [id])

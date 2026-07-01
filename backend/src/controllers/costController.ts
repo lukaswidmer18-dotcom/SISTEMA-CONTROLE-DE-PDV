@@ -4,6 +4,13 @@ import { parseDateOnly } from '../utils/date';
 
 const prisma = new PrismaClient();
 
+// Divisor padrão CLT (44h/semana) para converter salário mensal em custo/hora.
+const MONTHLY_HOURS = 220;
+
+function hourlyRate(monthlySalary: number | null): number | null {
+  return monthlySalary != null ? monthlySalary / MONTHLY_HOURS : null;
+}
+
 function buildWhere(query: Request['query']) {
   const { promotorId, pdvId, from, to } = query;
   const where: any = { status: 'COMPLETED' };
@@ -31,13 +38,14 @@ export async function getVisitCosts(req: Request, res: Response): Promise<void> 
     where: buildWhere(req.query),
     include: {
       pdv: { select: { id: true, name: true, city: true } },
-      promotor: { select: { id: true, name: true, hourlyCost: true } },
+      promotor: { select: { id: true, name: true, monthlySalary: true } },
     },
     orderBy: { completedAt: 'desc' },
   });
 
   const data = visits.map((v) => {
-    const { durationHours, cost } = computeCost(v.startedAt, v.completedAt!, v.promotor.hourlyCost);
+    const hourlyCost = hourlyRate(v.promotor.monthlySalary);
+    const { durationHours, cost } = computeCost(v.startedAt, v.completedAt!, hourlyCost);
     const revenue = v.revenueGenerated;
     const net = cost != null && revenue != null ? revenue - cost : null;
     const ratio = cost != null && cost > 0 && revenue != null ? revenue / cost : null;
@@ -51,7 +59,7 @@ export async function getVisitCosts(req: Request, res: Response): Promise<void> 
       promotorName: v.promotor.name,
       completedAt: v.completedAt,
       durationHours,
-      hourlyCost: v.promotor.hourlyCost,
+      hourlyCost,
       cost,
       revenue,
       net,
@@ -67,7 +75,7 @@ export async function getPdvCostSummary(req: Request, res: Response): Promise<vo
     where: buildWhere(req.query),
     include: {
       pdv: { select: { id: true, name: true, city: true } },
-      promotor: { select: { id: true, hourlyCost: true } },
+      promotor: { select: { id: true, monthlySalary: true } },
     },
   });
 
@@ -78,7 +86,7 @@ export async function getPdvCostSummary(req: Request, res: Response): Promise<vo
   }>();
 
   for (const v of visits) {
-    const { cost } = computeCost(v.startedAt, v.completedAt!, v.promotor.hourlyCost);
+    const { cost } = computeCost(v.startedAt, v.completedAt!, hourlyRate(v.promotor.monthlySalary));
     const entry = byPdv.get(v.pdvId) || {
       pdvId: v.pdv.id, pdvName: v.pdv.name, pdvCity: v.pdv.city,
       visitCount: 0, totalCost: 0, costKnownCount: 0, totalRevenue: 0, revenueKnownCount: 0,

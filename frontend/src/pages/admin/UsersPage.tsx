@@ -13,7 +13,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     email: user?.email || '',
     password: '',
     role: user?.role || 'PROMOTOR',
-    hourlyCost: user?.hourlyCost != null ? String(user.hourlyCost) : '',
+    monthlySalary: user?.monthlySalary != null ? String(user.monthlySalary) : '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +24,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     setLoading(true);
     try {
       if (isEdit && user) {
-        const payload: any = { name: form.name, email: form.email, role: form.role, hourlyCost: form.hourlyCost };
+        const payload: any = { name: form.name, email: form.email, role: form.role, monthlySalary: form.monthlySalary };
         if (form.password) payload.password = form.password;
         await api.put(`/users/${user.id}`, payload);
       } else {
@@ -67,9 +67,14 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Custo/hora (R$)</label>
-            <input type="number" min="0" step="0.01" placeholder="Ex: 25.00" className="input-field" value={form.hourlyCost} onChange={e => setForm(f => ({ ...f, hourlyCost: e.target.value }))} />
-            <p className="text-xs text-gray-400 mt-1">Usado pra calcular o custo de mão de obra por visita. Deixe vazio se não souber ainda.</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Salário mensal (R$)</label>
+            <input type="number" min="0" step="0.01" placeholder="Ex: 2200.00" className="input-field" value={form.monthlySalary} onChange={e => setForm(f => ({ ...f, monthlySalary: e.target.value }))} />
+            <p className="text-xs text-gray-400 mt-1">
+              Custo/hora calculado automaticamente (salário ÷ 220h/mês, jornada padrão CLT de 44h/semana)
+              {form.monthlySalary && Number.isFinite(Number(form.monthlySalary))
+                ? ` — R$ ${(Number(form.monthlySalary) / 220).toFixed(2)}/h.`
+                : '. Deixe vazio se não souber ainda.'}
+            </p>
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">

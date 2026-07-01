@@ -6,7 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
-  hourlyCost?: number | null;
+  monthlySalary?: number | null;
   createdAt?: string;
 }
 
@@ -56,6 +56,7 @@ export interface Ponto {
   latitude?: number | null;
   longitude?: number | null;
   locationAvailable: boolean;
+  batteryLevel?: number | null;
   user?: Pick<User, 'id' | 'name' | 'email'>;
 }
 

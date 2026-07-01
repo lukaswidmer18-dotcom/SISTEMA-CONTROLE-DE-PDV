@@ -4,10 +4,7 @@ import { PdvCostSummary, VisitCostEntry } from '../../types';
 import { DollarSign, RefreshCw, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-function formatCurrency(value: number | null): string {
-  return value != null ? `R$ ${value.toFixed(2)}` : '—';
-}
+import { formatCurrency } from '../../utils/format';
 
 export default function CustoPage() {
   const [pdvSummary, setPdvSummary] = useState<PdvCostSummary[]>([]);
@@ -73,7 +70,7 @@ export default function CustoPage() {
         <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-xl p-3 flex items-start gap-2">
           <AlertCircle size={15} className="shrink-0 mt-0.5" />
           <p>
-            {missingHourlyCost && 'Alguns promotores não têm custo/hora configurado (Usuários → editar). '}
+            {missingHourlyCost && 'Alguns promotores não têm salário configurado (Usuários → editar). '}
             {missingRevenue && 'Algumas visitas não têm faturamento informado — o promotor preenche isso ao finalizar a visita.'}
           </p>
         </div>
