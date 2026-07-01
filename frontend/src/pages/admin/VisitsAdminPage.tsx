@@ -5,6 +5,7 @@ import { Visit } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Eye } from 'lucide-react';
+import StarRating from '../../components/ui/StarRating';
 
 export default function VisitsAdminPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -102,13 +103,20 @@ export default function VisitsAdminPage() {
                   <span>Início: <strong className="text-gray-700">{format(new Date(v.startedAt), "dd/MM HH:mm", { locale: ptBR })}</strong></span>
                   <span>Fim: <strong className="text-gray-700">{v.completedAt ? format(new Date(v.completedAt), "dd/MM HH:mm", { locale: ptBR }) : '-'}</strong></span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex gap-3 text-xs text-gray-500">
                     <span className={v._count?.photos && v._count.photos >= 10 ? 'text-green-600 font-medium' : 'text-red-500'}>
                       {v._count?.photos || 0}/10 fotos
                     </span>
                     <span>{v.noProductsFound ? <span className="text-orange-500">S/ produtos</span> : `${v._count?.validities || 0} validades`}</span>
                   </div>
+                  {v.rating ? (
+                    <StarRating value={v.rating.score} size={13} />
+                  ) : (
+                    <span className="text-xs text-gray-300">Sem nota</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-end">
                   <Link to={`/admin/visitas/${v.id}`} className="btn-secondary text-xs py-1 px-3 flex items-center gap-1">
                     <Eye size={13} /> Ver
                   </Link>
@@ -129,6 +137,7 @@ export default function VisitsAdminPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Fotos</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Validades</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nota</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -151,6 +160,13 @@ export default function VisitsAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                       {v.noProductsFound ? <span className="text-orange-500 text-xs">S/ produtos</span> : v._count?.validities || 0}
+                    </td>
+                    <td className="px-4 py-3">
+                      {v.rating ? (
+                        <StarRating value={v.rating.score} size={14} />
+                      ) : (
+                        <span className="text-xs text-gray-300">Sem nota</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Link to={`/admin/visitas/${v.id}`} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50 inline-flex">

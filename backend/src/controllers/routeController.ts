@@ -5,10 +5,17 @@ import { parseDateOnly } from '../utils/date';
 const prisma = new PrismaClient();
 
 export async function listRoutes(req: Request, res: Response): Promise<void> {
+  const authReq = req as any;
   const { promotorId, from, to } = req.query;
+  const isAdmin = authReq.user?.role === 'ADMIN';
 
   const where: any = {};
-  if (promotorId) where.promotorId = promotorId as string;
+  if (isAdmin) {
+    if (promotorId) where.promotorId = promotorId as string;
+  } else {
+    // Promotor só pode ver a própria rota, nunca a de outro promotor
+    where.promotorId = authReq.user.userId;
+  }
 
   const fromDate = parseDateOnly(from);
   const toDate = parseDateOnly(to);
@@ -72,6 +79,36 @@ export async function createRouteEntry(req: Request, res: Response): Promise<voi
   });
 
   res.status(201).json({ success: true, data: route });
+}
+
+export async function justifyRouteEntry(req: Request, res: Response): Promise<void> {
+  const authReq = req as any;
+  const { id } = req.params;
+  const { justification } = req.body;
+
+  const text = typeof justification === 'string' ? justification.trim() : '';
+  if (text.length < 10) {
+    res.status(400).json({ success: false, error: 'Justificativa precisa ter pelo menos 10 caracteres.' });
+    return;
+  }
+
+  const route = await prisma.rotaVisita.findUnique({ where: { id } });
+  if (!route) {
+    res.status(404).json({ success: false, error: 'Registro de rota não encontrado.' });
+    return;
+  }
+  if (route.promotorId !== authReq.user.userId) {
+    res.status(403).json({ success: false, error: 'Acesso negado.' });
+    return;
+  }
+
+  const updated = await prisma.rotaVisita.update({
+    where: { id },
+    data: { justification: text, justifiedAt: new Date() },
+    include: { pdv: true, promotor: { select: { id: true, name: true, email: true } } },
+  });
+
+  res.json({ success: true, data: updated });
 }
 
 export async function deleteRouteEntry(req: Request, res: Response): Promise<void> {

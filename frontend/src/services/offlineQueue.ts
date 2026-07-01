@@ -7,7 +7,7 @@ const DB_VERSION = 1;
 const STORE_NAME = 'queue';
 const VISIT_MAP_KEY = 'pdv-offline-visit-map';
 
-type OfflineKind = 'ponto' | 'startVisit' | 'photo' | 'validity' | 'finishVisit';
+type OfflineKind = 'ponto' | 'startVisit' | 'photo' | 'validity' | 'ruptura' | 'priceCheck' | 'finishVisit';
 
 export interface OfflineActionBase {
   id: string;
@@ -43,6 +43,7 @@ export interface OfflinePhotoAction extends OfflineActionBase {
   payload: {
     file: Blob;
     fileName: string;
+    checklistItemId: string;
     latitude: number;
     longitude: number;
     locationAvailable: boolean;
@@ -60,6 +61,32 @@ export interface OfflineValidityAction extends OfflineActionBase {
   };
 }
 
+export interface OfflineRupturaAction extends OfflineActionBase {
+  kind: 'ruptura';
+  localVisitId?: string;
+  visitId?: string;
+  payload: {
+    productId: string;
+    qtyGondola: number;
+    qtyDeposito: number;
+    qtySeparadoTroca: number;
+  };
+}
+
+export interface OfflinePriceCheckAction extends OfflineActionBase {
+  kind: 'priceCheck';
+  localVisitId?: string;
+  visitId?: string;
+  payload: {
+    productId: string;
+    ownPrice: string;
+    competitorName: string;
+    competitorPrice: string;
+    file?: Blob;
+    fileName?: string;
+  };
+}
+
 export interface OfflineFinishVisitAction extends OfflineActionBase {
   kind: 'finishVisit';
   localVisitId?: string;
@@ -69,6 +96,7 @@ export interface OfflineFinishVisitAction extends OfflineActionBase {
     longitude: number;
     noProductsFound: boolean;
     locationAvailable: boolean;
+    revenueGenerated: string;
   };
 }
 
@@ -77,6 +105,8 @@ export type OfflineAction =
   | OfflineStartVisitAction
   | OfflinePhotoAction
   | OfflineValidityAction
+  | OfflineRupturaAction
+  | OfflinePriceCheckAction
   | OfflineFinishVisitAction;
 
 type NewOfflineAction = OfflineAction extends infer Action
@@ -199,6 +229,7 @@ async function syncAction(action: OfflineAction, visitMap: Record<string, string
 
     const formData = new FormData();
     formData.append('photo', action.payload.file, action.payload.fileName);
+    formData.append('checklistItemId', action.payload.checklistItemId);
     formData.append('latitude', String(action.payload.latitude));
     formData.append('longitude', String(action.payload.longitude));
     formData.append('locationAvailable', String(action.payload.locationAvailable));
@@ -213,6 +244,30 @@ async function syncAction(action: OfflineAction, visitMap: Record<string, string
     const visitId = resolveVisitId(action, visitMap);
     if (!visitId) throw new Error('Visita offline ainda não sincronizada.');
     await api.post(`/visits/${visitId}/validities`, action.payload);
+    return;
+  }
+
+  if (action.kind === 'ruptura') {
+    const visitId = resolveVisitId(action, visitMap);
+    if (!visitId) throw new Error('Visita offline ainda não sincronizada.');
+    await api.post(`/visits/${visitId}/ruptura`, action.payload);
+    return;
+  }
+
+  if (action.kind === 'priceCheck') {
+    const visitId = resolveVisitId(action, visitMap);
+    if (!visitId) throw new Error('Visita offline ainda não sincronizada.');
+
+    const formData = new FormData();
+    formData.append('productId', action.payload.productId);
+    formData.append('ownPrice', action.payload.ownPrice);
+    formData.append('competitorName', action.payload.competitorName);
+    formData.append('competitorPrice', action.payload.competitorPrice);
+    if (action.payload.file) formData.append('photo', action.payload.file, action.payload.fileName || 'foto.jpg');
+
+    await api.post(`/visits/${visitId}/price-checks`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return;
   }
 

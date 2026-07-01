@@ -4,13 +4,16 @@ import api from '../../services/api';
 import { Visit } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft, MapPin, Camera, Calendar, User, Package } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star } from 'lucide-react';
+import StarRating from '../../components/ui/StarRating';
 
 export default function VisitDetailPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [savingRating, setSavingRating] = useState(false);
+  const [ratingError, setRatingError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -23,6 +26,20 @@ export default function VisitDetailPage() {
     }
     load();
   }, [visitId]);
+
+  async function handleRate(score: number) {
+    if (!visit) return;
+    setSavingRating(true);
+    setRatingError('');
+    try {
+      const { data } = await api.put(`/visits/${visit.id}/rating`, { score });
+      setVisit({ ...visit, rating: data.data });
+    } catch (err: any) {
+      setRatingError(err.response?.data?.error || 'Erro ao salvar avaliação.');
+    } finally {
+      setSavingRating(false);
+    }
+  }
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>;
   if (!visit) return <div className="text-center py-12 text-gray-400">Visita não encontrada.</div>;
@@ -120,6 +137,25 @@ export default function VisitDetailPage() {
         ) : (
           <p className="text-sm text-gray-400">Nenhuma foto registrada.</p>
         )}
+      </div>
+
+      {/* Avaliação de qualidade */}
+      <div className="card mb-4">
+        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <Star size={16} /> Avaliação da qualidade das fotos
+        </h3>
+        {visit.status !== 'COMPLETED' ? (
+          <p className="text-sm text-gray-400">Só é possível avaliar depois que a visita for concluída.</p>
+        ) : (
+          <div className="flex items-center gap-3">
+            <StarRating value={visit.rating?.score ?? null} onChange={handleRate} size={26} />
+            {visit.rating && (
+              <span className="text-sm font-bold text-gray-600">{visit.rating.score.toFixed(1)} / 5</span>
+            )}
+            {savingRating && <span className="text-xs text-gray-400">Salvando...</span>}
+          </div>
+        )}
+        {ratingError && <p className="text-xs text-red-600 mt-2">{ratingError}</p>}
       </div>
 
       {/* Validities */}

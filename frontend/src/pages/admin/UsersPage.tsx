@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { User } from '../../types';
+import { User, UserRole } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, X } from 'lucide-react';
+
+const ROLE_LABEL: Record<UserRole, string> = { ADMIN: 'Admin', PROMOTOR: 'Promotor' };
+const ROLE_BADGE: Record<UserRole, string> = { ADMIN: 'badge-blue', PROMOTOR: 'badge-green' };
 
 function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: () => void; onSaved: () => void }) {
   const isEdit = Boolean(user);
@@ -10,6 +13,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     email: user?.email || '',
     password: '',
     role: user?.role || 'PROMOTOR',
+    hourlyCost: user?.hourlyCost != null ? String(user.hourlyCost) : '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +24,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     setLoading(true);
     try {
       if (isEdit && user) {
-        const payload: any = { name: form.name, email: form.email, role: form.role };
+        const payload: any = { name: form.name, email: form.email, role: form.role, hourlyCost: form.hourlyCost };
         if (form.password) payload.password = form.password;
         await api.put(`/users/${user.id}`, payload);
       } else {
@@ -61,6 +65,11 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
               <option value="PROMOTOR">Promotor</option>
               <option value="ADMIN">Administrador</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Custo/hora (R$)</label>
+            <input type="number" min="0" step="0.01" placeholder="Ex: 25.00" className="input-field" value={form.hourlyCost} onChange={e => setForm(f => ({ ...f, hourlyCost: e.target.value }))} />
+            <p className="text-xs text-gray-400 mt-1">Usado pra calcular o custo de mão de obra por visita. Deixe vazio se não souber ainda.</p>
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
@@ -120,8 +129,8 @@ export default function UsersPage() {
                     <p className="text-xs text-gray-500">{u.email}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={u.role === 'ADMIN' ? 'badge-blue' : 'badge-green'}>
-                      {u.role === 'ADMIN' ? 'Admin' : 'Promotor'}
+                    <span className={ROLE_BADGE[u.role]}>
+                      {ROLE_LABEL[u.role]}
                     </span>
                     <span className={u.active ? 'badge-green' : 'badge-red'}>
                       {u.active ? 'Ativo' : 'Inativo'}
@@ -158,8 +167,8 @@ export default function UsersPage() {
                     <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
                     <td className="px-4 py-3 text-gray-500">{u.email}</td>
                     <td className="px-4 py-3">
-                      <span className={u.role === 'ADMIN' ? 'badge-blue' : 'badge-green'}>
-                        {u.role === 'ADMIN' ? 'Admin' : 'Promotor'}
+                      <span className={ROLE_BADGE[u.role]}>
+                        {ROLE_LABEL[u.role]}
                       </span>
                     </td>
                     <td className="px-4 py-3">

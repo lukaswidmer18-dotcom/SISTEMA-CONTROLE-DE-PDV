@@ -11,15 +11,25 @@ import UsersPage from './pages/admin/UsersPage';
 import PDVsPage from './pages/admin/PDVsPage';
 import RoutesPage from './pages/admin/RoutesPage';
 import ProductsPage from './pages/admin/ProductsPage';
+import ChecklistPage from './pages/admin/ChecklistPage';
 import PontosPage from './pages/admin/PontosPage';
 import VisitsAdminPage from './pages/admin/VisitsAdminPage';
 import VisitDetailPage from './pages/admin/VisitDetailPage';
 import MapPage from './pages/admin/MapPage';
+import CoveragePage from './pages/admin/CoveragePage';
+import RankingPage from './pages/admin/RankingPage';
+import RupturaPage from './pages/admin/RupturaPage';
+import PriceCheckPage from './pages/admin/PriceCheckPage';
+import DegustacoesAdminPage from './pages/admin/DegustacoesAdminPage';
+import CustoPage from './pages/admin/CustoPage';
 
 import PromotorHome from './pages/promotor/PromotorHome';
 import PontoPage from './pages/promotor/PontoPage';
 import VisitHistoryPage from './pages/promotor/VisitHistoryPage';
 import VisitDetailPromotorPage from './pages/promotor/VisitDetailPromotorPage';
+
+import PublicDegustacaoRequestPage from './pages/public/PublicDegustacaoRequestPage';
+import PublicMyDegustacoesPage from './pages/public/PublicMyDegustacoesPage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -50,10 +60,17 @@ function AppRoutes() {
           <Route path="pdvs" element={<PDVsPage />} />
           <Route path="rotas" element={<RoutesPage />} />
           <Route path="produtos" element={<ProductsPage />} />
+          <Route path="checklist" element={<ChecklistPage />} />
           <Route path="pontos" element={<PontosPage />} />
           <Route path="visitas" element={<VisitsAdminPage />} />
           <Route path="visitas/:visitId" element={<VisitDetailPage />} />
           <Route path="mapa" element={<MapPage />} />
+          <Route path="cobertura" element={<CoveragePage />} />
+          <Route path="ranking" element={<RankingPage />} />
+          <Route path="ruptura" element={<RupturaPage />} />
+          <Route path="precos" element={<PriceCheckPage />} />
+          <Route path="degustacoes" element={<DegustacoesAdminPage />} />
+          <Route path="custos" element={<CustoPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
@@ -77,7 +94,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <Routes>
+          <Route path="/solicitar-degustacao" element={<PublicDegustacaoRequestPage />} />
+          <Route path="/solicitar-degustacao/minhas" element={<PublicMyDegustacoesPage />} />
+          <Route path="/*" element={<AppRoutes />} />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   );

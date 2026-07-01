@@ -59,6 +59,18 @@ function ChangeView({ center, zoom }: { center: [number, number], zoom: number }
   return null;
 }
 
+function MapResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
 export default function MapPage() {
   const [data, setData] = useState<MapPromotorData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +207,7 @@ export default function MapPage() {
         <MapContainer center={center} zoom={zoom} className="h-full w-full" style={{ background: '#f8fafc' }}>
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <ChangeView center={center} zoom={zoom} />
+          <MapResizeHandler />
           {filteredData.map((p, pIdx) => {
             if (!p.lastLocation) return null;
             const color = TRAIL_COLORS[pIdx % TRAIL_COLORS.length];

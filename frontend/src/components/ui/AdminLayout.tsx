@@ -2,16 +2,23 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route,
+  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route, ListChecks, CheckCircle2, Trophy, PackageX, Tags, UtensilsCrossed, DollarSign,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/mapa', label: 'Mapa', icon: Map },
+  { to: '/admin/mapa', label: 'Rastreamento', icon: Map },
+  { to: '/admin/cobertura', label: 'Cobertura', icon: CheckCircle2 },
+  { to: '/admin/ranking', label: 'Ranking', icon: Trophy },
+  { to: '/admin/ruptura', label: 'Ruptura', icon: PackageX },
+  { to: '/admin/precos', label: 'Preços', icon: Tags },
+  { to: '/admin/degustacoes', label: 'Degustações', icon: UtensilsCrossed },
+  { to: '/admin/custos', label: 'Custo/Atendimento', icon: DollarSign },
   { to: '/admin/usuarios', label: 'Usuários', icon: Users },
   { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
   { to: '/admin/rotas', label: 'Rotas', icon: Route },
   { to: '/admin/produtos', label: 'Produtos', icon: Package },
+  { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
   { to: '/admin/pontos', label: 'Pontos', icon: Clock },
   { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
 ];

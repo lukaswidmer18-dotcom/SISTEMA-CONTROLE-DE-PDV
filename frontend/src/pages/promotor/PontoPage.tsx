@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
-import { Ponto, Visit, PDV, Product, Validity } from '../../types';
-import { getRequiredLocation } from '../../services/geolocation';
+import { Ponto, Visit, PDV, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
+import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock } from 'lucide-react';
 import { 
   createLocalId, 
   saveOfflineActiveVisit, 
@@ -18,6 +18,7 @@ import {
   clearOfflineActiveVisit,
   PDVS_CACHE_KEY,
   PRODUCTS_CACHE_KEY,
+  CHECKLIST_CACHE_KEY,
   readCache,
   writeCache,
   OfflineActiveVisit
@@ -69,7 +70,13 @@ function getErrorMessage(err: any, fallback: string) {
   return err.response?.data?.error || err.message || fallback;
 }
 
-function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visit) => void }) {
+function StartVisitForm({ pdvs, visitedTodayIds, resolveLocation, onStart }: {
+  pdvs: PDV[];
+  visitedTodayIds: Set<string>;
+  resolveLocation: () => Promise<{ latitude: number; longitude: number; locationAvailable: boolean }>;
+  onStart: (visit?: Visit) => void;
+}) {
+  const availablePdvs = pdvs.filter(p => !visitedTodayIds.has(p.id));
   const [selectedPdv, setSelectedPdv] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +97,8 @@ function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visi
           startedAt: new Date().toISOString(),
           photos: [],
           validities: [],
+          rupturas: [],
+          priceChecks: [],
           noProductsFound: false,
         };
 
@@ -112,14 +121,9 @@ function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visi
     e.preventDefault();
     if (!selectedPdv) return;
     setError('');
-    
-    try {
-      const location = await getRequiredLocation();
-      await handleStartAction(location, true);
-    } catch (err: any) {
-      console.warn('GPS falhou ao iniciar visita, usando contingência.');
-      await handleStartAction({ latitude: 0, longitude: 0 }, false);
-    }
+
+    const location = await resolveLocation();
+    await handleStartAction(location, location.locationAvailable);
   }
 
   return (
@@ -134,13 +138,22 @@ function StartVisitForm({ pdvs, onStart }: { pdvs: PDV[]; onStart: (visit?: Visi
 
       <form onSubmit={handleStart} className="space-y-4">
         <div>
-          <select className="input-field py-3 text-sm font-bold" required value={selectedPdv} onChange={e => setSelectedPdv(e.target.value)}>
-            <option value="">Selecione o PDV...</option>
-            {pdvs.map(p => (
+          <select
+            className="input-field py-3 text-sm font-bold"
+            required
+            value={selectedPdv}
+            onChange={e => setSelectedPdv(e.target.value)}
+            disabled={availablePdvs.length === 0}
+          >
+            <option value="">{availablePdvs.length === 0 ? 'Nenhum PDV disponível' : 'Selecione o PDV...'}</option>
+            {availablePdvs.map(p => (
               <option key={p.id} value={p.id}>{p.name}{p.city ? ` — ${p.city}` : ''}</option>
             ))}
           </select>
         </div>
+        {availablePdvs.length === 0 && pdvs.length > 0 && (
+          <p className="text-[11px] text-gray-400 font-medium text-center">Todos os PDVs de hoje já foram visitados.</p>
+        )}
         {error && <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl flex items-center gap-2"><AlertCircle size={14} />{error}</div>}
         <button type="submit" disabled={loading || !selectedPdv} className="btn-primary w-full py-4 text-base shadow-glow-pluma font-black">
           {loading ? 'Iniciando...' : 'COMEÇAR VISITA'}
@@ -190,6 +203,23 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
     }
   }
 
+  if (products.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Validade</h3>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
+          </div>
+          <p className="text-sm text-gray-500 text-center py-6">
+            Nenhum produto cadastrado pra este PDV. Fale com o administrador pra vincular produtos a ele, ou marque "Não encontrei produtos no PDV".
+          </p>
+          <button type="button" onClick={onClose} className="btn-secondary w-full py-3.5">Fechar</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
@@ -226,6 +256,222 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
   );
 }
 
+function RupturaModal({ visitId, products, onClose, onAdded }: {
+  visitId: string; products: Product[]; onClose: () => void; onAdded: (ruptura?: RupturaRegistro) => void;
+}) {
+  const [form, setForm] = useState({ productId: '', qtyGondola: '0', qtyDeposito: '0', qtySeparadoTroca: '0' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const payload = {
+      productId: form.productId,
+      qtyGondola: parseInt(form.qtyGondola) || 0,
+      qtyDeposito: parseInt(form.qtyDeposito) || 0,
+      qtySeparadoTroca: parseInt(form.qtySeparadoTroca) || 0,
+    };
+    try {
+      const { data } = await api.post(`/visits/${visitId}/ruptura`, payload);
+      onAdded(data.data);
+      onClose();
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        const queued = await queueOfflineAction({
+          kind: 'ruptura',
+          ...getVisitReference(visitId),
+          payload,
+        });
+        onAdded({
+          id: queued.id,
+          visitId,
+          ...payload,
+          product: products.find(p => p.id === form.productId),
+        });
+        onClose();
+      } else {
+        setError(getErrorMessage(err, 'Erro ao registrar ruptura.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Ruptura</h3>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
+          </div>
+          <p className="text-sm text-gray-500 text-center py-6">
+            Nenhum produto cadastrado pra este PDV. Fale com o administrador pra vincular produtos a ele.
+          </p>
+          <button type="button" onClick={onClose} className="btn-secondary w-full py-3.5">Fechar</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Ruptura</h3>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto *</label>
+            <select className="input-field py-3 text-sm font-bold" required value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
+              <option value="">Selecione o produto...</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.brand ? ` (${p.brand})` : ''}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Gôndola</label>
+              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtyGondola} onChange={e => setForm(f => ({ ...f, qtyGondola: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Depósito</label>
+              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtyDeposito} onChange={e => setForm(f => ({ ...f, qtyDeposito: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">P/ Troca</label>
+              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtySeparadoTroca} onChange={e => setForm(f => ({ ...f, qtySeparadoTroca: e.target.value }))} />
+            </div>
+          </div>
+          {error && <div className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3.5 font-bold">Cancelar</button>
+            <button type="submit" disabled={loading || !form.productId} className="btn-primary flex-1 py-3.5 font-bold">{loading ? 'Salvando...' : 'Salvar Registro'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PriceCheckModal({ visitId, products, onClose, onAdded }: {
+  visitId: string; products: Product[]; onClose: () => void; onAdded: (priceCheck?: PriceCheck) => void;
+}) {
+  const [form, setForm] = useState({ productId: '', ownPrice: '', competitorName: '', competitorPrice: '' });
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append('productId', form.productId);
+    formData.append('ownPrice', form.ownPrice);
+    formData.append('competitorName', form.competitorName);
+    formData.append('competitorPrice', form.competitorPrice);
+    if (file) formData.append('photo', file, file.name);
+
+    try {
+      const { data } = await api.post(`/visits/${visitId}/price-checks`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onAdded(data.data);
+      onClose();
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        const queued = await queueOfflineAction({
+          kind: 'priceCheck',
+          ...getVisitReference(visitId),
+          payload: { ...form, file: file || undefined, fileName: file?.name },
+        });
+        onAdded({
+          id: queued.id,
+          visitId,
+          productId: form.productId,
+          ownPrice: Number(form.ownPrice) || 0,
+          competitorName: form.competitorName || null,
+          competitorPrice: form.competitorPrice ? Number(form.competitorPrice) : null,
+          product: products.find(p => p.id === form.productId),
+        });
+        onClose();
+      } else {
+        setError(getErrorMessage(err, 'Erro ao registrar pesquisa de preço.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">Pesquisa de Preço</h3>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
+          </div>
+          <p className="text-sm text-gray-500 text-center py-6">
+            Nenhum produto cadastrado pra este PDV. Fale com o administrador pra vincular produtos a ele.
+          </p>
+          <button type="button" onClick={onClose} className="btn-secondary w-full py-3.5">Fechar</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">Pesquisa de Preço</h3>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto *</label>
+            <select className="input-field py-3 text-sm font-bold" required value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
+              <option value="">Selecione o produto...</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.brand ? ` (${p.brand})` : ''}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Nosso preço (R$) *</label>
+            <input type="number" min="0.01" step="0.01" className="input-field py-3 text-sm font-bold" required value={form.ownPrice} onChange={e => setForm(f => ({ ...f, ownPrice: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Concorrente</label>
+              <input type="text" placeholder="Nome/marca" className="input-field py-3 text-sm font-bold" value={form.competitorName} onChange={e => setForm(f => ({ ...f, competitorName: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Preço concorrente (R$)</label>
+              <input type="number" min="0.01" step="0.01" className="input-field py-3 text-sm font-bold" value={form.competitorPrice} onChange={e => setForm(f => ({ ...f, competitorPrice: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Foto (opcional)</label>
+            <label className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors">
+              <Camera size={16} className="text-gray-400" />
+              <span className="text-xs font-bold text-gray-500">{file ? file.name : 'Tirar foto da etiqueta/gôndola'}</span>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+            </label>
+          </div>
+          {error && <div className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3.5 font-bold">Cancelar</button>
+            <button type="submit" disabled={loading || !form.productId || !form.ownPrice} className="btn-primary flex-1 py-3.5 font-bold">{loading ? 'Salvando...' : 'Salvar Registro'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function PontoPage() {
   const [pontos, setPontos] = useState<Ponto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,40 +482,51 @@ export default function PontoPage() {
   // Visit States
   const [visit, setVisit] = useState<Visit | null>(null);
   const [pdvs, setPdvs] = useState<PDV[]>([]);
+  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [noProducts, setNoProducts] = useState(false);
+  const [revenueGenerated, setRevenueGenerated] = useState('');
   const [showValidityModal, setShowValidityModal] = useState(false);
+  const [showRupturaModal, setShowRupturaModal] = useState(false);
+  const [showPriceCheckModal, setShowPriceCheckModal] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
   const [deletingPhoto, setDeletingPhoto] = useState(false);
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const { pendingCount, refreshCount, lastSyncTime } = useOfflineSyncContext();
+  const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
 
   async function load() {
     setLoading(true);
     setError('');
     setNotice('');
     try {
-      const [pontoRes, visitRes, pdvsRes, productsRes] = await Promise.all([
+      const [pontoRes, visitRes, pdvsRes, productsRes, myVisitsRes, checklistRes] = await Promise.all([
         api.get('/ponto/today'),
         api.get('/visits/active'),
         api.get('/pdvs'),
         api.get('/products'),
+        api.get('/visits/my'),
+        api.get('/checklist'),
       ]);
 
       setPontos(pontoRes.data.data || []);
-      
+
       const loadedPdvs = pdvsRes.data.data || [];
       const loadedProducts = productsRes.data.data || [];
+      const loadedChecklist = checklistRes.data.data || [];
       writeCache(PDVS_CACHE_KEY, loadedPdvs);
       writeCache(PRODUCTS_CACHE_KEY, loadedProducts);
+      writeCache(CHECKLIST_CACHE_KEY, loadedChecklist);
       setPdvs(loadedPdvs);
       setProducts(loadedProducts);
-      
+      setChecklistItems(loadedChecklist);
+      setRecentVisits(myVisitsRes.data.data || []);
+
       const activeVisit = visitRes.data.data || (getOfflineActiveVisit() ? toVisit(getOfflineActiveVisit()!) : null);
       setVisit(activeVisit);
       if (activeVisit) setNoProducts(activeVisit.noProductsFound || false);
@@ -279,6 +536,7 @@ export default function PontoPage() {
         setError('Modo offline ativo. Os registros serão sincronizados quando a internet voltar.');
         setPdvs(readCache<PDV[]>(PDVS_CACHE_KEY, []));
         setProducts(readCache<Product[]>(PRODUCTS_CACHE_KEY, []));
+        setChecklistItems(readCache<ChecklistItem[]>(CHECKLIST_CACHE_KEY, []));
         const offlineVisit = getOfflineActiveVisit();
         if (offlineVisit) setVisit(toVisit(offlineVisit));
       } else {
@@ -333,23 +591,18 @@ export default function PontoPage() {
     setSuccess('');
     setRegistering(true);
 
-    try {
-      const location = await getRequiredLocation();
-      await executeRegister(type, location, true);
-    } catch (err: any) {
-      console.warn('GPS falhou, usando modo de contingência automático.');
-      const dummyLocation = { latitude: 0, longitude: 0 };
-      await executeRegister(type, dummyLocation, false);
-    }
+    const location = await resolveLocation();
+    await executeRegister(type, location, location.locationAvailable);
   }
 
   // Visit Action Handlers
-  async function executePhotoUpload(file: File, location: { latitude: number; longitude: number }, locationAvailable = true) {
+  async function executePhotoUpload(file: File, checklistItemId: string, location: { latitude: number; longitude: number }, locationAvailable = true) {
     if (!visit) return;
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('photo', file);
+      formData.append('checklistItemId', checklistItemId);
       formData.append('latitude', String(location.latitude ?? 0));
       formData.append('longitude', String(location.longitude ?? 0));
       formData.append('locationAvailable', String(locationAvailable));
@@ -367,6 +620,7 @@ export default function PontoPage() {
           payload: {
             file,
             fileName: file.name,
+            checklistItemId,
             latitude: location.latitude ?? 0,
             longitude: location.longitude ?? 0,
             locationAvailable
@@ -375,6 +629,7 @@ export default function PontoPage() {
         const photo = {
           id: queued.id,
           visitId: visit.id,
+          checklistItemId,
           filePath: 'offline',
           fileName: file.name,
           latitude: location.latitude ?? 0,
@@ -386,7 +641,7 @@ export default function PontoPage() {
         if (isLocalVisit(visit.id)) {
           updateOfflineActiveVisit(current => ({
             ...current,
-            photos: [...current.photos, { id: photo.id, fileName: photo.fileName, uploadedAt: photo.uploadedAt }],
+            photos: [...current.photos, { id: photo.id, fileName: photo.fileName, uploadedAt: photo.uploadedAt, checklistItemId }],
           }));
         }
         setNotice('Foto salva offline.' + (locationAvailable ? '' : ' (Sem GPS)'));
@@ -399,23 +654,17 @@ export default function PontoPage() {
     }
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>, checklistItemId: string) {
     const files = Array.from(e.target.files || []);
     if (!files.length || !visit) return;
     setError('');
 
     for (const file of files) {
-      try {
-        const location = await getRequiredLocation();
-        await executePhotoUpload(file, location, true);
-      } catch (err: any) {
-        console.warn('GPS falhou no upload de foto, usando contingência.');
-        const dummyLocation = { latitude: 0, longitude: 0 };
-        await executePhotoUpload(file, dummyLocation, false);
-      }
+      const location = await resolveLocation();
+      await executePhotoUpload(file, checklistItemId, location, location.locationAvailable);
     }
 
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    e.target.value = '';
   }
 
   async function handleDeleteValidity(validityId: string) {
@@ -436,6 +685,48 @@ export default function PontoPage() {
       load();
     } catch (err: any) {
       setError(getErrorMessage(err, 'Erro ao remover validade.'));
+    }
+  }
+
+  async function handleDeleteRuptura(rupturaId: string) {
+    if (!visit) return;
+    if (rupturaId.startsWith('offline-')) {
+      setVisit(prev => prev ? { ...prev, rupturas: (prev.rupturas || []).filter(r => r.id !== rupturaId) } : prev);
+      if (isLocalVisit(visit.id)) {
+        updateOfflineActiveVisit(current => ({
+          ...current,
+          rupturas: current.rupturas.filter(r => r.id !== rupturaId),
+        }));
+      }
+      return;
+    }
+
+    try {
+      await api.delete(`/visits/${visit.id}/ruptura/${rupturaId}`);
+      load();
+    } catch (err: any) {
+      setError(getErrorMessage(err, 'Erro ao remover registro de ruptura.'));
+    }
+  }
+
+  async function handleDeletePriceCheck(priceCheckId: string) {
+    if (!visit) return;
+    if (priceCheckId.startsWith('offline-')) {
+      setVisit(prev => prev ? { ...prev, priceChecks: (prev.priceChecks || []).filter(p => p.id !== priceCheckId) } : prev);
+      if (isLocalVisit(visit.id)) {
+        updateOfflineActiveVisit(current => ({
+          ...current,
+          priceChecks: current.priceChecks.filter(p => p.id !== priceCheckId),
+        }));
+      }
+      return;
+    }
+
+    try {
+      await api.delete(`/visits/${visit.id}/price-checks/${priceCheckId}`);
+      load();
+    } catch (err: any) {
+      setError(getErrorMessage(err, 'Erro ao remover pesquisa de preço.'));
     }
   }
 
@@ -473,7 +764,7 @@ export default function PontoPage() {
     if (!visit) return;
     setFinishing(true);
     try {
-      await api.patch(`/visits/${visit.id}/finish`, { ...location, noProductsFound: noProducts, locationAvailable });
+      await api.patch(`/visits/${visit.id}/finish`, { ...location, noProductsFound: noProducts, locationAvailable, revenueGenerated });
       setSuccess(locationAvailable ? 'Visita finalizada com sucesso!' : 'Visita finalizada (Modo de Contingência - Sem GPS).');
       setVisit(null);
       load();
@@ -482,7 +773,7 @@ export default function PontoPage() {
         await queueOfflineAction({
           kind: 'finishVisit',
           ...getVisitReference(visit.id),
-          payload: { ...location, noProductsFound: noProducts, locationAvailable },
+          payload: { ...location, noProductsFound: noProducts, locationAvailable, revenueGenerated },
         });
         if (isLocalVisit(visit.id)) clearOfflineActiveVisit();
         setSuccess('Visita finalizada offline.' + (locationAvailable ? '' : ' (Sem GPS)'));
@@ -500,9 +791,11 @@ export default function PontoPage() {
     if (!visit) return;
     setError('');
 
-    const photoCount = visit.photos?.length || 0;
-    if (photoCount < 10) {
-      setError(`São necessárias 10 fotos para finalizar. Você enviou apenas ${photoCount}.`);
+    if (checklistStatus.missing.length > 0) {
+      const detail = checklistStatus.missing
+        .map(i => `${i.label} (${checklistStatus.photosByItem.get(i.id)?.length || 0}/${i.requiredCount})`)
+        .join(', ');
+      setError(`Faltam fotos do checklist: ${detail}.`);
       return;
     }
 
@@ -512,18 +805,40 @@ export default function PontoPage() {
       return;
     }
 
-    try {
-      const location = await getRequiredLocation();
-      await executeFinish(location, true);
-    } catch (err: any) {
-      console.warn('GPS falhou ao finalizar visita, usando contingência.');
-      await executeFinish({ latitude: 0, longitude: 0 }, false);
-    }
+    const location = await resolveLocation();
+    await executeFinish(location, location.locationAvailable);
   }
 
   const nextPonto = getNextPonto(pontos);
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
+
+  const visitProducts = useMemo(() => {
+    if (!visit) return [];
+    return products.filter(p => p.pdvs?.some(pdv => pdv.id === visit.pdvId));
+  }, [products, visit]);
+
+  const visitedTodayIds = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    return new Set(
+      recentVisits
+        .filter(v => v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr)
+        .map(v => v.pdvId)
+    );
+  }, [recentVisits]);
+
+  const checklistStatus = useMemo(() => {
+    const photosByItem = new Map<string, NonNullable<Visit['photos']>>();
+    for (const photo of visit?.photos || []) {
+      if (!photo.checklistItemId) continue;
+      const existing = photosByItem.get(photo.checklistItemId) || [];
+      photosByItem.set(photo.checklistItemId, [...existing, photo]);
+    }
+    const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= item.requiredCount;
+    const missing = checklistItems.filter(item => !isCovered(item));
+    const firstPendingIndex = checklistItems.findIndex(item => !isCovered(item));
+    return { photosByItem, missing, firstPendingIndex, isCovered };
+  }, [visit, checklistItems]);
 
   return (
     <div className="p-4 lg:p-0 space-y-6 animate-fade-in">
@@ -676,7 +991,7 @@ export default function PontoPage() {
               ) : (
                 /* No Active Visit - Show Start Form */
                 <div className="card">
-                  <StartVisitForm pdvs={pdvs} onStart={() => load()} />
+                  <StartVisitForm pdvs={pdvs} visitedTodayIds={visitedTodayIds} resolveLocation={resolveLocation} onStart={() => load()} />
                 </div>
               )}
 
@@ -695,29 +1010,62 @@ export default function PontoPage() {
                             <h4 className="text-lg font-black text-gray-900 truncate max-w-[180px]">{visit.pdv?.name}</h4>
                           </div>
                         </div>
-                        <div className={`px-3 py-1 rounded-full text-xs font-black ${(visit.photos?.length || 0) >= 10 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {(visit.photos?.length || 0)}/10 Fotos
+                        <div className={`px-3 py-1 rounded-full text-xs font-black ${checklistItems.length === 0 ? 'bg-gray-100 text-gray-500' : checklistStatus.missing.length === 0 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {checklistItems.length === 0 ? 'Sem checklist' : `${checklistItems.length - checklistStatus.missing.length}/${checklistItems.length} Itens`}
                         </div>
                       </div>
 
-                      {/* Photo Gallery Grid */}
-                      <div className="grid grid-cols-5 gap-2 mb-6">
-                        {(visit.photos || []).map(photo => (
-                          <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden border border-gray-100 group cursor-pointer" onClick={() => photo.filePath !== 'offline' && setExpandedPhoto(`/uploads/${photo.fileName}`)}>
-                            {photo.filePath === 'offline' ? (
-                              <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={14} className="text-amber-400" /></div>
-                            ) : (
-                              <img src={`/uploads/${photo.fileName}`} className="w-full h-full object-cover" alt="Visita" />
-                            )}
-                            <button onClick={(e) => { e.stopPropagation(); setPhotoToDelete(photo.id); }} className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={10} /></button>
-                          </div>
-                        ))}
-                        {Array.from({ length: Math.max(0, 10 - (visit.photos?.length || 0)) }).map((_, i) => (
-                          <label key={`empty-${i}`} className="aspect-square rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-pluma-300 transition-colors">
-                            <Plus size={16} className="text-gray-300" />
-                            <input ref={i === 0 ? fileInputRef : null} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
-                          </label>
-                        ))}
+                      {/* Checklist de Fotos */}
+                      <div className="space-y-2 mb-6">
+                        {checklistItems.length === 0 ? (
+                          <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhum item de checklist configurado pelo administrador.</p>
+                        ) : (
+                          checklistItems.map((item, index) => {
+                            const photos = checklistStatus.photosByItem.get(item.id) || [];
+                            const covered = checklistStatus.isCovered(item);
+                            const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
+                            return (
+                              <div key={item.id} className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-bold text-gray-800">{item.label}</p>
+                                  <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
+                                    {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {photos.map(photo => (
+                                    <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                      {photo.filePath === 'offline' ? (
+                                        <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
+                                      ) : (
+                                        <img
+                                          src={`/uploads/${photo.fileName}`}
+                                          className="w-full h-full object-cover cursor-pointer"
+                                          onClick={() => setExpandedPhoto(`/uploads/${photo.fileName}`)}
+                                          alt={item.label}
+                                        />
+                                      )}
+                                      <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
+                                        <Trash2 size={10} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  {!covered && !locked && (
+                                    <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
+                                      <Plus size={18} className="text-gray-300" />
+                                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
+                                    </label>
+                                  )}
+                                  {locked && photos.length === 0 && (
+                                    <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                                      <Lock size={16} className="text-gray-300" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
 
                       {/* Validity Checklist */}
@@ -749,17 +1097,88 @@ export default function PontoPage() {
                         </label>
                       </div>
 
+                      {/* Ruptura */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Ruptura de Estoque</h5>
+                          {!noProducts && <button onClick={() => setShowRupturaModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>}
+                        </div>
+
+                        {visit.rupturas && visit.rupturas.length > 0 ? (
+                          <div className="max-h-40 overflow-y-auto pr-1 space-y-2">
+                            {visit.rupturas.map((r: RupturaRegistro) => (
+                              <div key={r.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-gray-900 truncate">{r.product?.name}</p>
+                                  <p className="text-[10px] text-gray-500 font-bold">
+                                    Gôndola: {r.qtyGondola} · Depósito: {r.qtyDeposito} · Troca: {r.qtySeparadoTroca}
+                                  </p>
+                                </div>
+                                <button onClick={() => handleDeleteRuptura(r.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : !noProducts ? (
+                          <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhum registro de estoque ainda.</p>
+                        ) : null}
+                      </div>
+
+                      {/* Pesquisa de Preço */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Pesquisa de Preço</h5>
+                          {!noProducts && <button onClick={() => setShowPriceCheckModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>}
+                        </div>
+
+                        {visit.priceChecks && visit.priceChecks.length > 0 ? (
+                          <div className="max-h-40 overflow-y-auto pr-1 space-y-2">
+                            {visit.priceChecks.map((p: PriceCheck) => (
+                              <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-gray-900 truncate">{p.product?.name}</p>
+                                  <p className="text-[10px] text-gray-500 font-bold">
+                                    Nosso: R$ {p.ownPrice.toFixed(2)}
+                                    {p.competitorPrice != null && ` · ${p.competitorName}: R$ ${p.competitorPrice.toFixed(2)}`}
+                                  </p>
+                                </div>
+                                <button onClick={() => handleDeletePriceCheck(p.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : !noProducts ? (
+                          <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhuma pesquisa de preço ainda.</p>
+                        ) : null}
+                      </div>
+
+                      {/* Faturamento gerado */}
+                      <div className="mb-6">
+                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 mb-1.5">
+                          Faturamento gerado nesse PDV (opcional)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="R$ 0,00"
+                          className="input-field py-3 text-sm font-bold"
+                          value={revenueGenerated}
+                          onChange={e => setRevenueGenerated(e.target.value)}
+                        />
+                      </div>
+
                       {/* Finish Button */}
                       <div className="pt-4 border-t border-gray-100">
-                        <button 
-                          onClick={handleFinish} 
-                          disabled={finishing || (visit.photos?.length || 0) < 10} 
-                          className={`w-full py-4 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${ (visit.photos?.length || 0) >= 10 ? 'bg-pluma-800 text-white shadow-glow-pluma' : 'bg-gray-100 text-gray-400 cursor-not-allowed' }`}
+                        <button
+                          onClick={handleFinish}
+                          disabled={finishing || checklistStatus.missing.length > 0}
+                          className={`w-full py-4 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${checklistStatus.missing.length === 0 ? 'bg-pluma-800 text-white shadow-glow-pluma' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                         >
                           {finishing ? 'Finalizando...' : <><CheckCircle size={18} /> FINALIZAR VISITA</>}
                         </button>
-                        {(visit.photos?.length || 0) < 10 && (
-                          <p className="text-[10px] text-center text-amber-600 font-bold mt-2 uppercase tracking-tight italic">Faltam {10 - (visit.photos?.length || 0)} fotos para liberar</p>
+                        {checklistStatus.missing.length > 0 && (
+                          <p className="text-[10px] text-center text-amber-600 font-bold mt-2 uppercase tracking-tight italic">
+                            Faltam {checklistStatus.missing.length} foto{checklistStatus.missing.length !== 1 ? 's' : ''} do checklist
+                          </p>
                         )}
                       </div>
                     </div>
@@ -782,7 +1201,15 @@ export default function PontoPage() {
 
       {/* Modals & Overlays */}
       {showValidityModal && visit && (
-        <ValidityModal visitId={visit.id} products={products} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
+        <ValidityModal visitId={visit.id} products={visitProducts} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
+      )}
+
+      {showRupturaModal && visit && (
+        <RupturaModal visitId={visit.id} products={visitProducts} onClose={() => setShowRupturaModal(false)} onAdded={() => load()} />
+      )}
+
+      {showPriceCheckModal && visit && (
+        <PriceCheckModal visitId={visit.id} products={visitProducts} onClose={() => setShowPriceCheckModal(false)} onAdded={() => load()} />
       )}
 
       {photoToDelete && (
@@ -803,6 +1230,8 @@ export default function PontoPage() {
           <img src={expandedPhoto} alt="Expandida" className="max-w-[95vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl" />
         </div>
       )}
+
+      {locationFallbackModal}
     </div>
   );
 }

@@ -6,6 +6,20 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
+  hourlyCost?: number | null;
+  createdAt?: string;
+}
+
+export interface DegustacaoSolicitacao {
+  id: string;
+  requesterName: string;
+  date: string;
+  city: string;
+  address: string;
+  store: string;
+  productEvent: string;
+  eventTime: string;
+  supervisor: string;
   createdAt?: string;
 }
 
@@ -29,6 +43,7 @@ export interface Product {
   sku: string;
   active: boolean;
   createdAt?: string;
+  pdvs?: Pick<PDV, 'id' | 'name'>[];
 }
 
 export type PontoType = 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA';
@@ -49,11 +64,22 @@ export type VisitStatus = 'IN_PROGRESS' | 'COMPLETED';
 export interface Photo {
   id: string;
   visitId: string;
+  checklistItemId?: string | null;
   filePath: string;
   fileName: string;
   latitude?: number | null;
   longitude?: number | null;
   uploadedAt: string;
+  checklistItem?: ChecklistItem | null;
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  order: number;
+  requiredCount: number;
+  active: boolean;
+  createdAt?: string;
 }
 
 export interface Validity {
@@ -63,6 +89,55 @@ export interface Validity {
   expiryDate: string;
   quantity: number;
   product?: Product;
+  createdAt?: string;
+}
+
+export interface VisitRating {
+  id: string;
+  visitId: string;
+  score: number;
+  ratedById: string;
+  ratedAt: string;
+}
+
+export interface RupturaRegistro {
+  id: string;
+  visitId: string;
+  productId: string;
+  qtyGondola: number;
+  qtyDeposito: number;
+  qtySeparadoTroca: number;
+  product?: Product;
+  createdAt?: string;
+}
+
+export type RupturaRiskLevel = 'CRITICO' | 'ATENCAO' | 'OK';
+
+export interface RupturaAlerta {
+  id: string;
+  pdvId: string;
+  pdvName: string;
+  pdvCity: string;
+  productId: string;
+  productName: string;
+  promotorName: string;
+  qtyGondola: number;
+  qtyDeposito: number;
+  qtySeparadoTroca: number;
+  checkedAt: string;
+  riskLevel: RupturaRiskLevel;
+}
+
+export interface PriceCheck {
+  id: string;
+  visitId: string;
+  productId: string;
+  ownPrice: number;
+  competitorName?: string | null;
+  competitorPrice?: number | null;
+  photoFileName?: string | null;
+  product?: Product;
+  visit?: { pdv?: PDV; promotor?: Pick<User, 'id' | 'name'> };
   createdAt?: string;
 }
 
@@ -78,11 +153,28 @@ export interface Visit {
   longitudeStart?: number | null;
   latitudeEnd?: number | null;
   longitudeEnd?: number | null;
+  revenueGenerated?: number | null;
   pdv?: PDV;
   promotor?: Pick<User, 'id' | 'name' | 'email'>;
   photos?: Photo[];
   validities?: Validity[];
+  rupturas?: RupturaRegistro[];
+  priceChecks?: PriceCheck[];
+  rating?: VisitRating | null;
   _count?: { photos: number; validities: number };
+}
+
+export interface PromotorRanking {
+  promotorId: string;
+  promotorName: string;
+  avgRating: number | null;
+  ratedVisitsCount: number;
+  totalRotas: number;
+  justificadas: number;
+  justificationRate: number;
+  visitadas: number;
+  coverageRate: number | null;
+  finalScore: number | null;
 }
 
 export interface RotaVisita {
@@ -91,9 +183,63 @@ export interface RotaVisita {
   pdvId: string;
   date: string;
   order: number;
+  justification?: string | null;
+  justifiedAt?: string | null;
   pdv?: PDV;
   promotor?: Pick<User, 'id' | 'name' | 'email'>;
   createdAt?: string;
+}
+
+export type CoverageStatus = 'NAO_ATENDIDO' | 'EM_ATENDIMENTO' | 'ATENDIDO';
+
+export interface CoverageEntry {
+  rotaId: string;
+  pdvId: string;
+  pdvName: string;
+  pdvCity: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  promotorId: string;
+  promotorName: string;
+  status: CoverageStatus;
+  checkin: { latitude: number | null; longitude: number | null; time: string } | null;
+}
+
+export interface PdvNaoVisitado {
+  pdvId: string;
+  name: string;
+  city: string;
+  lastVisitDate: string | null;
+  daysSinceLastVisit: number | null;
+}
+
+export interface VisitCostEntry {
+  visitId: string;
+  pdvId: string;
+  pdvName: string;
+  pdvCity: string;
+  promotorId: string;
+  promotorName: string;
+  completedAt: string;
+  durationHours: number;
+  hourlyCost: number | null;
+  cost: number | null;
+  revenue: number | null;
+  net: number | null;
+  ratio: number | null;
+}
+
+export interface PdvCostSummary {
+  pdvId: string;
+  pdvName: string;
+  pdvCity: string;
+  visitCount: number;
+  cost: number | null;
+  revenue: number | null;
+  net: number | null;
+  ratio: number | null;
+  costPartial: boolean;
+  revenuePartial: boolean;
 }
 
 export interface ApiResponse<T> {

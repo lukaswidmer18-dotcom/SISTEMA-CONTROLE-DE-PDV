@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, Trash2, MapPin, Route as RouteIcon, Store, Users, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, MessageSquareWarning } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -9,6 +9,7 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { getRouteGeometry } from '../../utils/osrm';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
@@ -56,6 +57,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   onAdd: (pdvId: string) => void;
   onRemove: (routeId: string) => void;
 }) {
+  const dayColor = DAY_COLORS[dayOfWeek];
   const [selectedPdv, setSelectedPdv] = useState('');
   const assignedIds = new Set(routes.map(r => r.pdvId));
   const options = availablePdvs.filter(p => !assignedIds.has(p.id));
@@ -67,7 +69,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   }
 
   return (
-    <div className={`card min-h-[220px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
+    <div className={`card min-h-[260px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <div>
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]} · {format(date, 'dd/MM')}</span>
@@ -80,23 +82,31 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
         )}
       </div>
 
-      <div className="space-y-1.5 flex-1">
+      <div className="space-y-2 flex-1">
         {routes.length === 0 ? (
-          <div className="text-center py-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">
-            <p className="text-[11px] text-gray-400 font-medium">Nenhum PDV</p>
+          <div className="flex items-center gap-1.5 py-3 px-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
+            <p className="text-xs text-gray-300 font-medium">Sem PDV nesse dia</p>
           </div>
         ) : (
           routes.map((r, i) => (
-            <div key={r.id} className="group flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-2.5 py-2 hover:border-pluma-200 hover:shadow-sm transition-all">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-pluma-50 text-pluma-700 text-[10px] font-black flex items-center justify-center">{i + 1}</span>
-              <Store size={13} className="text-pluma-300 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-gray-800 truncate leading-tight">{r.pdv?.name}</p>
-                {r.pdv?.city && <p className="text-[10px] text-gray-400 truncate leading-tight">{r.pdv.city}</p>}
+            <div key={r.id} className="group border-b border-gray-100 last:border-b-0 py-2.5 hover:bg-gray-50/70 transition-colors -mx-1 px-1 rounded-md">
+              <div className="flex items-start justify-between gap-1.5">
+                <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
+                  <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
+                  {r.pdv?.name}
+                </p>
+                <button onClick={() => onRemove(r.id)} className="p-0.5 text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <X size={14} />
+                </button>
               </div>
-              <button onClick={() => onRemove(r.id)} className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 opacity-0 group-hover:opacity-100">
-                <Trash2 size={13} />
-              </button>
+              {r.pdv?.city && <p className="text-xs text-gray-400 leading-tight ml-4">{r.pdv.city}</p>}
+              {r.justification && (
+                <div className="mt-1.5 ml-4 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
+                  <MessageSquareWarning size={12} className="shrink-0 mt-0.5" />
+                  <p className="leading-tight">{r.justification}</p>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -194,6 +204,31 @@ export default function RoutesPage() {
 
   const allMapPoints = useMemo(() => mapDays.flatMap(d => d.points.map(p => p.position)), [mapDays]);
   const allMissing = useMemo(() => mapDays.flatMap(d => d.missing.map(r => ({ dayOfWeek: d.dayOfWeek, name: r.pdv?.name || '?' }))), [mapDays]);
+
+  const [roadGeometry, setRoadGeometry] = useState<Record<number, [number, number][]>>({});
+  const routableSignature = useMemo(
+    () => mapDays.filter(d => d.points.length > 1).map(d => `${d.dayOfWeek}:${d.points.map(p => p.position.join(',')).join('|')}`).join(';'),
+    [mapDays]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const routable = mapDays.filter(d => d.points.length > 1);
+    if (routable.length === 0) {
+      setRoadGeometry({});
+      return;
+    }
+    Promise.all(routable.map(async d => [d.dayOfWeek, await getRouteGeometry(d.points.map(p => p.position))] as const)).then(entries => {
+      if (cancelled) return;
+      const next: Record<number, [number, number][]> = {};
+      for (const [dayOfWeek, geometry] of entries) {
+        if (geometry) next[dayOfWeek] = geometry;
+      }
+      setRoadGeometry(next);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routableSignature]);
 
   function toggleDay(dayOfWeek: number) {
     setActiveDays(prev => {
@@ -342,7 +377,7 @@ export default function RoutesPage() {
           Nenhum dia selecionado. Marque ao menos um dia acima.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 animate-fade-in">
           {DAYS.map((_, dayOfWeek) => activeDays.has(dayOfWeek) && (
             <DayColumn
               key={dayOfWeek}
@@ -383,7 +418,9 @@ export default function RoutesPage() {
               <FitBounds points={allMapPoints} />
               {mapDays.map(d => (
                 <React.Fragment key={d.dayOfWeek}>
-                  {d.points.length > 1 && <Polyline positions={d.points.map(p => p.position)} color={d.color} weight={3} opacity={0.7} />}
+                  {d.points.length > 1 && (
+                    <Polyline positions={roadGeometry[d.dayOfWeek] ?? d.points.map(p => p.position)} color={d.color} weight={3} opacity={0.7} />
+                  )}
                   {d.points.map((p, i) => (
                     <Marker key={`${d.dayOfWeek}-${i}`} position={p.position} icon={dayNumberIcon(d.color, p.order)}>
                       <Popup>

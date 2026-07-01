@@ -1,23 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Product } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { PDV, Product } from '../../types';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store } from 'lucide-react';
 
-function ProductModal({ product, onClose, onSaved }: { product?: Product | null; onClose: () => void; onSaved: () => void }) {
+function ProductModal({ product, pdvs, onClose, onSaved }: {
+  product?: Product | null; pdvs: PDV[]; onClose: () => void; onSaved: () => void;
+}) {
   const isEdit = Boolean(product);
   const [form, setForm] = useState({ name: product?.name || '', brand: product?.brand || '', sku: product?.sku || '' });
+  const [pdvIds, setPdvIds] = useState<string[]>(product?.pdvs?.map(p => p.id) || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  function togglePdv(id: string) {
+    setPdvIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      const payload = { ...form, pdvIds };
       if (isEdit && product) {
-        await api.put(`/products/${product.id}`, form);
+        await api.put(`/products/${product.id}`, payload);
       } else {
-        await api.post('/products', form);
+        await api.post('/products', payload);
       }
       onSaved();
       onClose();
@@ -30,7 +38,7 @@ function ProductModal({ product, onClose, onSaved }: { product?: Product | null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold text-gray-800">{isEdit ? 'Editar Produto' : 'Novo Produto'}</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
@@ -48,6 +56,27 @@ function ProductModal({ product, onClose, onSaved }: { product?: Product | null;
             <label className="block text-sm font-medium text-gray-700 mb-1">SKU / Código</label>
             <input className="input-field" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PDVs onde esse produto é validado</label>
+            <p className="text-xs text-gray-400 mb-2">O promotor só vê esse produto na lista de validades dos PDVs marcados aqui.</p>
+            {pdvs.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">Nenhum PDV cadastrado.</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                {pdvs.map(pdv => (
+                  <label key={pdv.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-pluma-800 rounded border-gray-300"
+                      checked={pdvIds.includes(pdv.id)}
+                      onChange={() => togglePdv(pdv.id)}
+                    />
+                    <span className="text-gray-700">{pdv.name}{pdv.city ? ` — ${pdv.city}` : ''}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
@@ -61,14 +90,16 @@ function ProductModal({ product, onClose, onSaved }: { product?: Product | null;
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; product?: Product | null }>({ open: false });
 
   async function load() {
     setLoading(true);
     try {
-      const { data } = await api.get('/products');
-      setProducts(data.data || []);
+      const [productsRes, pdvsRes] = await Promise.all([api.get('/products'), api.get('/pdvs')]);
+      setProducts(productsRes.data.data || []);
+      setPdvs((pdvsRes.data.data || []).filter((p: PDV) => p.active));
     } finally {
       setLoading(false);
     }
@@ -79,6 +110,21 @@ export default function ProductsPage() {
   async function toggleActive(product: Product) {
     await api.patch(`/products/${product.id}/toggle`);
     load();
+  }
+
+  function pdvBadges(p: Product) {
+    if (!p.pdvs || p.pdvs.length === 0) {
+      return <span className="text-xs text-gray-400 italic">Nenhum PDV</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {p.pdvs.map(pdv => (
+          <span key={pdv.id} className="flex items-center gap-1 text-[11px] font-medium text-pluma-700 bg-pluma-50 border border-pluma-100 rounded-full px-2 py-0.5">
+            <Store size={10} /> {pdv.name}
+          </span>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -109,6 +155,7 @@ export default function ProductsPage() {
                   </div>
                   <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
                 </div>
+                <div className="mt-2">{pdvBadges(p)}</div>
                 <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
                   <button onClick={() => setModal({ open: true, product: p })} className="p-2 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
                     <Pencil size={15} />
@@ -129,6 +176,7 @@ export default function ProductsPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Marca</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">SKU</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">PDVs</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -139,6 +187,7 @@ export default function ProductsPage() {
                     <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.brand || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.sku || '-'}</td>
+                    <td className="px-4 py-3 max-w-xs">{pdvBadges(p)}</td>
                     <td className="px-4 py-3">
                       <span className={p.active ? 'badge-green' : 'badge-red'}>{p.active ? 'Ativo' : 'Inativo'}</span>
                     </td>
@@ -161,7 +210,7 @@ export default function ProductsPage() {
       )}
 
       {modal.open && (
-        <ProductModal product={modal.product} onClose={() => setModal({ open: false })} onSaved={load} />
+        <ProductModal product={modal.product} pdvs={pdvs} onClose={() => setModal({ open: false })} onSaved={load} />
       )}
     </div>
   );

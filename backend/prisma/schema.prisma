@@ -14,12 +14,14 @@ model User {
   name         String
   role         String   @default("PROMOTOR")
   active       Boolean  @default(true)
+  hourlyCost   Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  pontos   Ponto[]
-  visits   Visit[]
-  rotas    RotaVisita[]
+  pontos       Ponto[]
+  visits       Visit[]
+  rotas        RotaVisita[]
+  ratingsGiven VisitRating[] @relation("RatedBy")
 
   @@map("users")
 }
@@ -37,8 +39,9 @@ model PDV {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  visits Visit[]
-  rotas  RotaVisita[]
+  visits   Visit[]
+  rotas    RotaVisita[]
+  products Product[]
 
   @@map("pdvs")
 }
@@ -52,7 +55,10 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  validities Validity[]
+  validities  Validity[]
+  pdvs        PDV[]
+  rupturas    RupturaRegistro[]
+  priceChecks PriceCheck[]
 
   @@map("products")
 }
@@ -86,6 +92,7 @@ model Visit {
   longitudeStart   Float?
   latitudeEnd      Float?
   longitudeEnd     Float?
+  revenueGenerated Float?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -94,38 +101,123 @@ model Visit {
   photos     Photo[]
   validities Validity[]
   pontos     Ponto[]
+  rating      VisitRating?
+  rupturas    RupturaRegistro[]
+  priceChecks PriceCheck[]
 
   @@map("visits")
 }
 
-model Photo {
+model VisitRating {
   id         String   @id @default(uuid())
-  visitId    String
-  filePath   String
-  fileName   String
-  latitude   Float?
-  longitude  Float?
-  uploadedAt DateTime @default(now())
+  visitId    String   @unique
+  score      Float
+  ratedById  String
+  ratedAt    DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  visit Visit @relation(fields: [visitId], references: [id])
+  visit   Visit @relation(fields: [visitId], references: [id])
+  ratedBy User  @relation("RatedBy", fields: [ratedById], references: [id])
+
+  @@map("visit_ratings")
+}
+
+model Photo {
+  id              String   @id @default(uuid())
+  visitId         String
+  checklistItemId String?
+  filePath        String
+  fileName        String
+  latitude        Float?
+  longitude       Float?
+  uploadedAt      DateTime @default(now())
+
+  visit         Visit          @relation(fields: [visitId], references: [id])
+  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id])
 
   @@map("photos")
 }
 
+model ChecklistItem {
+  id            String   @id @default(uuid())
+  label         String
+  order         Int      @default(0)
+  requiredCount Int      @default(1)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photos Photo[]
+
+  @@map("checklist_items")
+}
+
 model RotaVisita {
-  id         String   @id @default(uuid())
-  promotorId String
-  pdvId      String
-  date       DateTime
-  order      Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String    @id @default(uuid())
+  promotorId    String
+  pdvId         String
+  date          DateTime
+  order         Int       @default(0)
+  justification String?
+  justifiedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   promotor User @relation(fields: [promotorId], references: [id])
   pdv      PDV  @relation(fields: [pdvId], references: [id])
 
   @@unique([promotorId, pdvId, date])
   @@map("rotas_visita")
+}
+
+model RupturaRegistro {
+  id               String   @id @default(uuid())
+  visitId          String
+  productId        String
+  qtyGondola       Int      @default(0)
+  qtyDeposito      Int      @default(0)
+  qtySeparadoTroca Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  visit   Visit   @relation(fields: [visitId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([visitId, productId])
+  @@map("ruptura_registros")
+}
+
+model DegustacaoSolicitacao {
+  id            String   @id @default(uuid())
+  requesterName String
+  date          DateTime
+  city          String
+  address       String
+  store         String
+  productEvent  String
+  eventTime     String
+  supervisor    String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@map("degustacao_solicitacoes")
+}
+
+model PriceCheck {
+  id              String   @id @default(uuid())
+  visitId         String
+  productId       String
+  ownPrice        Float
+  competitorName  String?
+  competitorPrice Float?
+  photoPath       String?
+  photoFileName   String?
+  createdAt       DateTime @default(now())
+
+  visit   Visit   @relation(fields: [visitId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([visitId, productId])
+  @@map("price_checks")
 }
 
 model Validity {

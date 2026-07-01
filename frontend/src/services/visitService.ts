@@ -1,16 +1,19 @@
-import { Visit, PDV, Validity } from '../types';
+import { Visit, PDV, Validity, RupturaRegistro, PriceCheck } from '../types';
 
 export const OFFLINE_ACTIVE_VISIT_KEY = 'pdv-offline-active-visit';
 export const PDVS_CACHE_KEY = 'pdv-cache-pdvs';
 export const PRODUCTS_CACHE_KEY = 'pdv-cache-products';
+export const CHECKLIST_CACHE_KEY = 'pdv-cache-checklist';
 
 export interface OfflineActiveVisit {
   localVisitId: string;
   pdvId: string;
   pdv?: PDV;
   startedAt: string;
-  photos: { id: string; fileName: string; uploadedAt: string }[];
+  photos: { id: string; fileName: string; uploadedAt: string; checklistItemId: string }[];
   validities: Validity[];
+  rupturas: RupturaRegistro[];
+  priceChecks: PriceCheck[];
   noProductsFound: boolean;
 }
 
@@ -55,11 +58,14 @@ export function toVisit(offline: OfflineActiveVisit): Visit {
     photos: offline.photos.map(photo => ({
       id: photo.id,
       visitId: offline.localVisitId,
+      checklistItemId: photo.checklistItemId,
       filePath: 'offline',
       fileName: photo.fileName,
       uploadedAt: photo.uploadedAt,
     })),
     validities: offline.validities,
+    rupturas: offline.rupturas,
+    priceChecks: offline.priceChecks,
   };
 }
 

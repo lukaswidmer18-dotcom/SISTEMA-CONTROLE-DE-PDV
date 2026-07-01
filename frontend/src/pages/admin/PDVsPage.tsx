@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, MapPin, MapPinOff } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, MapPin, MapPinOff, CheckCircle2, PencilLine } from 'lucide-react';
 
 function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
@@ -26,6 +26,10 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   const [warning, setWarning] = useState('');
   // Guarda o id assim que o PDV é criado, pra resubmissões (corrigindo endereço após falha de geocode) virarem update, não outro create.
   const [savedId, setSavedId] = useState<string | undefined>(pdv?.id);
+  const hasSavedCoord = pdv?.latitude != null && pdv?.longitude != null;
+  // Campo de coordenada manual só fica editável sob demanda quando o PDV já tem coordenada salva,
+  // pra não dar a impressão de que o valor sumiu (ele reabre vazio de propósito — ver comentário no input abaixo).
+  const [editingCoord, setEditingCoord] = useState(!hasSavedCoord);
 
   function parseManualCoord(value: string): { latitude: number; longitude: number } | null {
     const trimmed = value.trim();
@@ -127,17 +131,35 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Coordenada manual (opcional)</label>
-            <input
-              className={`input-field ${warning ? 'border-amber-400 ring-1 ring-amber-200' : ''}`}
-              placeholder="-24.9555, -53.4561"
-              value={form.manualCoord}
-              onChange={e => setForm(f => ({ ...f, manualCoord: e.target.value }))}
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Use só se o endereço não for encontrado no mapa. No Google Maps, clique com o botão direito no local exato e copie as coordenadas (formato "lat, lng"). Se preenchido, tem prioridade sobre o endereço e ignora o geocoding automático.
-            </p>
-            {isEdit && pdv?.latitude != null && pdv?.longitude != null && (
-              <p className="text-xs text-gray-400 mt-1">Coordenada atual: {pdv.latitude}, {pdv.longitude}</p>
+            {hasSavedCoord && !editingCoord ? (
+              <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-sm text-green-700 font-medium">
+                  <CheckCircle2 size={15} className="shrink-0" />
+                  Coordenada salva: {pdv!.latitude}, {pdv!.longitude}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingCoord(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-pluma-700 hover:text-pluma-900 shrink-0"
+                >
+                  <PencilLine size={13} /> Alterar
+                </button>
+              </div>
+            ) : (
+              <>
+                <input
+                  className={`input-field ${warning ? 'border-amber-400 ring-1 ring-amber-200' : ''}`}
+                  placeholder="-24.9555, -53.4561"
+                  value={form.manualCoord}
+                  onChange={e => setForm(f => ({ ...f, manualCoord: e.target.value }))}
+                  autoFocus={hasSavedCoord}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {hasSavedCoord
+                    ? 'Deixe em branco e salve pra manter a coordenada atual sem alteração.'
+                    : 'Use só se o endereço não for encontrado no mapa. No Google Maps, clique com o botão direito no local exato e copie as coordenadas (formato "lat, lng"). Se preenchido, tem prioridade sobre o endereço e ignora o geocoding automático.'}
+                </p>
+              </>
             )}
           </div>
           {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning}</div>}

@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Ponto, Visit, PDV } from '../../types';
+import { Ponto, Visit, RotaVisita, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store } from 'lucide-react';
+import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   ENTRADA: 'Início',
@@ -28,33 +28,95 @@ const STATUS_COLORS: Record<PdvStatus, string> = {
   PENDENTE: 'bg-amber-50 text-amber-700 border-amber-100',
 };
 
+function JustifyModal({ route, onClose, onSaved }: { route: RotaVisita; onClose: () => void; onSaved: () => void }) {
+  const [text, setText] = useState(route.justification || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (text.trim().length < 10) {
+      setError('Justificativa precisa ter pelo menos 10 caracteres.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await api.patch(`/routes/${route.id}/justify`, { justification: text.trim() });
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao salvar justificativa.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">Justificar visita não realizada</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{route.pdv?.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <textarea
+              className="input-field text-sm"
+              rows={4}
+              placeholder="Explique por que não foi possível visitar esse PDV hoje (mínimo 10 caracteres)..."
+              value={text}
+              onChange={e => setText(e.target.value)}
+            />
+            <p className="text-[11px] text-gray-400 mt-1">{text.trim().length}/10 caracteres mínimos</p>
+          </div>
+          {error && <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl">{error}</div>}
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3">Cancelar</button>
+            <button type="submit" disabled={loading || text.trim().length < 10} className="btn-primary flex-1 py-3">
+              {loading ? 'Salvando...' : 'Salvar Justificativa'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function PromotorHome() {
   const { user } = useAuth();
   const [pontos, setPontos] = useState<Ponto[]>([]);
   const [activeVisit, setActiveVisit] = useState<Visit | null>(null);
-  const [pdvsToday, setPdvsToday] = useState<PDV[]>([]);
+  const [todayRoutes, setTodayRoutes] = useState<RotaVisita[]>([]);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [justifyRoute, setJustifyRoute] = useState<RotaVisita | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [pontosRes, visitRes, pdvsRes, myVisitsRes] = await Promise.all([
-          api.get('/ponto/today'),
-          api.get('/visits/active'),
-          api.get('/pdvs'),
-          api.get('/visits/my'),
-        ]);
-        setPontos(pontosRes.data.data || []);
-        setActiveVisit(visitRes.data.data);
-        setPdvsToday(pdvsRes.data.data || []);
-        setRecentVisits(myVisitsRes.data.data || []);
-      } finally {
-        setLoading(false);
-      }
+  async function load() {
+    try {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const [pontosRes, visitRes, routesRes, myVisitsRes, checklistRes] = await Promise.all([
+        api.get('/ponto/today'),
+        api.get('/visits/active'),
+        api.get('/routes', { params: { from: todayStr, to: todayStr } }),
+        api.get('/visits/my'),
+        api.get('/checklist'),
+      ]);
+      setPontos(pontosRes.data.data || []);
+      setActiveVisit(visitRes.data.data);
+      setTodayRoutes(routesRes.data.data || []);
+      setRecentVisits(myVisitsRes.data.data || []);
+      setChecklistItems(checklistRes.data.data || []);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
@@ -67,6 +129,11 @@ export default function PromotorHome() {
     );
     return visitedToday ? 'VISITADA' : 'PENDENTE';
   }
+
+  const completedChecklistItems = checklistItems.filter(item => {
+    const count = (activeVisit?.photos || []).filter(p => p.checklistItemId === item.id).length;
+    return count >= item.requiredCount;
+  }).length;
 
   return (
     <div className="p-4 lg:p-0 space-y-6 animate-fade-in">
@@ -175,8 +242,10 @@ export default function PromotorHome() {
                     <span className="text-xs font-semibold text-gray-600">Início: {format(new Date(activeVisit.startedAt), 'HH:mm')}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className={activeVisit.photos && activeVisit.photos.length >= 10 ? 'text-green-500' : 'text-gray-400'} />
-                    <span className="text-xs font-semibold text-gray-600">{activeVisit.photos?.length || 0}/10 fotos</span>
+                    <CheckCircle size={16} className={checklistItems.length > 0 && completedChecklistItems >= checklistItems.length ? 'text-green-500' : 'text-gray-400'} />
+                    <span className="text-xs font-semibold text-gray-600">
+                      {completedChecklistItems}/{checklistItems.length} itens
+                    </span>
                   </div>
                 </div>
               </div>
@@ -208,7 +277,7 @@ export default function PromotorHome() {
 
         {loading ? (
           <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
-        ) : pdvsToday.length === 0 ? (
+        ) : todayRoutes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
             <AlertCircle size={32} className="text-orange-400 mb-2" />
             <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra hoje.</p>
@@ -216,28 +285,49 @@ export default function PromotorHome() {
           </div>
         ) : (
           <div className="space-y-2">
-            {pdvsToday.map(pdv => {
-              const status = getPdvStatus(pdv.id);
+            {todayRoutes.map(route => {
+              if (!route.pdv) return null;
+              const status = getPdvStatus(route.pdv.id);
+              const canJustify = status === 'PENDENTE';
               return (
-                <div key={pdv.id} className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
-                      <Store size={16} className="text-pluma-600" />
+                <div key={route.id} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
+                        <Store size={16} className="text-pluma-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">{route.pdv.name}</p>
+                        {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{pdv.name}</p>
-                      {pdv.city && <p className="text-xs text-gray-400 truncate">{pdv.city}</p>}
-                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
+                      {STATUS_LABELS[status]}
+                    </span>
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
-                    {STATUS_LABELS[status]}
-                  </span>
+                  {route.justification ? (
+                    <div className="mt-2 ml-11 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                      <MessageSquareWarning size={13} className="shrink-0 mt-0.5" />
+                      <p className="leading-tight">{route.justification}</p>
+                    </div>
+                  ) : canJustify ? (
+                    <button
+                      onClick={() => setJustifyRoute(route)}
+                      className="mt-2 ml-11 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-800 transition-colors"
+                    >
+                      <MessageSquareWarning size={13} /> Justificar não comparecimento
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {justifyRoute && (
+        <JustifyModal route={justifyRoute} onClose={() => setJustifyRoute(null)} onSaved={load} />
+      )}
 
       {/* History Shortcut — Full Width on PC */}
       <Link to="/promotor/historico" className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex items-center justify-between p-6 group" style={{ animationDelay: '230ms' }}>
