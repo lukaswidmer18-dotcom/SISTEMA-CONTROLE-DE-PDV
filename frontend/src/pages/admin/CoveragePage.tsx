@@ -171,13 +171,15 @@ export default function CoveragePage() {
                     {c.checkin && (
                       <>
                         <p className="text-gray-500">Check-in às {format(new Date(c.checkin.time), 'HH:mm', { locale: ptBR })}</p>
-                        {c.checkin.latitude != null && c.checkin.longitude != null && (
+                        {c.checkin.latitude && c.checkin.longitude ? (
                           <button
                             onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${c.checkin!.latitude},${c.checkin!.longitude}`, '_blank')}
                             className="mt-1 w-full py-1 bg-gray-900 text-white text-[10px] font-bold rounded-lg hover:bg-black transition-colors"
                           >
                             Abrir local do check-in
                           </button>
+                        ) : (
+                          <p className="text-amber-600 font-semibold">Check-in sem GPS (modo contingência)</p>
                         )}
                       </>
                     )}

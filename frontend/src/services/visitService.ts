@@ -1,7 +1,6 @@
 import { Visit, PDV, Validity, RupturaRegistro, PriceCheck } from '../types';
 
 export const OFFLINE_ACTIVE_VISIT_KEY = 'pdv-offline-active-visit';
-export const PDVS_CACHE_KEY = 'pdv-cache-pdvs';
 export const PRODUCTS_CACHE_KEY = 'pdv-cache-products';
 export const CHECKLIST_CACHE_KEY = 'pdv-cache-checklist';
 

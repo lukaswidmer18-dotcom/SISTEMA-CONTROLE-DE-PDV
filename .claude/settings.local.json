@@ -111,7 +111,24 @@
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const arr=JSON.parse\\(d\\).data; console.log\\(arr.length,'visits'\\); arr.slice\\(0,3\\).forEach\\(v=>console.log\\(v.promotorName, 'salario/hora derivado:', v.hourlyCost, 'custo:', v.cost\\)\\)}\\)\")",
       "Bash(powershell -Command \"Stop-Process -Id 26540 -Force\")",
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).data.forEach\\(p=>console.log\\(p.user?.name,p.type,p.batteryLevel\\)\\)}\\)\")",
-      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).data.forEach\\(p=>console.log\\(p.id,p.user?.name,p.type,p.batteryLevel\\)\\)}\\)\")"
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{JSON.parse\\(d\\).data.forEach\\(p=>console.log\\(p.id,p.user?.name,p.type,p.batteryLevel\\)\\)}\\)\")",
+      "Bash(curl -s -o /dev/null -w \"backend:%{http_code}\\\\n\" http://localhost:3001/api/health)",
+      "Bash(curl -s -o /dev/null -w \"frontend:%{http_code}\\\\n\" http://localhost:5173)",
+      "Bash(npx --yes chromium-cli --help)",
+      "Bash(chromium-cli --help)",
+      "Bash(node -e \"console.log\\(require.resolve\\('playwright'\\)\\)\")",
+      "Bash(npm ls *)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(timeout 30 bash -c 'until curl -sf http://localhost:5173 >/dev/null 2>&1; do sleep 1; done')",
+      "Bash(curl -s -o /dev/null -w \"backend:%{http_code}\\\\n\" http://localhost:3001/api/auth/login)",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"promotor@sistema.com\",\"password\":\"promotor123\"}' -o /dev/null -w \"login:%{http_code}\\\\n\")",
+      "Bash(node -e \"console.log\\(Intl.DateTimeFormat\\(\\).resolvedOptions\\(\\).timeZone\\); console.log\\(new Date\\(\\).getTimezoneOffset\\(\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@sistema.com\",\"password\":\"admin123\"}' -o /dev/null -w \"backend_alive:%{http_code}\\\\n\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const v=JSON.parse\\(d\\).data;console.log\\(v.map\\(x=>\\({pdvId:x.pdvId,status:x.status,startedAt:x.startedAt}\\)\\)\\)}\\)\")",
+      "Bash(curl --version)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\).data.find\\(x=>x.id==='414de4c6-35e9-483c-ac10-f110baf87102'\\);console.log\\(r\\)}\\)\")",
+      "Bash(curl -s -o /dev/null -w \"photo:%{http_code} content-type:%{content_type} size:%{size_download}\\\\n\" \"http://localhost:3001/uploads/3cc35cc1-09ed-48a8-9d72-d7de80f2366d.png\")",
+      "Bash(curl -s -o /dev/null -w \"photo_agora:%{http_code}\\\\n\" \"http://localhost:3001/uploads/3cc35cc1-09ed-48a8-9d72-d7de80f2366d.png\")"
     ]
   }
 }

@@ -1,32 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Ponto, Visit, PDV, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
+import { Ponto, PontoType, Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
 import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
-import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock, BatteryMedium } from 'lucide-react';
-import { 
-  createLocalId, 
-  saveOfflineActiveVisit, 
-  getOfflineActiveVisit, 
-  toVisit, 
-  isLocalVisit, 
-  getVisitReference, 
-  updateOfflineActiveVisit, 
+import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock } from 'lucide-react';
+import {
+  getOfflineActiveVisit,
+  toVisit,
+  isLocalVisit,
+  getVisitReference,
+  updateOfflineActiveVisit,
   clearOfflineActiveVisit,
-  PDVS_CACHE_KEY,
   PRODUCTS_CACHE_KEY,
   CHECKLIST_CACHE_KEY,
   readCache,
   writeCache,
-  OfflineActiveVisit
 } from '../../services/visitService';
-
-const PONTO_SEQUENCE = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'] as const;
-type PontoType = typeof PONTO_SEQUENCE[number];
 
 const PONTO_LABELS: Record<PontoType, string> = {
   ENTRADA: 'Início',
@@ -42,126 +36,8 @@ const PONTO_COLORS: Record<PontoType, string> = {
   SAIDA: 'bg-red-100 text-red-800',
 };
 
-function getNextPonto(pontos: Ponto[]): PontoType | null {
-  const types = pontos.map(p => p.type as PontoType);
-  const hasSaida = types.includes('SAIDA');
-  if (hasSaida) return null;
-
-  if (!types.includes('ENTRADA')) return 'ENTRADA';
-  if (!types.includes('SAIDA_ALMOCO')) {
-    // Can go to lunch or skip to saida
-    return 'SAIDA_ALMOCO';
-  }
-  if (!types.includes('RETORNO_ALMOCO')) return 'RETORNO_ALMOCO';
-  return 'SAIDA';
-}
-
-function canRegister(type: PontoType, pontos: Ponto[]): boolean {
-  const types = pontos.map(p => p.type as PontoType);
-  if (types.includes(type)) return false;
-
-  if (type === 'ENTRADA') return !types.includes('ENTRADA');
-  if (type === 'SAIDA_ALMOCO') return types.includes('ENTRADA') && !types.includes('SAIDA');
-  if (type === 'RETORNO_ALMOCO') return types.includes('SAIDA_ALMOCO') && !types.includes('RETORNO_ALMOCO');
-  if (type === 'SAIDA') return types.includes('ENTRADA');
-  return false;
-}
-
 function getErrorMessage(err: any, fallback: string) {
   return err.response?.data?.error || err.message || fallback;
-}
-
-function StartVisitForm({ pdvs, visitedTodayIds, resolveLocation, onStart }: {
-  pdvs: PDV[];
-  visitedTodayIds: Set<string>;
-  resolveLocation: () => Promise<{ latitude: number; longitude: number; locationAvailable: boolean }>;
-  onStart: (visit?: Visit) => void;
-}) {
-  const availablePdvs = pdvs.filter(p => !visitedTodayIds.has(p.id));
-  const [selectedPdv, setSelectedPdv] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleStartAction(location: { latitude: number; longitude: number }, locationAvailable = true) {
-    setLoading(true);
-    setError('');
-    try {
-      await api.post('/visits', { pdvId: selectedPdv, latitude: location.latitude, longitude: location.longitude, locationAvailable });
-      onStart();
-    } catch (err: any) {
-      if (isNetworkError(err)) {
-        const localVisitId = createLocalId('local-visit');
-        const offlineVisit: OfflineActiveVisit = {
-          localVisitId,
-          pdvId: selectedPdv,
-          pdv: pdvs.find(p => p.id === selectedPdv),
-          startedAt: new Date().toISOString(),
-          photos: [],
-          validities: [],
-          rupturas: [],
-          priceChecks: [],
-          noProductsFound: false,
-        };
-
-        saveOfflineActiveVisit(offlineVisit);
-        await queueOfflineAction({
-          kind: 'startVisit',
-          localVisitId,
-          payload: { pdvId: selectedPdv, latitude: location.latitude, longitude: location.longitude, locationAvailable },
-        });
-        onStart(toVisit(offlineVisit));
-      } else {
-        setError(getErrorMessage(err, 'Erro ao iniciar visita.'));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleStart(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedPdv) return;
-    setError('');
-
-    const location = await resolveLocation();
-    await handleStartAction(location, location.locationAvailable);
-  }
-
-  return (
-    <div className="animate-fade-in space-y-6">
-      <div className="text-center bg-gray-50 p-6 rounded-3xl border-2 border-dashed border-gray-200">
-        <div className="w-12 h-12 bg-white text-pluma-700 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-100">
-          <MapPin size={24} />
-        </div>
-        <h4 className="font-black text-gray-900 tracking-tight">Nova Visita no PDV</h4>
-        <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Selecione o estabelecimento</p>
-      </div>
-
-      <form onSubmit={handleStart} className="space-y-4">
-        <div>
-          <select
-            className="input-field py-3 text-sm font-bold"
-            required
-            value={selectedPdv}
-            onChange={e => setSelectedPdv(e.target.value)}
-            disabled={availablePdvs.length === 0}
-          >
-            <option value="">{availablePdvs.length === 0 ? 'Nenhum PDV disponível' : 'Selecione o PDV...'}</option>
-            {availablePdvs.map(p => (
-              <option key={p.id} value={p.id}>{p.name}{p.city ? ` — ${p.city}` : ''}</option>
-            ))}
-          </select>
-        </div>
-        {availablePdvs.length === 0 && pdvs.length > 0 && (
-          <p className="text-[11px] text-gray-400 font-medium text-center">Todos os PDVs de hoje já foram visitados.</p>
-        )}
-        {error && <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl flex items-center gap-2"><AlertCircle size={14} />{error}</div>}
-        <button type="submit" disabled={loading || !selectedPdv} className="btn-primary w-full py-4 text-base shadow-glow-pluma font-black">
-          {loading ? 'Iniciando...' : 'COMEÇAR VISITA'}
-        </button>
-      </form>
-    </div>
-  );
 }
 
 function ValidityModal({ visitId, products, onClose, onAdded }: {
@@ -476,29 +352,11 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
 export default function PontoPage() {
   const [pontos, setPontos] = useState<Ponto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [batteryLevel, setBatteryLevel] = useState('');
-
-  // Battery Status API: só existe em Chrome/Android. Preenche automaticamente quando
-  // disponível; se não, o promotor informa manualmente antes de iniciar a jornada.
-  useEffect(() => {
-    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number; addEventListener: (event: string, cb: () => void) => void }> };
-    if (!nav.getBattery) return;
-    let battery: { level: number; addEventListener: (event: string, cb: () => void) => void } | null = null;
-    nav.getBattery().then((b) => {
-      battery = b;
-      setBatteryLevel(String(Math.round(b.level * 100)));
-      b.addEventListener('levelchange', () => setBatteryLevel(String(Math.round(b.level * 100))));
-    }).catch(() => {});
-    return () => { battery = null; };
-  }, []);
 
   // Visit States
   const [visit, setVisit] = useState<Visit | null>(null);
-  const [pdvs, setPdvs] = useState<PDV[]>([]);
-  const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -521,27 +379,21 @@ export default function PontoPage() {
     setError('');
     setNotice('');
     try {
-      const [pontoRes, visitRes, pdvsRes, productsRes, myVisitsRes, checklistRes] = await Promise.all([
+      const [pontoRes, visitRes, productsRes, checklistRes] = await Promise.all([
         api.get('/ponto/today'),
         api.get('/visits/active'),
-        api.get('/pdvs'),
         api.get('/products'),
-        api.get('/visits/my'),
         api.get('/checklist'),
       ]);
 
       setPontos(pontoRes.data.data || []);
 
-      const loadedPdvs = pdvsRes.data.data || [];
       const loadedProducts = productsRes.data.data || [];
       const loadedChecklist = checklistRes.data.data || [];
-      writeCache(PDVS_CACHE_KEY, loadedPdvs);
       writeCache(PRODUCTS_CACHE_KEY, loadedProducts);
       writeCache(CHECKLIST_CACHE_KEY, loadedChecklist);
-      setPdvs(loadedPdvs);
       setProducts(loadedProducts);
       setChecklistItems(loadedChecklist);
-      setRecentVisits(myVisitsRes.data.data || []);
 
       const activeVisit = visitRes.data.data || (getOfflineActiveVisit() ? toVisit(getOfflineActiveVisit()!) : null);
       setVisit(activeVisit);
@@ -550,7 +402,6 @@ export default function PontoPage() {
     } catch (err: any) {
       if (isNetworkError(err)) {
         setError('Modo offline ativo. Os registros serão sincronizados quando a internet voltar.');
-        setPdvs(readCache<PDV[]>(PDVS_CACHE_KEY, []));
         setProducts(readCache<Product[]>(PRODUCTS_CACHE_KEY, []));
         setChecklistItems(readCache<ChecklistItem[]>(CHECKLIST_CACHE_KEY, []));
         const offlineVisit = getOfflineActiveVisit();
@@ -567,51 +418,6 @@ export default function PontoPage() {
     load();
   }, [lastSyncTime]);
 
-
-  async function executeRegister(type: PontoType, location: { latitude: number; longitude: number }, locationAvailable = true) {
-    const battery = type === 'ENTRADA' && batteryLevel !== '' ? Number(batteryLevel) : null;
-    try {
-      await api.post('/ponto', { type, ...location, locationAvailable, batteryLevel: battery });
-      setSuccess(locationAvailable
-        ? `Atividade de ${PONTO_LABELS[type]} registrada com sucesso!`
-        : `Atividade de ${PONTO_LABELS[type]} registrada em Modo de Contingência (Sem GPS).`
-      );
-      load();
-    } catch (err: any) {
-      if (isNetworkError(err)) {
-        const { latitude, longitude } = location;
-        const queued = await queueOfflineAction({ kind: 'ponto', payload: { type, latitude, longitude, locationAvailable, batteryLevel: battery } });
-        setPontos(prev => [
-          ...prev,
-          {
-            id: queued.id,
-            userId: 'offline',
-            type,
-            timestamp: queued.createdAt,
-            latitude,
-            longitude,
-            locationAvailable,
-            batteryLevel: battery,
-          },
-        ]);
-        setSuccess(`Atividade de ${PONTO_LABELS[type]} salva em modo offline.`);
-        await refreshCount();
-      } else {
-        setError(err.response?.data?.error || err.message || 'Erro ao registrar.');
-      }
-    } finally {
-      setRegistering(false);
-    }
-  }
-
-  async function handleRegister(type: PontoType) {
-    setError('');
-    setSuccess('');
-    setRegistering(true);
-
-    const location = await resolveLocation();
-    await executeRegister(type, location, location.locationAvailable);
-  }
 
   // Visit Action Handlers
   async function executePhotoUpload(file: File, checklistItemId: string, location: { latitude: number; longitude: number }, locationAvailable = true) {
@@ -827,7 +633,6 @@ export default function PontoPage() {
     await executeFinish(location, location.locationAvailable);
   }
 
-  const nextPonto = getNextPonto(pontos);
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
 
@@ -835,15 +640,6 @@ export default function PontoPage() {
     if (!visit) return [];
     return products.filter(p => p.pdvs?.some(pdv => pdv.id === visit.pdvId));
   }, [products, visit]);
-
-  const visitedTodayIds = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    return new Set(
-      recentVisits
-        .filter(v => v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr)
-        .map(v => v.pdvId)
-    );
-  }, [recentVisits]);
 
   const checklistStatus = useMemo(() => {
     const photosByItem = new Map<string, NonNullable<Visit['photos']>>();
@@ -926,7 +722,7 @@ export default function PontoPage() {
             ) : !visit ? (
               <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 animate-fade-in">
                 <MapPin size={32} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-400 font-medium">Selecione um PDV à direita<br/>para iniciar a jornada.</p>
+                <p className="text-sm text-gray-400 font-medium">Nenhuma visita ativa.<br/>Inicie uma visita na tela Início.</p>
               </div>
             ) : pontos.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 animate-fade-in">
@@ -966,67 +762,25 @@ export default function PontoPage() {
         <div className="space-y-6 sticky top-24">
           {!loading && (
             <div className="space-y-6">
-              {/* Status da Jornada - Visible ONLY if there's a visit active */}
+              {/* Status da Jornada - Visible ONLY if there's a visit active. Registro de ponto (bateria/próximo passo) fica só na Início. */}
               {visit ? (
                 <div className="card overflow-hidden">
-                  <div className="bg-gray-900 -mx-6 -mt-6 p-6 mb-6">
+                  <div className="bg-gray-900 -mx-6 -mt-6 p-6 -mb-6">
                     <p className="text-pluma-300 text-xs font-bold uppercase tracking-widest mb-1">Status da Visita</p>
                     <h4 className="text-white text-xl font-black">
                       {hasSaida ? 'Visita no PDV Encerrada' : hasEntrada ? 'Trabalhando no PDV' : 'Aguardando Início'}
                     </h4>
                   </div>
-
-                  <div className="space-y-4">
-                    {nextPonto && (
-                      <div className="bg-pluma-50 border border-pluma-100 rounded-2xl p-4 mb-2">
-                        {nextPonto === 'ENTRADA' && (
-                          <div className="mb-3">
-                            <label className="flex items-center gap-1.5 text-[10px] font-black text-pluma-600 uppercase mb-1.5">
-                              <BatteryMedium size={13} /> Bateria do celular (%)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              inputMode="numeric"
-                              placeholder="Ex: 80"
-                              className="input-field text-sm py-2.5"
-                              value={batteryLevel}
-                              onChange={e => setBatteryLevel(e.target.value)}
-                            />
-                          </div>
-                        )}
-                        <p className="text-[10px] font-bold text-pluma-600 uppercase mb-2">Próximo Passo:</p>
-                        <button
-                          onClick={() => handleRegister(nextPonto)}
-                          disabled={registering}
-                          className="btn-primary w-full py-4 text-lg shadow-glow-pluma font-black"
-                        >
-                          {registering ? (
-                            <span className="flex items-center justify-center gap-3">
-                              <span className="animate-spin rounded-full h-5 w-5 border-3 border-white border-t-transparent" />
-                              Processando...
-                            </span>
-                          ) : nextPonto === 'ENTRADA' ? 'Iniciar Trabalho' : `Registrar ${PONTO_LABELS[nextPonto]}`}
-                        </button>
-                      </div>
-                    )}
-
-                    {hasEntrada && !pontos.some(p => p.type === 'SAIDA_ALMOCO') && !hasSaida && (
-                      <button
-                        onClick={() => handleRegister('SAIDA')}
-                        disabled={registering}
-                        className="w-full py-3 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
-                      >
-                        Pular almoço e Encerrar PDV
-                      </button>
-                    )}
-                  </div>
                 </div>
               ) : (
-                /* No Active Visit - Show Start Form */
-                <div className="card">
-                  <StartVisitForm pdvs={pdvs} visitedTodayIds={visitedTodayIds} resolveLocation={resolveLocation} onStart={() => load()} />
+                /* No Active Visit - Point back to Início, onde a visita é iniciada */
+                <div className="card text-center py-10">
+                  <MapPin size={32} className="mx-auto text-gray-300 mb-3" />
+                  <h4 className="font-black text-gray-900 tracking-tight mb-1">Nenhuma visita ativa</h4>
+                  <p className="text-sm text-gray-400 mb-5">Inicie uma visita na tela Início pra começar a trabalhar num PDV.</p>
+                  <Link to="/promotor" className="btn-primary inline-block px-6 py-3 text-sm shadow-glow-pluma">
+                    Ir pra Início
+                  </Link>
                 </div>
               )}
 
@@ -1169,14 +923,28 @@ export default function PontoPage() {
                           <div className="max-h-40 overflow-y-auto pr-1 space-y-2">
                             {visit.priceChecks.map((p: PriceCheck) => (
                               <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-gray-900 truncate">{p.product?.name}</p>
-                                  <p className="text-[10px] text-gray-500 font-bold">
-                                    Nosso: {formatCurrency(p.ownPrice)}
-                                    {p.competitorPrice != null && ` · ${p.competitorName}: ${formatCurrency(p.competitorPrice)}`}
-                                  </p>
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {p.photoFileName ? (
+                                    <img
+                                      src={`/uploads/${p.photoFileName}`}
+                                      className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200 cursor-pointer"
+                                      onClick={() => setExpandedPhoto(`/uploads/${p.photoFileName}`)}
+                                      alt={p.product?.name}
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                                      <Camera size={14} className="text-gray-300" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-gray-900 truncate">{p.product?.name}</p>
+                                    <p className="text-[10px] text-gray-500 font-bold">
+                                      Nosso: {formatCurrency(p.ownPrice)}
+                                      {p.competitorPrice != null && ` · ${p.competitorName}: ${formatCurrency(p.competitorPrice)}`}
+                                    </p>
+                                  </div>
                                 </div>
-                                <button onClick={() => handleDeletePriceCheck(p.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                                <button onClick={() => handleDeletePriceCheck(p.id)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors shrink-0"><Trash2 size={14} /></button>
                               </div>
                             ))}
                           </div>

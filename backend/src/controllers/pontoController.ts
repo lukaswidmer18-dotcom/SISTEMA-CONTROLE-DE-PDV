@@ -1,17 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
+import { parseDateOnly, todayDateOnly } from '../utils/date';
 
 const prisma = new PrismaClient();
 
 const PONTO_SEQUENCE = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'];
-
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  return { start, end };
-}
 
 export async function getTodayPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
@@ -147,9 +141,8 @@ export async function listAllPontos(req: Request, res: Response): Promise<void> 
   const where: any = {};
   if (userId) where.userId = userId as string;
   if (date) {
-    const d = new Date(date as string);
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-    const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+    const start = parseDateOnly(date) ?? todayDateOnly();
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
     where.timestamp = { gte: start, lte: end };
   }
 

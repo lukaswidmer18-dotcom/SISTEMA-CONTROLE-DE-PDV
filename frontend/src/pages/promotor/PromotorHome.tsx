@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Ponto, Visit, RotaVisita, ChecklistItem } from '../../types';
+import { Ponto, PontoType, Visit, RotaVisita, ChecklistItem, PDV } from '../../types';
+import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
+import { useBatteryLevel } from '../../hooks/useBatteryLevel';
+import { useRegisterPonto } from '../../hooks/useRegisterPonto';
+import { useStartVisit } from '../../hooks/useStartVisit';
+import { getNextPonto } from '../../utils/ponto';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
@@ -12,6 +17,13 @@ const PONTO_LABELS: Record<string, string> = {
   SAIDA_ALMOCO: 'Saída Almoço',
   RETORNO_ALMOCO: 'Retorno Almoço',
   SAIDA: 'Encerramento',
+};
+
+const NEXT_ACTION_LABELS: Record<string, string> = {
+  ENTRADA: 'Iniciar Jornada',
+  SAIDA_ALMOCO: 'Registrar Saída Almoço',
+  RETORNO_ALMOCO: 'Registrar Retorno Almoço',
+  SAIDA: 'Encerrar Jornada',
 };
 
 type PdvStatus = 'EM_ANDAMENTO' | 'VISITADA' | 'PENDENTE';
@@ -95,6 +107,14 @@ export default function PromotorHome() {
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [justifyRoute, setJustifyRoute] = useState<RotaVisita | null>(null);
+  const [pontoError, setPontoError] = useState('');
+  const [batteryLevel, setBatteryLevel] = useBatteryLevel();
+  const [visitError, setVisitError] = useState('');
+  const [selectedPdvId, setSelectedPdvId] = useState('');
+
+  const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
+  const { registerPonto, registering } = useRegisterPonto(resolveLocation);
+  const { startVisit, starting } = useStartVisit(resolveLocation);
 
   async function load() {
     try {
@@ -120,6 +140,22 @@ export default function PromotorHome() {
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
+  const nextPonto = activeVisit ? getNextPonto(pontos) : null;
+
+  async function handleQuickRegister(type: PontoType) {
+    setPontoError('');
+    try {
+      const battery = batteryLevel !== '' ? Number(batteryLevel) : null;
+      const { ponto, offline } = await registerPonto(type, battery);
+      if (offline) {
+        setPontos(prev => [...prev, ponto]);
+      } else {
+        load();
+      }
+    } catch (err: any) {
+      setPontoError(err.response?.data?.error || err.message || 'Erro ao registrar atividade.');
+    }
+  }
 
   function getPdvStatus(pdvId: string): PdvStatus {
     if (activeVisit?.pdvId === pdvId) return 'EM_ANDAMENTO';
@@ -128,6 +164,24 @@ export default function PromotorHome() {
       v => v.pdvId === pdvId && v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr
     );
     return visitedToday ? 'VISITADA' : 'PENDENTE';
+  }
+
+  const startablePdvs: PDV[] = todayRoutes
+    .filter(r => r.pdv && getPdvStatus(r.pdv.id) === 'PENDENTE')
+    .map(r => r.pdv as PDV);
+
+  async function handleStartVisit(pdv: PDV) {
+    setVisitError('');
+    try {
+      const { visit, offline } = await startVisit(pdv);
+      if (offline) {
+        setActiveVisit(visit);
+      } else {
+        load();
+      }
+    } catch (err: any) {
+      setVisitError(err.response?.data?.error || err.message || 'Erro ao iniciar visita.');
+    }
   }
 
   const completedChecklistItems = checklistItems.filter(item => {
@@ -207,10 +261,51 @@ export default function PromotorHome() {
             )}
           </div>
 
-          {!hasSaida && (
-            <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
-              {hasEntrada ? 'Atualizar Atividade' : 'Iniciar Jornada'}
-            </Link>
+          {pontoError && (
+            <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl mb-3">{pontoError}</div>
+          )}
+
+          {!hasSaida && nextPonto && (
+            <div className="mt-auto">
+              <div className="mb-3">
+                <label className="flex items-center gap-1.5 text-[10px] font-black text-pluma-600 uppercase mb-1.5">
+                  <BatteryMedium size={13} /> Bateria do celular (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  inputMode="numeric"
+                  placeholder="Ex: 80"
+                  className="input-field text-sm py-2.5"
+                  value={batteryLevel}
+                  onChange={e => setBatteryLevel(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => handleQuickRegister(nextPonto)}
+                disabled={registering}
+                className="btn-primary w-full py-3 text-base shadow-glow-pluma"
+              >
+                {registering ? 'Processando...' : NEXT_ACTION_LABELS[nextPonto]}
+              </button>
+
+              {hasEntrada && !pontos.some(p => p.type === 'SAIDA_ALMOCO') && !hasSaida && (
+                <button
+                  onClick={() => handleQuickRegister('SAIDA')}
+                  disabled={registering}
+                  className="w-full mt-2 py-2.5 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
+                >
+                  Pular almoço e Encerrar PDV
+                </button>
+              )}
+            </div>
+          )}
+
+          {!hasSaida && !activeVisit && (
+            <p className="text-xs text-gray-400 font-medium mt-auto text-center py-1">
+              Inicie uma visita ao lado pra começar a registrar sua jornada.
+            </p>
           )}
         </div>
 
@@ -223,7 +318,6 @@ export default function PromotorHome() {
               </div>
               Visita em Andamento
             </h3>
-            <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Ver Visita</Link>
           </div>
 
           <div className="flex-1">
@@ -254,17 +348,54 @@ export default function PromotorHome() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : startablePdvs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mb-4">
                 <MapPin size={32} className="text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500 font-medium">Nenhuma visita iniciada no momento.</p>
+                <p className="text-sm text-gray-500 font-medium">Nenhum PDV disponível pra iniciar visita agora.</p>
+              </div>
+            ) : startablePdvs.length === 1 ? (
+              <div className="text-center bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200 mb-4">
+                <MapPin size={28} className="mx-auto text-pluma-400 mb-2" />
+                <p className="text-sm font-black text-gray-900">{startablePdvs[0].name}</p>
+                {startablePdvs[0].city && <p className="text-xs text-gray-400">{startablePdvs[0].city}</p>}
+              </div>
+            ) : (
+              <div className="mb-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1.5">Selecione o PDV</p>
+                <select
+                  className="input-field py-3 text-sm font-bold"
+                  value={selectedPdvId}
+                  onChange={e => setSelectedPdvId(e.target.value)}
+                >
+                  <option value="">Selecione o PDV...</option>
+                  {startablePdvs.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.city ? ` — ${p.city}` : ''}</option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
 
-          <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
-            {activeVisit ? 'Continuar Visita' : 'Iniciar Nova Visita'}
-          </Link>
+          {visitError && (
+            <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl mb-3">{visitError}</div>
+          )}
+
+          {activeVisit ? (
+            <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
+              Continuar Visita
+            </Link>
+          ) : startablePdvs.length > 0 ? (
+            <button
+              onClick={() => {
+                const pdv = startablePdvs.length === 1 ? startablePdvs[0] : startablePdvs.find(p => p.id === selectedPdvId);
+                if (pdv) handleStartVisit(pdv);
+              }}
+              disabled={starting || (startablePdvs.length > 1 && !selectedPdvId)}
+              className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto"
+            >
+              {starting ? 'Iniciando...' : 'Iniciar Visita'}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -333,6 +464,8 @@ export default function PromotorHome() {
       {justifyRoute && (
         <JustifyModal route={justifyRoute} onClose={() => setJustifyRoute(null)} onSaved={load} />
       )}
+
+      {locationFallbackModal}
 
       {/* History Shortcut — Full Width on PC */}
       <Link to="/promotor/historico" className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex items-center justify-between p-6 group" style={{ animationDelay: '230ms' }}>

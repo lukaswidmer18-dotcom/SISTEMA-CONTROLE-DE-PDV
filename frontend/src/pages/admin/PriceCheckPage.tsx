@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PriceCheck, Product, PDV } from '../../types';
-import { Tags, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Tags, RefreshCw, TrendingDown, TrendingUp, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
@@ -14,6 +14,7 @@ export default function PriceCheckPage() {
   const [filterPdv, setFilterPdv] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -81,6 +82,7 @@ export default function PriceCheckPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                <th className="py-2 pr-4">Foto</th>
                 <th className="py-2 pr-4">Data</th>
                 <th className="py-2 pr-4">PDV</th>
                 <th className="py-2 pr-4">Produto</th>
@@ -96,6 +98,20 @@ export default function PriceCheckPage() {
                 const diff = pc.competitorPrice != null ? pc.ownPrice - pc.competitorPrice : null;
                 return (
                   <tr key={pc.id} className="border-b border-gray-50 last:border-b-0">
+                    <td className="py-2.5 pr-4">
+                      {pc.photoFileName ? (
+                        <img
+                          src={`/uploads/${pc.photoFileName}`}
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-200 cursor-pointer"
+                          onClick={() => setExpandedPhoto(`/uploads/${pc.photoFileName}`)}
+                          alt={pc.product?.name}
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center">
+                          <Camera size={14} className="text-gray-300" />
+                        </div>
+                      )}
+                    </td>
                     <td className="py-2.5 pr-4 text-gray-400 text-xs">{pc.createdAt ? format(new Date(pc.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}</td>
                     <td className="py-2.5 pr-4 font-bold text-gray-800">{pc.visit?.pdv?.name}</td>
                     <td className="py-2.5 pr-4 text-gray-700">{pc.product?.name}</td>
@@ -120,6 +136,12 @@ export default function PriceCheckPage() {
           </table>
         )}
       </div>
+
+      {expandedPhoto && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={() => setExpandedPhoto(null)}>
+          <img src={expandedPhoto} alt="Expandida" className="max-w-[95vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl" />
+        </div>
+      )}
     </div>
   );
 }
