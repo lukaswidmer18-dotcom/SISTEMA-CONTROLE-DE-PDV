@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,7 +8,7 @@ import { useBatteryLevel } from '../../hooks/useBatteryLevel';
 import { useRegisterPonto } from '../../hooks/useRegisterPonto';
 import { useStartVisit } from '../../hooks/useStartVisit';
 import { getNextPonto } from '../../utils/ponto';
-import { format } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
 
@@ -39,6 +39,8 @@ const STATUS_COLORS: Record<PdvStatus, string> = {
   VISITADA: 'bg-green-50 text-green-700 border-green-100',
   PENDENTE: 'bg-amber-50 text-amber-700 border-amber-100',
 };
+
+const DAYS_SHORT = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
 
 function JustifyModal({ route, onClose, onSaved }: { route: RotaVisita; onClose: () => void; onSaved: () => void }) {
   const [text, setText] = useState(route.justification || '');
@@ -102,7 +104,7 @@ export default function PromotorHome() {
   const { user } = useAuth();
   const [pontos, setPontos] = useState<Ponto[]>([]);
   const [activeVisit, setActiveVisit] = useState<Visit | null>(null);
-  const [todayRoutes, setTodayRoutes] = useState<RotaVisita[]>([]);
+  const [weekRoutes, setWeekRoutes] = useState<RotaVisita[]>([]);
   const [recentVisits, setRecentVisits] = useState<Visit[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +113,13 @@ export default function PromotorHome() {
   const [batteryLevel, setBatteryLevel] = useBatteryLevel();
   const [visitError, setVisitError] = useState('');
   const [selectedPdvId, setSelectedPdvId] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedPdv, setSelectedPdv] = useState<PDV | null>(null);
+
+  const weekDates = useMemo(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, []);
 
   const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
   const { registerPonto, registering } = useRegisterPonto(resolveLocation);
@@ -118,17 +127,18 @@ export default function PromotorHome() {
 
   async function load() {
     try {
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const weekFrom = format(weekDates[0], 'yyyy-MM-dd');
+      const weekTo = format(weekDates[6], 'yyyy-MM-dd');
       const [pontosRes, visitRes, routesRes, myVisitsRes, checklistRes] = await Promise.all([
         api.get('/ponto/today'),
         api.get('/visits/active'),
-        api.get('/routes', { params: { from: todayStr, to: todayStr } }),
+        api.get('/routes', { params: { from: weekFrom, to: weekTo } }),
         api.get('/visits/my'),
         api.get('/checklist'),
       ]);
       setPontos(pontosRes.data.data || []);
       setActiveVisit(visitRes.data.data);
-      setTodayRoutes(routesRes.data.data || []);
+      setWeekRoutes(routesRes.data.data || []);
       setRecentVisits(myVisitsRes.data.data || []);
       setChecklistItems(checklistRes.data.data || []);
     } finally {
@@ -137,6 +147,16 @@ export default function PromotorHome() {
   }
 
   useEffect(() => { load(); }, []);
+
+  const todayRoutes = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    return weekRoutes.filter(r => r.date.slice(0, 10) === todayStr);
+  }, [weekRoutes]);
+
+  const selectedDayRoutes = useMemo(() => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return weekRoutes.filter(r => r.date.slice(0, 10) === dateStr);
+  }, [weekRoutes, selectedDate]);
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
@@ -157,13 +177,21 @@ export default function PromotorHome() {
     }
   }
 
-  function getPdvStatus(pdvId: string): PdvStatus {
-    if (activeVisit?.pdvId === pdvId) return 'EM_ANDAMENTO';
+  function getPdvStatusForDate(pdvId: string, dateStr: string): PdvStatus {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const visitedToday = recentVisits.some(
-      v => v.pdvId === pdvId && v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr
+    if (dateStr === todayStr && activeVisit?.pdvId === pdvId) return 'EM_ANDAMENTO';
+    const visited = recentVisits.some(
+      v => v.pdvId === pdvId && v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === dateStr
     );
-    return visitedToday ? 'VISITADA' : 'PENDENTE';
+    return visited ? 'VISITADA' : 'PENDENTE';
+  }
+
+  function getPdvStatus(pdvId: string): PdvStatus {
+    return getPdvStatusForDate(pdvId, format(new Date(), 'yyyy-MM-dd'));
+  }
+
+  function handleSelectPdv(pdv: PDV) {
+    setSelectedPdv(prev => (prev?.id === pdv.id ? null : pdv));
   }
 
   const startablePdvs: PDV[] = todayRoutes
@@ -174,6 +202,7 @@ export default function PromotorHome() {
     setVisitError('');
     try {
       const { visit, offline } = await startVisit(pdv);
+      setSelectedPdv(null);
       if (offline) {
         setActiveVisit(visit);
       } else {
@@ -183,6 +212,9 @@ export default function PromotorHome() {
       setVisitError(err.response?.data?.error || err.message || 'Erro ao iniciar visita.');
     }
   }
+
+  const selectedPdvTodayStatus = selectedPdv ? getPdvStatusForDate(selectedPdv.id, format(new Date(), 'yyyy-MM-dd')) : null;
+  const canStartSelectedVisit = !!selectedPdv && !activeVisit && selectedPdvTodayStatus === 'PENDENTE';
 
   const completedChecklistItems = checklistItems.filter(item => {
     const count = (activeVisit?.photos || []).filter(p => p.checklistItemId === item.id).length;
@@ -215,6 +247,61 @@ export default function PromotorHome() {
           </div>
         </div>
       </div>
+
+      {/* Selected PDV — Big Title */}
+      {selectedPdv && (
+        <div className="animate-slide-up bg-white border border-pluma-100 rounded-2xl px-6 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2.5 bg-pluma-50 text-pluma-700 rounded-xl shrink-0">
+                <Store size={24} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-pluma-600 uppercase tracking-wider mb-0.5">PDV Selecionado</p>
+                <h2 className="text-2xl lg:text-4xl font-black text-gray-900 tracking-tight truncate">{selectedPdv.name}</h2>
+                {selectedPdv.city && <p className="text-sm text-gray-400 font-semibold">{selectedPdv.city}</p>}
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedPdv(null)}
+              className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors shrink-0"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {canStartSelectedVisit && (
+            <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+              <p className="text-xs text-gray-500 font-medium flex-1">
+                Imprevisto na rota? Você pode iniciar a visita a este PDV agora mesmo fora do dia programado.
+              </p>
+              <button
+                onClick={() => handleStartVisit(selectedPdv)}
+                disabled={starting}
+                className="btn-primary py-2.5 px-5 text-sm shadow-glow-pluma shrink-0"
+              >
+                {starting ? 'Iniciando...' : 'Iniciar Visita Agora'}
+              </button>
+            </div>
+          )}
+
+          {selectedPdv && activeVisit && activeVisit.pdvId !== selectedPdv.id && (
+            <p className="mt-3 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              Finalize a visita em andamento antes de iniciar uma nova.
+            </p>
+          )}
+
+          {selectedPdvTodayStatus === 'VISITADA' && (
+            <p className="mt-3 text-xs font-bold text-green-700 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+              Visita a este PDV já concluída hoje.
+            </p>
+          )}
+
+          {visitError && (
+            <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl">{visitError}</div>
+          )}
+        </div>
+      )}
 
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -399,34 +486,66 @@ export default function PromotorHome() {
         </div>
       </div>
 
-      {/* PDVs da Rota de Hoje */}
+      {/* PDVs da Rota da Semana */}
       <div className="card animate-slide-up" style={{ animationDelay: '200ms' }}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
             <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
               <Store size={20} />
             </div>
-            PDVs de Hoje
+            PDVs da Semana
           </h3>
           <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Gerenciar</Link>
         </div>
 
+        {/* Day of Week Tabs */}
+        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+          {weekDates.map((date, i) => {
+            const isSelected = isSameDay(date, selectedDate);
+            const isToday = isSameDay(date, new Date());
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => setSelectedDate(date)}
+                className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border transition-colors ${
+                  isSelected
+                    ? 'bg-pluma-800 border-pluma-800 text-white'
+                    : isToday
+                    ? 'bg-pluma-50 border-pluma-200 text-pluma-700'
+                    : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-pluma-200'
+                }`}
+              >
+                <span className="text-[9px] font-black uppercase">{DAYS_SHORT[i]}</span>
+                <span className="text-sm font-black">{format(date, 'd')}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
-        ) : todayRoutes.length === 0 ? (
+        ) : selectedDayRoutes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
             <AlertCircle size={32} className="text-orange-400 mb-2" />
-            <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra hoje.</p>
+            <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra esse dia.</p>
             <p className="text-xs text-gray-400 mt-1">Fale com o administrador pra montar sua rota.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {todayRoutes.map(route => {
+            {selectedDayRoutes.map(route => {
               if (!route.pdv) return null;
-              const status = getPdvStatus(route.pdv.id);
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              const status = getPdvStatusForDate(route.pdv.id, dateStr);
               const canJustify = status === 'PENDENTE';
+              const isSelectedPdv = selectedPdv?.id === route.pdv.id;
               return (
-                <div key={route.id} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                <div
+                  key={route.id}
+                  onClick={() => handleSelectPdv(route.pdv as PDV)}
+                  className={`border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
+                    isSelectedPdv ? 'bg-pluma-50 border-pluma-300' : 'bg-gray-50 border-gray-100 hover:border-pluma-200'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
@@ -448,7 +567,10 @@ export default function PromotorHome() {
                     </div>
                   ) : canJustify ? (
                     <button
-                      onClick={() => setJustifyRoute(route)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setJustifyRoute(route);
+                      }}
                       className="mt-2 ml-11 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-800 transition-colors"
                     >
                       <MessageSquareWarning size={13} /> Justificar não comparecimento
