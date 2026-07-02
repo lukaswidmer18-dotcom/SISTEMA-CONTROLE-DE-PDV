@@ -163,6 +163,7 @@ export interface Visit {
   priceChecks?: PriceCheck[];
   rating?: VisitRating | null;
   _count?: { photos: number; validities: number };
+  outsideRoute?: boolean;
 }
 
 export interface PromotorRanking {

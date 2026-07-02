@@ -9,16 +9,13 @@ const PONTO_SEQUENCE = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'];
 
 export async function getTodayPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-
-  // Get Active Visit
-  const activeVisit = await prisma.visit.findFirst({
-    where: { promotorId: authReq.user.userId, status: 'IN_PROGRESS' },
-  });
+  const start = todayDateOnly();
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
   const pontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
-      visitId: activeVisit?.id || 'no-visit',
+      timestamp: { gte: start, lte: end },
     },
     orderBy: { timestamp: 'asc' },
   });
@@ -85,17 +82,19 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
     }
   }
 
+  const todayStart = todayDateOnly();
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
   const todayPontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
-      visitId: activeVisit?.id || 'no-visit',
+      timestamp: { gte: todayStart, lte: todayEnd },
     },
     orderBy: { timestamp: 'asc' },
   });
 
   const alreadyRegistered = todayPontos.some((p) => p.type === type);
   if (alreadyRegistered) {
-    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado para esta visita.` });
+    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado hoje.` });
     return;
   }
 

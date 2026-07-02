@@ -595,7 +595,25 @@ export async function listAllVisits(req: Request, res: Response): Promise<void> 
     orderBy: { startedAt: 'desc' },
   });
 
-  res.json({ success: true, data: visits });
+  const promotorIds = Array.from(new Set(visits.map((v) => v.promotorId)));
+  const dateKeys = Array.from(new Set(visits.map((v) => v.startedAt.toISOString().slice(0, 10))));
+  const routes = promotorIds.length
+    ? await prisma.rotaVisita.findMany({
+        where: {
+          promotorId: { in: promotorIds },
+          date: { in: dateKeys.map((d) => new Date(`${d}T00:00:00.000Z`)) },
+        },
+        select: { promotorId: true, pdvId: true, date: true },
+      })
+    : [];
+  const scheduledSet = new Set(routes.map((r) => `${r.promotorId}|${r.pdvId}|${r.date.toISOString().slice(0, 10)}`));
+
+  const data = visits.map((v) => ({
+    ...v,
+    outsideRoute: !scheduledSet.has(`${v.promotorId}|${v.pdvId}|${v.startedAt.toISOString().slice(0, 10)}`),
+  }));
+
+  res.json({ success: true, data });
 }
 
 export async function getMapData(req: Request, res: Response): Promise<void> {

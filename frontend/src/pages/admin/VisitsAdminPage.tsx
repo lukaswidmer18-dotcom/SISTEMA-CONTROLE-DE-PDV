@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { Visit } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Eye } from 'lucide-react';
+import { Eye, AlertTriangle } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 
 export default function VisitsAdminPage() {
@@ -94,6 +94,11 @@ export default function VisitsAdminPage() {
                   <div>
                     <p className="font-semibold text-gray-800 text-sm">{v.promotor?.name || '-'}</p>
                     <p className="text-xs text-gray-500">{v.pdv?.name || '-'}</p>
+                    {v.outsideRoute && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">
+                        <AlertTriangle size={11} /> Fora da rota
+                      </span>
+                    )}
                   </div>
                   <span className={v.status === 'COMPLETED' ? 'badge-green' : 'badge-yellow'}>
                     {v.status === 'COMPLETED' ? 'Concluída' : 'Em andamento'}
@@ -145,7 +150,16 @@ export default function VisitsAdminPage() {
                 {visits.map(v => (
                   <tr key={v.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{v.promotor?.name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{v.pdv?.name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <span>{v.pdv?.name || '-'}</span>
+                        {v.outsideRoute && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5 shrink-0">
+                            <AlertTriangle size={11} /> Fora da rota
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{format(new Date(v.startedAt), "dd/MM HH:mm", { locale: ptBR })}</td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{v.completedAt ? format(new Date(v.completedAt), "dd/MM HH:mm", { locale: ptBR }) : '-'}</td>
                     <td className="px-4 py-3">
