@@ -7,10 +7,13 @@ import { useManualLocationFallback } from '../../hooks/useManualLocationFallback
 import { useBatteryLevel } from '../../hooks/useBatteryLevel';
 import { useRegisterPonto } from '../../hooks/useRegisterPonto';
 import { useStartVisit } from '../../hooks/useStartVisit';
+import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
+import { isNetworkError, queueOfflineAction } from '../../services/offlineQueue';
+import { isLocalVisit, getVisitReference, clearOfflineActiveVisit } from '../../services/visitService';
 import { getNextPonto } from '../../utils/ponto';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, ClipboardList, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   ENTRADA: 'Início',
@@ -100,6 +103,87 @@ function JustifyModal({ route, onClose, onSaved }: { route: RotaVisita; onClose:
   );
 }
 
+function EncerramentoModal({
+  visit,
+  missingItems,
+  onClose,
+  onConfirm,
+  confirming,
+  error,
+}: {
+  visit: Visit;
+  missingItems: ChecklistItem[];
+  onClose: () => void;
+  onConfirm: (noProductsFound: boolean, revenueGenerated: string) => void;
+  confirming: boolean;
+  error: string;
+}) {
+  const [noProductsFound, setNoProductsFound] = useState(visit.noProductsFound || false);
+  const [revenueGenerated, setRevenueGenerated] = useState('');
+  const validityCount = visit.validities?.length || 0;
+  const canConfirm = missingItems.length === 0 && (noProductsFound || validityCount > 0);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">Encerrar visita</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{visit.pdv?.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={20} /></button>
+        </div>
+
+        {missingItems.length > 0 && (
+          <div className="mb-4 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
+            Faltam fotos do checklist: {missingItems.map(i => i.label).join(', ')}. Complete em "Continuar Visita" antes de encerrar.
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 text-pluma-800 rounded border-gray-300" checked={noProductsFound} onChange={e => setNoProductsFound(e.target.checked)} />
+            <span className="text-[11px] font-bold text-gray-600">Não encontrei produtos</span>
+          </label>
+
+          {!noProductsFound && validityCount === 0 && (
+            <p className="text-[11px] text-amber-600 font-bold">
+              Registre ao menos uma validade na visita ou marque "Não encontrei produtos".
+            </p>
+          )}
+
+          <div>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Faturamento gerado (opcional)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="R$ 0,00"
+              className="input-field py-3 text-sm font-bold"
+              value={revenueGenerated}
+              onChange={e => setRevenueGenerated(e.target.value)}
+            />
+          </div>
+
+          {error && <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl">{error}</div>}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3">Cancelar</button>
+            <button
+              type="button"
+              disabled={!canConfirm || confirming}
+              onClick={() => onConfirm(noProductsFound, revenueGenerated)}
+              className="btn-primary flex-1 py-3"
+            >
+              {confirming ? 'Encerrando...' : 'Confirmar Encerramento'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PromotorHome() {
   const { user } = useAuth();
   const [pontos, setPontos] = useState<Ponto[]>([]);
@@ -114,6 +198,9 @@ export default function PromotorHome() {
   const [visitError, setVisitError] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selectedPdv, setSelectedPdv] = useState<PDV | null>(null);
+  const [showEncerramentoModal, setShowEncerramentoModal] = useState(false);
+  const [encerrando, setEncerrando] = useState(false);
+  const [encerramentoError, setEncerramentoError] = useState('');
 
   const weekDates = useMemo(() => {
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -123,6 +210,7 @@ export default function PromotorHome() {
   const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
   const { registerPonto, registering } = useRegisterPonto(resolveLocation);
   const { startVisit, starting } = useStartVisit(resolveLocation);
+  const { refreshCount } = useOfflineSyncContext();
 
   async function load() {
     try {
@@ -159,11 +247,18 @@ export default function PromotorHome() {
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
   const hasSaida = pontos.some(p => p.type === 'SAIDA');
-  const nextPonto = getNextPonto(pontos);
-  // Primeiro ponto do dia (ENTRADA) exige visita ativa; os demais (almoço/saída)
-  // não podem ficar reféns de ter uma visita em andamento, senão finalizar a
-  // última visita do dia esconde o botão de encerrar jornada.
-  const canRegisterPonto = pontos.length > 0 || !!activeVisit;
+  // Ponto é por visita: cada PDV visitado tem seu próprio ciclo Entrada/.../Encerramento,
+  // o que permite calcular quanto tempo durou a visita naquele PDV.
+  const nextPonto = activeVisit ? getNextPonto(pontos) : null;
+
+  const checklistMissing = useMemo(() => {
+    const photosByItem = new Map<string, number>();
+    for (const photo of activeVisit?.photos || []) {
+      if (!photo.checklistItemId) continue;
+      photosByItem.set(photo.checklistItemId, (photosByItem.get(photo.checklistItemId) || 0) + 1);
+    }
+    return checklistItems.filter(item => (photosByItem.get(item.id) || 0) < item.requiredCount);
+  }, [activeVisit, checklistItems]);
 
   async function handleQuickRegister(type: PontoType) {
     setPontoError('');
@@ -205,6 +300,62 @@ export default function PromotorHome() {
       }
     } catch (err: any) {
       setVisitError(err.response?.data?.error || err.message || 'Erro ao iniciar visita.');
+    }
+  }
+
+  async function handleConfirmEncerramento(noProductsFound: boolean, revenueGenerated: string) {
+    if (!activeVisit) return;
+    setEncerramentoError('');
+    setEncerrando(true);
+    try {
+      const location = await resolveLocation();
+      const battery = batteryLevel !== '' ? Number(batteryLevel) : null;
+
+      // 1) Registra o ponto de Encerramento — marca o fim da visita nesse PDV
+      try {
+        await api.post('/ponto', { type: 'SAIDA', ...location, batteryLevel: battery });
+      } catch (err: unknown) {
+        if (isNetworkError(err)) {
+          await queueOfflineAction({
+            kind: 'ponto',
+            payload: { type: 'SAIDA', latitude: location.latitude, longitude: location.longitude, locationAvailable: location.locationAvailable, batteryLevel: battery },
+          });
+        } else {
+          throw err;
+        }
+      }
+
+      // 2) Finaliza a visita
+      if (isLocalVisit(activeVisit.id)) {
+        await queueOfflineAction({
+          kind: 'finishVisit',
+          ...getVisitReference(activeVisit.id),
+          payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated },
+        });
+        clearOfflineActiveVisit();
+      } else {
+        try {
+          await api.patch(`/visits/${activeVisit.id}/finish`, { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated });
+        } catch (err: unknown) {
+          if (isNetworkError(err)) {
+            await queueOfflineAction({
+              kind: 'finishVisit',
+              ...getVisitReference(activeVisit.id),
+              payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated },
+            });
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      await refreshCount();
+      setShowEncerramentoModal(false);
+      load();
+    } catch (err: any) {
+      setEncerramentoError(err.response?.data?.error || err.message || 'Erro ao encerrar a visita.');
+    } finally {
+      setEncerrando(false);
     }
   }
 
@@ -350,7 +501,7 @@ export default function PromotorHome() {
             <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl mb-3">{pontoError}</div>
           )}
 
-          {!hasSaida && nextPonto && canRegisterPonto && (
+          {!hasSaida && nextPonto && (
             <div className="mt-auto">
               <div className="mb-3">
                 <label className="flex items-center gap-1.5 text-[10px] font-black text-pluma-600 uppercase mb-1.5">
@@ -368,7 +519,14 @@ export default function PromotorHome() {
                 />
               </div>
               <button
-                onClick={() => handleQuickRegister(nextPonto)}
+                onClick={() => {
+                  if (nextPonto === 'SAIDA') {
+                    setEncerramentoError('');
+                    setShowEncerramentoModal(true);
+                  } else {
+                    handleQuickRegister(nextPonto);
+                  }
+                }}
                 disabled={registering}
                 className="btn-primary w-full py-3 text-base shadow-glow-pluma"
               >
@@ -377,7 +535,7 @@ export default function PromotorHome() {
 
               {hasEntrada && !pontos.some(p => p.type === 'SAIDA_ALMOCO') && !hasSaida && (
                 <button
-                  onClick={() => handleQuickRegister('SAIDA')}
+                  onClick={() => { setEncerramentoError(''); setShowEncerramentoModal(true); }}
                   disabled={registering}
                   className="w-full mt-2 py-2.5 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
                 >
@@ -387,7 +545,7 @@ export default function PromotorHome() {
             </div>
           )}
 
-          {!hasSaida && !canRegisterPonto && (
+          {!hasSaida && !activeVisit && (
             <p className="text-xs text-gray-400 font-medium mt-auto text-center py-1">
               Inicie uma visita ao lado pra começar a registrar sua jornada.
             </p>
@@ -551,23 +709,18 @@ export default function PromotorHome() {
         <JustifyModal route={justifyRoute} onClose={() => setJustifyRoute(null)} onSaved={load} />
       )}
 
-      {locationFallbackModal}
+      {showEncerramentoModal && activeVisit && (
+        <EncerramentoModal
+          visit={activeVisit}
+          missingItems={checklistMissing}
+          onClose={() => setShowEncerramentoModal(false)}
+          onConfirm={handleConfirmEncerramento}
+          confirming={encerrando}
+          error={encerramentoError}
+        />
+      )}
 
-      {/* History Shortcut — Full Width on PC */}
-      <Link to="/promotor/historico" className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex items-center justify-between p-6 group" style={{ animationDelay: '230ms' }}>
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gray-50 text-gray-400 group-hover:bg-pluma-50 group-hover:text-pluma-700 rounded-xl transition-colors">
-            <ClipboardList size={24} />
-          </div>
-          <div>
-            <span className="font-black text-gray-900 lg:text-xl">Histórico de Visitas</span>
-            <p className="text-sm text-gray-500">Consulte seus registros anteriores e fotos enviadas.</p>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded-full group-hover:bg-pluma-100 transition-colors">
-          <CheckCircle size={20} className="text-gray-300 group-hover:text-pluma-800" />
-        </div>
-      </Link>
+      {locationFallbackModal}
     </div>
   );
 }

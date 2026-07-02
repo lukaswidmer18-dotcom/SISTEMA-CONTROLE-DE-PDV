@@ -12,9 +12,17 @@ export async function getTodayPonto(req: Request, res: Response): Promise<void> 
   const start = todayDateOnly();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
+  // Ponto é por visita: cada PDV visitado tem seu próprio ciclo
+  // Entrada/Saída Almoço/Retorno/Encerramento, o que permite calcular
+  // quanto tempo durou a visita naquele PDV.
+  const activeVisit = await prisma.visit.findFirst({
+    where: { promotorId: authReq.user.userId, status: 'IN_PROGRESS' },
+  });
+
   const pontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
+      visitId: activeVisit ? activeVisit.id : null,
       timestamp: { gte: start, lte: end },
     },
     orderBy: { timestamp: 'asc' },
@@ -87,6 +95,7 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
   const todayPontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
+      visitId: activeVisit ? activeVisit.id : null,
       timestamp: { gte: todayStart, lte: todayEnd },
     },
     orderBy: { timestamp: 'asc' },
@@ -94,7 +103,7 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
 
   const alreadyRegistered = todayPontos.some((p) => p.type === type);
   if (alreadyRegistered) {
-    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado hoje.` });
+    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado para esta visita.` });
     return;
   }
 

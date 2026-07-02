@@ -15,7 +15,6 @@ import {
   isLocalVisit,
   getVisitReference,
   updateOfflineActiveVisit,
-  clearOfflineActiveVisit,
   PRODUCTS_CACHE_KEY,
   CHECKLIST_CACHE_KEY,
   readCache,
@@ -360,9 +359,6 @@ export default function PontoPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [finishing, setFinishing] = useState(false);
-  const [noProducts, setNoProducts] = useState(false);
-  const [revenueGenerated, setRevenueGenerated] = useState('');
   const [showValidityModal, setShowValidityModal] = useState(false);
   const [showRupturaModal, setShowRupturaModal] = useState(false);
   const [showPriceCheckModal, setShowPriceCheckModal] = useState(false);
@@ -397,7 +393,6 @@ export default function PontoPage() {
 
       const activeVisit = visitRes.data.data || (getOfflineActiveVisit() ? toVisit(getOfflineActiveVisit()!) : null);
       setVisit(activeVisit);
-      if (activeVisit) setNoProducts(activeVisit.noProductsFound || false);
 
     } catch (err: any) {
       if (isNetworkError(err)) {
@@ -582,55 +577,6 @@ export default function PontoPage() {
     } finally {
       setDeletingPhoto(false);
     }
-  }
-
-  async function executeFinish(location: { latitude: number; longitude: number }, locationAvailable = true) {
-    if (!visit) return;
-    setFinishing(true);
-    try {
-      await api.patch(`/visits/${visit.id}/finish`, { ...location, noProductsFound: noProducts, locationAvailable, revenueGenerated });
-      setSuccess(locationAvailable ? 'Visita finalizada com sucesso!' : 'Visita finalizada (Modo de Contingência - Sem GPS).');
-      setVisit(null);
-      load();
-    } catch (err: any) {
-      if (isNetworkError(err)) {
-        await queueOfflineAction({
-          kind: 'finishVisit',
-          ...getVisitReference(visit.id),
-          payload: { ...location, noProductsFound: noProducts, locationAvailable, revenueGenerated },
-        });
-        if (isLocalVisit(visit.id)) clearOfflineActiveVisit();
-        setSuccess('Visita finalizada offline.' + (locationAvailable ? '' : ' (Sem GPS)'));
-        setVisit(null);
-        await refreshCount();
-      } else {
-        setError(getErrorMessage(err, 'Erro ao finalizar visita.'));
-      }
-    } finally {
-      setFinishing(false);
-    }
-  }
-
-  async function handleFinish() {
-    if (!visit) return;
-    setError('');
-
-    if (checklistStatus.missing.length > 0) {
-      const detail = checklistStatus.missing
-        .map(i => `${i.label} (${checklistStatus.photosByItem.get(i.id)?.length || 0}/${i.requiredCount})`)
-        .join(', ');
-      setError(`Faltam fotos do checklist: ${detail}.`);
-      return;
-    }
-
-    const validityCount = visit.validities?.length || 0;
-    if (!noProducts && validityCount === 0) {
-      setError('Registre ao menos uma data de validade ou marque a opção de produtos não encontrados.');
-      return;
-    }
-
-    const location = await resolveLocation();
-    await executeFinish(location, location.locationAvailable);
   }
 
   const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
@@ -861,7 +807,7 @@ export default function PontoPage() {
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Produtos & Validades</h5>
-                          {!noProducts && <button onClick={() => setShowValidityModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>}
+                          <button onClick={() => setShowValidityModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
                         </div>
 
                         {visit.validities && visit.validities.length > 0 ? (
@@ -876,21 +822,16 @@ export default function PontoPage() {
                               </div>
                             ))}
                           </div>
-                        ) : !noProducts ? (
+                        ) : (
                           <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhuma validade registrada.</p>
-                        ) : null}
-
-                        <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer">
-                          <input type="checkbox" className="w-4 h-4 text-pluma-800 rounded border-gray-300" checked={noProducts} onChange={e => setNoProducts(e.target.checked)} />
-                          <span className="text-[11px] font-bold text-gray-600">Não encontrei produtos</span>
-                        </label>
+                        )}
                       </div>
 
                       {/* Ruptura */}
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Ruptura de Estoque</h5>
-                          {!noProducts && <button onClick={() => setShowRupturaModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>}
+                          <button onClick={() => setShowRupturaModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
                         </div>
 
                         {visit.rupturas && visit.rupturas.length > 0 ? (
@@ -907,16 +848,16 @@ export default function PontoPage() {
                               </div>
                             ))}
                           </div>
-                        ) : !noProducts ? (
+                        ) : (
                           <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhum registro de estoque ainda.</p>
-                        ) : null}
+                        )}
                       </div>
 
                       {/* Pesquisa de Preço */}
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Pesquisa de Preço</h5>
-                          {!noProducts && <button onClick={() => setShowPriceCheckModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>}
+                          <button onClick={() => setShowPriceCheckModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
                         </div>
 
                         {visit.priceChecks && visit.priceChecks.length > 0 ? (
@@ -948,41 +889,15 @@ export default function PontoPage() {
                               </div>
                             ))}
                           </div>
-                        ) : !noProducts ? (
+                        ) : (
                           <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhuma pesquisa de preço ainda.</p>
-                        ) : null}
-                      </div>
-
-                      {/* Faturamento gerado */}
-                      <div className="mb-6">
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 mb-1.5">
-                          Faturamento gerado nesse PDV (opcional)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="R$ 0,00"
-                          className="input-field py-3 text-sm font-bold"
-                          value={revenueGenerated}
-                          onChange={e => setRevenueGenerated(e.target.value)}
-                        />
-                      </div>
-
-                      {/* Finish Button */}
-                      <div className="pt-4 border-t border-gray-100">
-                        <button
-                          onClick={handleFinish}
-                          disabled={finishing || checklistStatus.missing.length > 0}
-                          className={`w-full py-4 rounded-xl font-black transition-all flex items-center justify-center gap-2 ${checklistStatus.missing.length === 0 ? 'bg-pluma-800 text-white shadow-glow-pluma' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                        >
-                          {finishing ? 'Finalizando...' : <><CheckCircle size={18} /> FINALIZAR VISITA</>}
-                        </button>
-                        {checklistStatus.missing.length > 0 && (
-                          <p className="text-[10px] text-center text-amber-600 font-bold mt-2 uppercase tracking-tight italic">
-                            Faltam {checklistStatus.missing.length} foto{checklistStatus.missing.length !== 1 ? 's' : ''} do checklist
-                          </p>
                         )}
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-100 text-center">
+                        <p className="text-[11px] text-gray-400 font-semibold">
+                          Pra encerrar essa visita, volte à tela Início e use o botão "Encerrar Jornada" no card Jornada de Hoje.
+                        </p>
                       </div>
                     </div>
                 </div>
