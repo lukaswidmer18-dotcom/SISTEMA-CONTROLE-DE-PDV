@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getRequiredLocation } from '../services/geolocation';
 import { AlertCircle, MapPin } from 'lucide-react';
 
@@ -7,6 +7,8 @@ interface ResolvedLocation {
   longitude: number;
   locationAvailable: boolean;
 }
+
+const FALLBACK_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min — cobre a duração normal de uma visita
 
 function parseCoordinate(value: string, min: number, max: number): number | null {
   const parsed = Number(value.trim().replace(',', '.'));
@@ -19,18 +21,27 @@ export function useManualLocationFallback() {
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [error, setError] = useState('');
+  const fallbackCacheRef = useRef<{ loc: ResolvedLocation; timestamp: number } | null>(null);
 
   async function resolveLocation(): Promise<ResolvedLocation> {
     try {
       const loc = await getRequiredLocation();
       return { ...loc, locationAvailable: true };
     } catch {
+      const cached = fallbackCacheRef.current;
+      if (cached && Date.now() - cached.timestamp < FALLBACK_CACHE_TTL_MS) {
+        return cached.loc;
+      }
+
       console.warn('GPS indisponível, pedindo coordenada manual ou contingência.');
       setLat('');
       setLng('');
       setError('');
       return new Promise<ResolvedLocation>((resolve) => {
-        setPendingResolve(() => resolve);
+        setPendingResolve(() => (loc: ResolvedLocation) => {
+          fallbackCacheRef.current = { loc, timestamp: Date.now() };
+          resolve(loc);
+        });
       });
     }
   }

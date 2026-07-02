@@ -189,16 +189,20 @@ model RupturaRegistro {
 }
 
 model DegustacaoSolicitacao {
-  id            String   @id @default(uuid())
-  requesterName String
-  date          DateTime
-  city          String
-  address       String
-  store         String
-  productEvent  String
-  eventTime     String
-  supervisor    String   @default("")
-  createdAt     DateTime @default(now())
+  id                   String   @id @default(uuid())
+  requesterName        String
+  date                 DateTime
+  city                 String
+  address              String
+  store                String
+  productEvent         String
+  eventTime            String
+  supervisor           String   @default("")
+  justification        String   @default("")
+  documentPath         String?
+  documentFileName     String?
+  documentOriginalName String?
+  createdAt            DateTime @default(now())
 
   @@map("degustacao_solicitacoes")
 }

@@ -1,24 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 export default function DegustacoesAdminPage() {
   const [solicitacoes, setSolicitacoes] = useState<DegustacaoSolicitacao[]>([]);
   const [filterCity, setFilterCity] = useState('');
+  const [filterRequester, setFilterRequester] = useState('');
+  const [filterStore, setFilterStore] = useState('');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const debouncedCity = useDebouncedValue(filterCity, 300);
+  const debouncedRequester = useDebouncedValue(filterRequester, 300);
+  const debouncedStore = useDebouncedValue(filterStore, 300);
 
   async function load() {
     setLoading(true);
     setError('');
     try {
       const params: Record<string, string> = {};
-      if (filterCity) params.city = filterCity;
+      if (debouncedCity) params.city = debouncedCity;
+      if (debouncedRequester) params.requesterName = debouncedRequester;
+      if (debouncedStore) params.store = debouncedStore;
       if (filterFrom) params.from = filterFrom;
       if (filterTo) params.to = filterTo;
       const { data } = await api.get('/admin/degustacoes', { params });
@@ -30,7 +39,7 @@ export default function DegustacoesAdminPage() {
     }
   }
 
-  useEffect(() => { load(); }, [filterCity, filterFrom, filterTo]);
+  useEffect(() => { load(); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,7 +56,9 @@ export default function DegustacoesAdminPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 w-40" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
+          <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 w-36" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
+          <input type="text" placeholder="Filtrar solicitante..." className="input-field text-sm py-2.5 w-40" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
+          <input type="text" placeholder="Filtrar loja..." className="input-field text-sm py-2.5 w-40" value={filterStore} onChange={e => setFilterStore(e.target.value)} />
           <input type="date" className="input-field text-sm py-2.5" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
           <input type="date" className="input-field text-sm py-2.5" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
           <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors">
@@ -77,6 +88,8 @@ export default function DegustacoesAdminPage() {
                 <th className="py-2 pr-4">Horário</th>
                 <th className="py-2 pr-4">Solicitante</th>
                 <th className="py-2 pr-4">Supervisor</th>
+                <th className="py-2 pr-4">Justificativa</th>
+                <th className="py-2 pr-4">Pedidos (PDF)</th>
               </tr>
             </thead>
             <tbody>
@@ -90,6 +103,21 @@ export default function DegustacoesAdminPage() {
                   <td className="py-2.5 pr-4 text-gray-500 whitespace-nowrap">{s.eventTime}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.requesterName}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{s.supervisor || '-'}</td>
+                  <td className="py-2.5 pr-4 text-gray-500 max-w-[220px] truncate" title={s.justification}>{s.justification || '-'}</td>
+                  <td className="py-2.5 pr-4">
+                    {s.documentFileName ? (
+                      <a
+                        href={`/uploads/${s.documentFileName}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-pluma-700 hover:text-pluma-900 font-bold text-xs"
+                      >
+                        <FileText size={14} /> Ver PDF
+                      </a>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

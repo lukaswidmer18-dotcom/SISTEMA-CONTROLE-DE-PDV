@@ -1,16 +1,18 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { parseDateOnly } from '../utils/date';
+import { parseDateOnly, todayDateOnly } from '../utils/date';
 
 const prisma = new PrismaClient();
 
-export async function createDegustacaoSolicitacao(req: Request, res: Response): Promise<void> {
-  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor } = req.body;
+const MIN_LEAD_DAYS = 10;
 
-  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime) {
+export async function createDegustacaoSolicitacao(req: Request, res: Response): Promise<void> {
+  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, justification } = req.body;
+
+  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !justification) {
     res.status(400).json({
       success: false,
-      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento e horário são obrigatórios.',
+      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário e justificativa são obrigatórios.',
     });
     return;
   }
@@ -18,6 +20,15 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
   const parsedDate = parseDateOnly(date);
   if (!parsedDate) {
     res.status(400).json({ success: false, error: 'Data inválida. Use o formato AAAA-MM-DD.' });
+    return;
+  }
+
+  const minDate = new Date(todayDateOnly().getTime() + MIN_LEAD_DAYS * 24 * 60 * 60 * 1000);
+  if (parsedDate.getTime() < minDate.getTime()) {
+    res.status(422).json({
+      success: false,
+      error: `A degustação precisa ser solicitada com pelo menos ${MIN_LEAD_DAYS} dias de antecedência. Data mínima: ${minDate.toISOString().slice(0, 10)}.`,
+    });
     return;
   }
 
@@ -31,6 +42,14 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       productEvent: String(productEvent).trim(),
       eventTime: String(eventTime).trim(),
       supervisor: typeof supervisor === 'string' ? supervisor.trim() : '',
+      justification: String(justification).trim(),
+      ...(req.file
+        ? {
+            documentPath: req.file.path,
+            documentFileName: req.file.filename,
+            documentOriginalName: req.file.originalname,
+          }
+        : {}),
     },
   });
 
@@ -53,10 +72,12 @@ export async function listMyDegustacaoSolicitacoes(req: Request, res: Response):
 }
 
 export async function listAllDegustacaoSolicitacoes(req: Request, res: Response): Promise<void> {
-  const { from, to, city } = req.query;
+  const { from, to, city, requesterName, store } = req.query;
 
   const where: any = {};
   if (city) where.city = { contains: city as string };
+  if (requesterName) where.requesterName = { contains: requesterName as string };
+  if (store) where.store = { contains: store as string };
 
   const fromDate = parseDateOnly(from);
   const toDate = parseDateOnly(to);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { login, me } from '../controllers/authController';
-import { listUsers, createUser, updateUser, toggleUserActive } from '../controllers/userController';
-import { listPDVs, createPDV, updatePDV, togglePDVActive } from '../controllers/pdvController';
+import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
+import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV } from '../controllers/pdvController';
 import { listProducts, createProduct, updateProduct, toggleProductActive } from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry } from '../controllers/routeController';
 import {
@@ -20,7 +20,7 @@ import {
   addRuptura, deleteRuptura, addPriceCheck, deletePriceCheck, finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
 } from '../controllers/visitController';
 import { authenticate, requireAdmin } from '../middleware/auth';
-import { upload } from '../middleware/upload';
+import { upload, uploadPdf } from '../middleware/upload';
 import { publicDegustacaoRateLimit } from '../middleware/publicRateLimit';
 
 const router = Router();
@@ -34,12 +34,14 @@ router.get('/users', authenticate, requireAdmin, listUsers);
 router.post('/users', authenticate, requireAdmin, createUser);
 router.put('/users/:id', authenticate, requireAdmin, updateUser);
 router.patch('/users/:id/toggle', authenticate, requireAdmin, toggleUserActive);
+router.delete('/users/:id', authenticate, requireAdmin, deleteUser);
 
 // PDVs
 router.get('/pdvs', authenticate, listPDVs);
 router.post('/pdvs', authenticate, requireAdmin, createPDV);
 router.put('/pdvs/:id', authenticate, requireAdmin, updatePDV);
 router.patch('/pdvs/:id/toggle', authenticate, requireAdmin, togglePDVActive);
+router.delete('/pdvs/:id', authenticate, requireAdmin, deletePDV);
 
 // Products
 router.get('/products', authenticate, listProducts);
@@ -100,7 +102,7 @@ router.get('/admin/ruptura/alertas', authenticate, requireAdmin, getRupturaAlert
 router.get('/admin/price-checks', authenticate, requireAdmin, listPriceChecks);
 
 // Degustação — portal público (sem login, identificação por nome), admin acompanha tudo
-router.post('/degustacoes/public', publicDegustacaoRateLimit, createDegustacaoSolicitacao);
+router.post('/degustacoes/public', publicDegustacaoRateLimit, uploadPdf.single('document'), createDegustacaoSolicitacao);
 router.get('/degustacoes/public/minhas', publicDegustacaoRateLimit, listMyDegustacaoSolicitacoes);
 router.get('/admin/degustacoes', authenticate, requireAdmin, listAllDegustacaoSolicitacoes);
 

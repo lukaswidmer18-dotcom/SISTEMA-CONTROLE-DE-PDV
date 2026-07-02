@@ -20,6 +20,9 @@ export interface DegustacaoSolicitacao {
   productEvent: string;
   eventTime: string;
   supervisor: string;
+  justification: string;
+  documentFileName?: string | null;
+  documentOriginalName?: string | null;
   createdAt?: string;
 }
 
