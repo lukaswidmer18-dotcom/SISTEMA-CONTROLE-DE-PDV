@@ -93,7 +93,7 @@ model Visit {
   longitudeStart   Float?
   latitudeEnd      Float?
   longitudeEnd     Float?
-  revenueGenerated Float?
+  boxesGenerated   Int?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

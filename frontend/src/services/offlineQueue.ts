@@ -97,7 +97,7 @@ export interface OfflineFinishVisitAction extends OfflineActionBase {
     longitude: number;
     noProductsFound: boolean;
     locationAvailable: boolean;
-    revenueGenerated: string;
+    boxesGenerated: string;
   };
 }
 

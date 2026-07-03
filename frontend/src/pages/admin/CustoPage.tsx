@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PdvCostSummary, VisitCostEntry } from '../../types';
-import { DollarSign, RefreshCw, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
@@ -37,7 +37,7 @@ export default function CustoPage() {
   useEffect(() => { load(); }, [filterFrom, filterTo]);
 
   const missingHourlyCost = visitCosts.some(v => v.hourlyCost == null);
-  const missingRevenue = visitCosts.some(v => v.revenue == null);
+  const missingBoxes = visitCosts.some(v => v.boxes == null);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -50,7 +50,7 @@ export default function CustoPage() {
             Custo por Atendimento
           </h2>
           <p className="text-sm text-gray-500 mt-1 font-medium">
-            Custo de mão de obra vs. faturamento gerado, por PDV. Ratio abaixo de 1 = custando mais do que retornando.
+            Custo de mão de obra vs. caixas geradas, por PDV. Quanto maior o custo por caixa, menos eficiente o atendimento.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -66,12 +66,12 @@ export default function CustoPage() {
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold">{error}</div>
       )}
 
-      {(missingHourlyCost || missingRevenue) && (
+      {(missingHourlyCost || missingBoxes) && (
         <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-xl p-3 flex items-start gap-2">
           <AlertCircle size={15} className="shrink-0 mt-0.5" />
           <p>
             {missingHourlyCost && 'Alguns promotores não têm salário configurado (Usuários → editar). '}
-            {missingRevenue && 'Algumas visitas não têm faturamento informado — o promotor preenche isso ao finalizar a visita.'}
+            {missingBoxes && 'Algumas visitas não têm número de caixas informado — o promotor preenche isso ao finalizar a visita.'}
           </p>
         </div>
       )}
@@ -89,9 +89,8 @@ export default function CustoPage() {
                 <th className="py-2 pr-4">PDV</th>
                 <th className="py-2 pr-4">Visitas</th>
                 <th className="py-2 pr-4">Custo</th>
-                <th className="py-2 pr-4">Faturamento</th>
-                <th className="py-2 pr-4">Líquido</th>
-                <th className="py-2 pr-4">Ratio</th>
+                <th className="py-2 pr-4">Caixas</th>
+                <th className="py-2 pr-4">Custo por caixa</th>
               </tr>
             </thead>
             <tbody>
@@ -100,16 +99,10 @@ export default function CustoPage() {
                   <td className="py-2.5 pr-4 font-bold text-gray-800">{p.pdvName}<span className="text-gray-400 font-medium"> · {p.pdvCity}</span></td>
                   <td className="py-2.5 pr-4 text-gray-500">{p.visitCount}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{formatCurrency(p.cost)}{p.costPartial && <span className="text-[10px] text-amber-500 ml-1">parcial</span>}</td>
-                  <td className="py-2.5 pr-4 text-gray-700">{formatCurrency(p.revenue)}{p.revenuePartial && <span className="text-[10px] text-amber-500 ml-1">parcial</span>}</td>
-                  <td className={`py-2.5 pr-4 font-bold ${p.net != null && p.net < 0 ? 'text-red-600' : p.net != null && p.net > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                    {formatCurrency(p.net)}
-                  </td>
+                  <td className="py-2.5 pr-4 text-gray-700">{p.boxes ?? '—'}{p.boxesPartial && <span className="text-[10px] text-amber-500 ml-1">parcial</span>}</td>
                   <td className="py-2.5 pr-4">
-                    {p.ratio != null ? (
-                      <span className={`inline-flex items-center gap-1 font-bold ${p.ratio >= 1 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {p.ratio >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                        {p.ratio.toFixed(2)}x
-                      </span>
+                    {p.costPerBox != null ? (
+                      <span className="font-bold text-gray-800">{formatCurrency(p.costPerBox)}</span>
                     ) : (
                       <span className="text-xs text-gray-300">—</span>
                     )}
@@ -134,7 +127,7 @@ export default function CustoPage() {
                 <th className="py-2 pr-4">Promotor</th>
                 <th className="py-2 pr-4">Duração</th>
                 <th className="py-2 pr-4">Custo</th>
-                <th className="py-2 pr-4">Faturamento</th>
+                <th className="py-2 pr-4">Caixas</th>
               </tr>
             </thead>
             <tbody>
@@ -145,7 +138,7 @@ export default function CustoPage() {
                   <td className="py-2.5 pr-4 text-gray-500">{v.promotorName}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{v.durationHours.toFixed(1)}h</td>
                   <td className="py-2.5 pr-4 text-gray-700">{formatCurrency(v.cost)}</td>
-                  <td className="py-2.5 pr-4 text-gray-700">{formatCurrency(v.revenue)}</td>
+                  <td className="py-2.5 pr-4 text-gray-700">{v.boxes ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

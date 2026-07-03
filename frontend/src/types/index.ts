@@ -160,7 +160,7 @@ export interface Visit {
   longitudeStart?: number | null;
   latitudeEnd?: number | null;
   longitudeEnd?: number | null;
-  revenueGenerated?: number | null;
+  boxesGenerated?: number | null;
   pdv?: PDV;
   promotor?: Pick<User, 'id' | 'name' | 'email'>;
   photos?: Photo[];
@@ -232,9 +232,7 @@ export interface VisitCostEntry {
   durationHours: number;
   hourlyCost: number | null;
   cost: number | null;
-  revenue: number | null;
-  net: number | null;
-  ratio: number | null;
+  boxes: number | null;
 }
 
 export interface PdvCostSummary {
@@ -243,11 +241,10 @@ export interface PdvCostSummary {
   pdvCity: string;
   visitCount: number;
   cost: number | null;
-  revenue: number | null;
-  net: number | null;
-  ratio: number | null;
+  boxes: number | null;
+  costPerBox: number | null;
   costPartial: boolean;
-  revenuePartial: boolean;
+  boxesPartial: boolean;
 }
 
 export interface ApiResponse<T> {

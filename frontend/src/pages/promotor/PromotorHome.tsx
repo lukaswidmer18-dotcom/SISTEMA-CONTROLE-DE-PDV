@@ -114,12 +114,12 @@ function EncerramentoModal({
   visit: Visit;
   missingItems: ChecklistItem[];
   onClose: () => void;
-  onConfirm: (noProductsFound: boolean, revenueGenerated: string) => void;
+  onConfirm: (noProductsFound: boolean, boxesGenerated: string) => void;
   confirming: boolean;
   error: string;
 }) {
   const [noProductsFound, setNoProductsFound] = useState(visit.noProductsFound || false);
-  const [revenueGenerated, setRevenueGenerated] = useState('');
+  const [boxesGenerated, setBoxesGenerated] = useState('');
   const validityCount = visit.validities?.length || 0;
   const canConfirm = missingItems.length === 0 && (noProductsFound || validityCount > 0);
 
@@ -153,15 +153,15 @@ function EncerramentoModal({
           )}
 
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Faturamento gerado (opcional)</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Número de caixas (opcional)</label>
             <input
               type="number"
               min="0"
-              step="0.01"
-              placeholder="R$ 0,00"
+              step="1"
+              placeholder="0"
               className="input-field py-3 text-sm font-bold"
-              value={revenueGenerated}
-              onChange={e => setRevenueGenerated(e.target.value)}
+              value={boxesGenerated}
+              onChange={e => setBoxesGenerated(e.target.value)}
             />
           </div>
 
@@ -172,7 +172,7 @@ function EncerramentoModal({
             <button
               type="button"
               disabled={!canConfirm || confirming}
-              onClick={() => onConfirm(noProductsFound, revenueGenerated)}
+              onClick={() => onConfirm(noProductsFound, boxesGenerated)}
               className="btn-primary flex-1 py-3"
             >
               {confirming ? 'Encerrando...' : 'Confirmar Encerramento'}
@@ -303,7 +303,7 @@ export default function PromotorHome() {
     }
   }
 
-  async function handleConfirmEncerramento(noProductsFound: boolean, revenueGenerated: string) {
+  async function handleConfirmEncerramento(noProductsFound: boolean, boxesGenerated: string) {
     if (!activeVisit) return;
     setEncerramentoError('');
     setEncerrando(true);
@@ -330,18 +330,18 @@ export default function PromotorHome() {
         await queueOfflineAction({
           kind: 'finishVisit',
           ...getVisitReference(activeVisit.id),
-          payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated },
+          payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, boxesGenerated },
         });
         clearOfflineActiveVisit();
       } else {
         try {
-          await api.patch(`/visits/${activeVisit.id}/finish`, { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated });
+          await api.patch(`/visits/${activeVisit.id}/finish`, { ...location, noProductsFound, locationAvailable: location.locationAvailable, boxesGenerated });
         } catch (err: unknown) {
           if (isNetworkError(err)) {
             await queueOfflineAction({
               kind: 'finishVisit',
               ...getVisitReference(activeVisit.id),
-              payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, revenueGenerated },
+              payload: { ...location, noProductsFound, locationAvailable: location.locationAvailable, boxesGenerated },
             });
           } else {
             throw err;

@@ -458,7 +458,7 @@ export async function deletePhoto(req: Request, res: Response): Promise<void> {
 export async function finishVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
   const { visitId } = req.params;
-  const { latitude, longitude, noProductsFound, revenueGenerated } = req.body;
+  const { latitude, longitude, noProductsFound, boxesGenerated } = req.body;
 
   const validation = await validateVisitInProgress(visitId, authReq.user.userId);
   if (!validation.visit) {
@@ -469,14 +469,14 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
-  let parsedRevenue: number | null = null;
-  if (revenueGenerated !== undefined && revenueGenerated !== null && revenueGenerated !== '') {
-    const value = Number(revenueGenerated);
-    if (!Number.isFinite(value) || value < 0) {
-      res.status(400).json({ success: false, error: 'Faturamento gerado deve ser um número maior ou igual a zero.' });
+  let parsedBoxes: number | null = null;
+  if (boxesGenerated !== undefined && boxesGenerated !== null && boxesGenerated !== '') {
+    const value = Number(boxesGenerated);
+    if (!Number.isInteger(value) || value < 0) {
+      res.status(400).json({ success: false, error: 'Número de caixas deve ser um número inteiro maior ou igual a zero.' });
       return;
     }
-    parsedRevenue = value;
+    parsedBoxes = value;
   }
 
   const activeItems = await prisma.checklistItem.findMany({ where: { active: true } });
@@ -510,7 +510,7 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
       noProductsFound: skipValidity,
       latitudeEnd: coordinates.latitude,
       longitudeEnd: coordinates.longitude,
-      revenueGenerated: parsedRevenue,
+      boxesGenerated: parsedBoxes,
     },
     include: {
       pdv: true,

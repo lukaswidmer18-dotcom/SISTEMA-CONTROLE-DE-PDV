@@ -46,9 +46,7 @@ export async function getVisitCosts(req: Request, res: Response): Promise<void> 
   const data = visits.map((v) => {
     const hourlyCost = hourlyRate(v.promotor.monthlySalary);
     const { durationHours, cost } = computeCost(v.startedAt, v.completedAt!, hourlyCost);
-    const revenue = v.revenueGenerated;
-    const net = cost != null && revenue != null ? revenue - cost : null;
-    const ratio = cost != null && cost > 0 && revenue != null ? revenue / cost : null;
+    const boxes = v.boxesGenerated;
 
     return {
       visitId: v.id,
@@ -61,9 +59,7 @@ export async function getVisitCosts(req: Request, res: Response): Promise<void> 
       durationHours,
       hourlyCost,
       cost,
-      revenue,
-      net,
-      ratio,
+      boxes,
     };
   });
 
@@ -82,45 +78,43 @@ export async function getPdvCostSummary(req: Request, res: Response): Promise<vo
   const byPdv = new Map<string, {
     pdvId: string; pdvName: string; pdvCity: string;
     visitCount: number; totalCost: number; costKnownCount: number;
-    totalRevenue: number; revenueKnownCount: number;
+    totalBoxes: number; boxesKnownCount: number;
   }>();
 
   for (const v of visits) {
     const { cost } = computeCost(v.startedAt, v.completedAt!, hourlyRate(v.promotor.monthlySalary));
     const entry = byPdv.get(v.pdvId) || {
       pdvId: v.pdv.id, pdvName: v.pdv.name, pdvCity: v.pdv.city,
-      visitCount: 0, totalCost: 0, costKnownCount: 0, totalRevenue: 0, revenueKnownCount: 0,
+      visitCount: 0, totalCost: 0, costKnownCount: 0, totalBoxes: 0, boxesKnownCount: 0,
     };
     entry.visitCount += 1;
     if (cost != null) { entry.totalCost += cost; entry.costKnownCount += 1; }
-    if (v.revenueGenerated != null) { entry.totalRevenue += v.revenueGenerated; entry.revenueKnownCount += 1; }
+    if (v.boxesGenerated != null) { entry.totalBoxes += v.boxesGenerated; entry.boxesKnownCount += 1; }
     byPdv.set(v.pdvId, entry);
   }
 
   const data = Array.from(byPdv.values()).map((e) => {
     const cost = e.costKnownCount > 0 ? e.totalCost : null;
-    const revenue = e.revenueKnownCount > 0 ? e.totalRevenue : null;
-    const net = cost != null && revenue != null ? revenue - cost : null;
-    const ratio = cost != null && cost > 0 && revenue != null ? revenue / cost : null;
+    const boxes = e.boxesKnownCount > 0 ? e.totalBoxes : null;
+    const costPerBox = cost != null && boxes != null && boxes > 0 ? cost / boxes : null;
     return {
       pdvId: e.pdvId,
       pdvName: e.pdvName,
       pdvCity: e.pdvCity,
       visitCount: e.visitCount,
       cost,
-      revenue,
-      net,
-      ratio,
+      boxes,
+      costPerBox,
       costPartial: e.costKnownCount > 0 && e.costKnownCount < e.visitCount,
-      revenuePartial: e.revenueKnownCount > 0 && e.revenueKnownCount < e.visitCount,
+      boxesPartial: e.boxesKnownCount > 0 && e.boxesKnownCount < e.visitCount,
     };
   });
 
   data.sort((a, b) => {
-    if (a.ratio == null && b.ratio == null) return b.visitCount - a.visitCount;
-    if (a.ratio == null) return 1;
-    if (b.ratio == null) return -1;
-    return a.ratio - b.ratio;
+    if (a.costPerBox == null && b.costPerBox == null) return b.visitCount - a.visitCount;
+    if (a.costPerBox == null) return 1;
+    if (b.costPerBox == null) return -1;
+    return b.costPerBox - a.costPerBox;
   });
 
   res.json({ success: true, data });

@@ -160,7 +160,11 @@
       "Bash(npm init *)",
       "Bash(node test-degustacoes.js)",
       "Bash(node test-minhas.js)",
-      "Bash(node test-sidebar.js)"
+      "Bash(node test-sidebar.js)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -match 'ts-node-dev|wrap.js' } | Select-Object ProcessId, CommandLine)",
+      "PowerShell(Stop-Process -Id 23096,23440 -Force -Confirm:$false -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Id 23096,23440 -ErrorAction SilentlyContinue)",
+      "Bash(node test-custos.js)"
     ]
   }
 }
