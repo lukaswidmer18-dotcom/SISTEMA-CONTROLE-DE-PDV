@@ -136,3 +136,28 @@ export async function togglePDVActive(req: Request, res: Response): Promise<void
   const updated = await prisma.pDV.update({ where: { id }, data: { active: !pdv.active } });
   res.json({ success: true, data: updated });
 }
+
+export async function deletePDV(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const pdv = await prisma.pDV.findUnique({ where: { id } });
+  if (!pdv) {
+    res.status(404).json({ success: false, error: 'PDV não encontrado.' });
+    return;
+  }
+
+  const [visitsCount, rotasCount] = await Promise.all([
+    prisma.visit.count({ where: { pdvId: id } }),
+    prisma.rotaVisita.count({ where: { pdvId: id } }),
+  ]);
+
+  if (visitsCount > 0 || rotasCount > 0) {
+    res.status(409).json({
+      success: false,
+      error: 'Este PDV já tem histórico (visitas ou rotas) e não pode ser excluído. Use "Desativar" para removê-lo sem perder o histórico.',
+    });
+    return;
+  }
+
+  await prisma.pDV.delete({ where: { id } });
+  res.json({ success: true, data: null });
+}

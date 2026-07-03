@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, MapPin, MapPinOff, CheckCircle2, PencilLine } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine } from 'lucide-react';
 
 function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
@@ -174,10 +174,48 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   );
 }
 
+function DeletePDVModal({ pdv, onClose, onDeleted }: { pdv: PDV; onClose: () => void; onDeleted: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleDelete() {
+    setError('');
+    setLoading(true);
+    try {
+      await api.delete(`/pdvs/${pdv.id}`);
+      onDeleted();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir PDV.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <h3 className="font-semibold text-gray-800 mb-1">Excluir PDV?</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          <span className="font-medium text-gray-700">{pdv.name}</span> será removido permanentemente. Essa ação não pode ser desfeita.
+        </p>
+        {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded mb-3">{error}</div>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+          <button type="button" onClick={handleDelete} disabled={loading} className="btn-primary flex-1 bg-red-600 border-red-600 hover:bg-red-700">
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PDVsPage() {
   const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; pdv?: PDV | null }>({ open: false });
+  const [deleteTarget, setDeleteTarget] = useState<PDV | null>(null);
 
   async function load() {
     setLoading(true);
@@ -240,6 +278,9 @@ export default function PDVsPage() {
                   <button onClick={() => toggleActive(p)} className={`p-2 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                     {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
+                  <button onClick={() => setDeleteTarget(p)} className="p-2 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -284,6 +325,9 @@ export default function PDVsPage() {
                         <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                           {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                         </button>
+                        <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -296,6 +340,10 @@ export default function PDVsPage() {
 
       {modal.open && (
         <PDVModal pdv={modal.pdv} onClose={() => setModal({ open: false })} onSaved={load} />
+      )}
+
+      {deleteTarget && (
+        <DeletePDVModal pdv={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={load} />
       )}
     </div>
   );

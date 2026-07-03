@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { User, UserRole } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X } from 'lucide-react';
 
 const ROLE_LABEL: Record<UserRole, string> = { ADMIN: 'Admin', PROMOTOR: 'Promotor' };
 const ROLE_BADGE: Record<UserRole, string> = { ADMIN: 'badge-blue', PROMOTOR: 'badge-green' };
@@ -87,10 +87,48 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
   );
 }
 
+function DeleteUserModal({ user, onClose, onDeleted }: { user: User; onClose: () => void; onDeleted: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleDelete() {
+    setError('');
+    setLoading(true);
+    try {
+      await api.delete(`/users/${user.id}`);
+      onDeleted();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir usuário.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <h3 className="font-semibold text-gray-800 mb-1">Excluir usuário?</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          <span className="font-medium text-gray-700">{user.name}</span> ({user.email}) será removido permanentemente. Essa ação não pode ser desfeita.
+        </p>
+        {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded mb-3">{error}</div>}
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+          <button type="button" onClick={handleDelete} disabled={loading} className="btn-primary flex-1 bg-red-600 border-red-600 hover:bg-red-700">
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; user?: User | null }>({ open: false });
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
   async function load() {
     setLoading(true);
@@ -149,6 +187,9 @@ export default function UsersPage() {
                   <button onClick={() => toggleActive(u)} className={`p-2 rounded ${u.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                     {u.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
+                  <button onClick={() => setDeleteTarget(u)} className="p-2 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -189,6 +230,9 @@ export default function UsersPage() {
                         <button onClick={() => toggleActive(u)} className={`p-1.5 rounded ${u.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                           {u.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                         </button>
+                        <button onClick={() => setDeleteTarget(u)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -201,6 +245,10 @@ export default function UsersPage() {
 
       {modal.open && (
         <UserModal user={modal.user} onClose={() => setModal({ open: false })} onSaved={load} />
+      )}
+
+      {deleteTarget && (
+        <DeleteUserModal user={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={load} />
       )}
     </div>
   );
