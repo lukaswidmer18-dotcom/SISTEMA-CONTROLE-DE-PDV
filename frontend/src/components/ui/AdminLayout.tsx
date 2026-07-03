@@ -1,27 +1,77 @@
-import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route, ListChecks, CheckCircle2, Trophy, PackageX, Tags, UtensilsCrossed, DollarSign,
+  LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route as RouteIcon, ListChecks, CheckCircle2, Trophy, PackageX, Tags, UtensilsCrossed, DollarSign,
+  Activity, Compass, BarChart3, Database, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 
-const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/mapa', label: 'Rastreamento', icon: Map },
-  { to: '/admin/cobertura', label: 'Cobertura', icon: CheckCircle2 },
-  { to: '/admin/ranking', label: 'Ranking', icon: Trophy },
-  { to: '/admin/ruptura', label: 'Ruptura', icon: PackageX },
-  { to: '/admin/precos', label: 'Preços', icon: Tags },
-  { to: '/admin/degustacoes', label: 'Degustações', icon: UtensilsCrossed },
-  { to: '/admin/custos', label: 'Custo/Atendimento', icon: DollarSign },
-  { to: '/admin/usuarios', label: 'Usuários', icon: Users },
-  { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
-  { to: '/admin/rotas', label: 'Rotas', icon: Route },
-  { to: '/admin/produtos', label: 'Produtos', icon: Package },
-  { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
-  { to: '/admin/pontos', label: 'Pontos', icon: Clock },
-  { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end?: boolean;
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+}
+
+const dashboardItem: NavItem = { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true };
+
+const navGroups: NavGroup[] = [
+  {
+    key: 'monitoramento',
+    label: 'Monitoramento',
+    icon: Activity,
+    items: [
+      { to: '/admin/mapa', label: 'Rastreamento', icon: Map },
+      { to: '/admin/cobertura', label: 'Cobertura', icon: CheckCircle2 },
+      { to: '/admin/ranking', label: 'Ranking', icon: Trophy },
+    ],
+  },
+  {
+    key: 'operacao',
+    label: 'Operação de Campo',
+    icon: Compass,
+    items: [
+      { to: '/admin/rotas', label: 'Rotas', icon: RouteIcon },
+      { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
+      { to: '/admin/pontos', label: 'Pontos', icon: Clock },
+      { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
+    ],
+  },
+  {
+    key: 'indicadores',
+    label: 'Indicadores Comerciais',
+    icon: BarChart3,
+    items: [
+      { to: '/admin/ruptura', label: 'Ruptura', icon: PackageX },
+      { to: '/admin/precos', label: 'Preços', icon: Tags },
+      { to: '/admin/degustacoes', label: 'Degustações', icon: UtensilsCrossed },
+      { to: '/admin/custos', label: 'Custo/Atendimento', icon: DollarSign },
+    ],
+  },
+  {
+    key: 'cadastros',
+    label: 'Cadastros',
+    icon: Database,
+    items: [
+      { to: '/admin/usuarios', label: 'Usuários', icon: Users },
+      { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
+      { to: '/admin/produtos', label: 'Produtos', icon: Package },
+    ],
+  },
 ];
+
+const allNavItems: NavItem[] = [dashboardItem, ...navGroups.flatMap(g => g.items)];
+
+function findActiveGroupKey(pathname: string): string | null {
+  return navGroups.find(g => g.items.some(item => pathname.startsWith(item.to)))?.key ?? null;
+}
 
 function GrupoPlumaSidebarLogo() {
   return (
@@ -35,6 +85,13 @@ function GrupoPlumaSidebarLogo() {
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [openGroup, setOpenGroup] = useState<string | null>(() => findActiveGroupKey(location.pathname));
+
+  useEffect(() => {
+    const activeGroup = findActiveGroupKey(location.pathname);
+    if (activeGroup) setOpenGroup(activeGroup);
+  }, [location.pathname]);
 
   function handleLogout() {
     logout();
@@ -59,23 +116,61 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-gold-500/[0.15] text-gold-300 border-l-2 border-gold-400 pl-[10px] shadow-glow-gold'
-                    : 'text-pluma-200 hover:bg-white/[0.08] hover:text-white border-l-2 border-transparent pl-[10px]'
-                }`
-              }
-            >
-              <Icon size={17} />
-              {label}
-            </NavLink>
-          ))}
+          <NavLink
+            to={dashboardItem.to}
+            end={dashboardItem.end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'bg-gold-500/[0.15] text-gold-300 border-l-2 border-gold-400 pl-[10px] shadow-glow-gold'
+                  : 'text-pluma-200 hover:bg-white/[0.08] hover:text-white border-l-2 border-transparent pl-[10px]'
+              }`
+            }
+          >
+            <dashboardItem.icon size={17} />
+            {dashboardItem.label}
+          </NavLink>
+
+          {navGroups.map(group => {
+            const isOpen = openGroup === group.key;
+            const GroupIcon = group.icon;
+            return (
+              <div key={group.key} className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setOpenGroup(isOpen ? null : group.key)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors ${
+                    isOpen ? 'text-gold-300' : 'text-pluma-300 hover:text-white'
+                  }`}
+                >
+                  <GroupIcon size={15} />
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isOpen && (
+                  <div className="space-y-0.5 mt-0.5">
+                    {group.items.map(({ to, label, icon: Icon, end }) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={end}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            isActive
+                              ? 'bg-gold-500/[0.15] text-gold-300 border-l-2 border-gold-400 pl-[10px] shadow-glow-gold'
+                              : 'text-pluma-200 hover:bg-white/[0.08] hover:text-white border-l-2 border-transparent pl-[10px]'
+                          }`
+                        }
+                      >
+                        <Icon size={17} />
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* User / logout */}
@@ -134,7 +229,7 @@ export default function AdminLayout() {
 
       {/* Bottom nav — mobile only, mesmo padrão do promotor */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/[0.86] backdrop-blur-xl border-t border-white/70 flex z-30 shadow-glass">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+        {allNavItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
