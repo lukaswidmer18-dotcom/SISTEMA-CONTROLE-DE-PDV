@@ -1,10 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+
+const STATUS_LABEL: Record<DegustacaoSolicitacao['status'], string> = {
+  pendente: 'Pendente',
+  aprovada: 'Aprovada',
+  reprovada: 'Reprovada',
+};
+
+const STATUS_BADGE: Record<DegustacaoSolicitacao['status'], string> = {
+  pendente: 'bg-amber-50 text-amber-700 border-amber-200',
+  aprovada: 'bg-green-50 text-green-700 border-green-200',
+  reprovada: 'bg-red-50 text-red-700 border-red-200',
+};
 
 export default function DegustacoesAdminPage() {
   const [solicitacoes, setSolicitacoes] = useState<DegustacaoSolicitacao[]>([]);
@@ -15,6 +27,7 @@ export default function DegustacoesAdminPage() {
   const [filterTo, setFilterTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const debouncedCity = useDebouncedValue(filterCity, 300);
   const debouncedRequester = useDebouncedValue(filterRequester, 300);
@@ -40,6 +53,19 @@ export default function DegustacoesAdminPage() {
   }
 
   useEffect(() => { load(); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
+
+  async function updateStatus(id: string, status: 'aprovada' | 'reprovada') {
+    setUpdatingId(id);
+    setError('');
+    try {
+      const { data } = await api.patch(`/admin/degustacoes/${id}/status`, { status });
+      setSolicitacoes(prev => prev.map(s => (s.id === id ? data.data : s)));
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao atualizar status da degustação.');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -90,6 +116,8 @@ export default function DegustacoesAdminPage() {
                 <th className="py-2 pr-4">Supervisor</th>
                 <th className="py-2 pr-4">Justificativa</th>
                 <th className="py-2 pr-4">Pedidos (PDF)</th>
+                <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -116,6 +144,33 @@ export default function DegustacoesAdminPage() {
                       </a>
                     ) : (
                       <span className="text-gray-300">-</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${STATUS_BADGE[s.status]}`}>
+                      {STATUS_LABEL[s.status]}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    {s.status === 'pendente' ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => updateStatus(s.id, 'aprovada')}
+                          disabled={updatingId === s.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-40 transition-colors"
+                        >
+                          <Check size={13} /> Aprovar
+                        </button>
+                        <button
+                          onClick={() => updateStatus(s.id, 'reprovada')}
+                          disabled={updatingId === s.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-40 transition-colors"
+                        >
+                          <X size={13} /> Reprovar
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
                 </tr>

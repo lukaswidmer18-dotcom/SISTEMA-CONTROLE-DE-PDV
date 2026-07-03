@@ -6,6 +6,18 @@ import { ClipboardList, Search, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+const STATUS_LABEL: Record<DegustacaoSolicitacao['status'], string> = {
+  pendente: 'Em análise',
+  aprovada: 'Aprovada',
+  reprovada: 'Reprovada',
+};
+
+const STATUS_BADGE: Record<DegustacaoSolicitacao['status'], string> = {
+  pendente: 'bg-amber-50 text-amber-700 border-amber-200',
+  aprovada: 'bg-green-50 text-green-700 border-green-200',
+  reprovada: 'bg-red-50 text-red-700 border-red-200',
+};
+
 export default function PublicMyDegustacoesPage() {
   const [nome, setNome] = useState('');
   const [solicitacoes, setSolicitacoes] = useState<DegustacaoSolicitacao[] | null>(null);
@@ -66,9 +78,14 @@ export default function PublicMyDegustacoesPage() {
                       <p className="font-bold text-gray-900">{s.store}</p>
                       <p className="text-sm text-gray-500">{s.productEvent}</p>
                     </div>
-                    <span className="text-xs font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full shrink-0">
-                      {format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR })}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full">
+                        {format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${STATUS_BADGE[s.status]}`}>
+                        {STATUS_LABEL[s.status]}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
                     <p><span className="font-bold text-gray-400 uppercase text-[10px]">Cidade</span><br />{s.city}</p>

@@ -202,6 +202,9 @@ model DegustacaoSolicitacao {
   documentPath         String?
   documentFileName     String?
   documentOriginalName String?
+  status               String   @default("pendente")
+  reviewedBy           String?
+  reviewedAt           DateTime?
   createdAt            DateTime @default(now())
 
   @@map("degustacao_solicitacoes")

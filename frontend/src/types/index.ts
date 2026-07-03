@@ -23,6 +23,9 @@ export interface DegustacaoSolicitacao {
   justification: string;
   documentFileName?: string | null;
   documentOriginalName?: string | null;
+  status: 'pendente' | 'aprovada' | 'reprovada';
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   createdAt?: string;
 }
 

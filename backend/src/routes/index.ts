@@ -13,7 +13,7 @@ import { rateVisit } from '../controllers/ratingController';
 import { getPromotorRanking } from '../controllers/rankingController';
 import { getRupturaAlertas } from '../controllers/rupturaController';
 import { listPriceChecks } from '../controllers/priceCheckController';
-import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes } from '../controllers/degustacaoController';
+import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus } from '../controllers/degustacaoController';
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
@@ -105,6 +105,7 @@ router.get('/admin/price-checks', authenticate, requireAdmin, listPriceChecks);
 router.post('/degustacoes/public', publicDegustacaoRateLimit, uploadPdf.single('document'), createDegustacaoSolicitacao);
 router.get('/degustacoes/public/minhas', publicDegustacaoRateLimit, listMyDegustacaoSolicitacoes);
 router.get('/admin/degustacoes', authenticate, requireAdmin, listAllDegustacaoSolicitacoes);
+router.patch('/admin/degustacoes/:id/status', authenticate, requireAdmin, updateDegustacaoSolicitacaoStatus);
 
 // Admin Custo por Atendimento
 router.get('/admin/custos/visitas', authenticate, requireAdmin, getVisitCosts);

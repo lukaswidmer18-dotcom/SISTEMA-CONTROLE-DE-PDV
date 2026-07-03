@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
+import { AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 
 const MIN_LEAD_DAYS = 10;
+const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
+type DegustacaoStatus = (typeof DEGUSTACAO_STATUSES)[number];
 
 export async function createDegustacaoSolicitacao(req: Request, res: Response): Promise<void> {
   const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, justification } = req.body;
@@ -93,4 +96,35 @@ export async function listAllDegustacaoSolicitacoes(req: Request, res: Response)
   });
 
   res.json({ success: true, data: solicitacoes });
+}
+
+export async function updateDegustacaoSolicitacaoStatus(req: AuthRequest, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!DEGUSTACAO_STATUSES.includes(status)) {
+    res.status(400).json({ success: false, error: 'Status inválido. Use aprovada ou reprovada.' });
+    return;
+  }
+  if (status === 'pendente') {
+    res.status(400).json({ success: false, error: 'Não é possível reverter para pendente.' });
+    return;
+  }
+
+  const existing = await prisma.degustacaoSolicitacao.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Solicitação de degustação não encontrada.' });
+    return;
+  }
+
+  const solicitacao = await prisma.degustacaoSolicitacao.update({
+    where: { id },
+    data: {
+      status: status as DegustacaoStatus,
+      reviewedBy: req.user?.email ?? null,
+      reviewedAt: new Date(),
+    },
+  });
+
+  res.json({ success: true, data: solicitacao });
 }
