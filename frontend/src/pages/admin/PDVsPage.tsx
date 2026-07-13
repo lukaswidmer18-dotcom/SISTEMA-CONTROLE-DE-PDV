@@ -138,7 +138,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
                 <span className="flex items-center gap-1.5 text-sm text-amber-700 font-medium">
                   <Trash2 size={15} className="shrink-0" />
-                  Coordenada será removida ao salvar.
+                  Coordenada manual será removida ao salvar. Se o endereço estiver preenchido, a localização volta a ser calculada automaticamente a partir dele.
                 </span>
                 <button
                   type="button"

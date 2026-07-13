@@ -103,8 +103,20 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
   const manual = parseManualCoords(latitude, longitude);
   let geocodeFailed = false;
   if (clearCoordinates === true || clearCoordinates === 'true') {
-    updateData.latitude = null;
-    updateData.longitude = null;
+    if (nextAddress) {
+      const geocoded = await geocodeAddress(nextAddress, nextCity, nextState);
+      if (geocoded) {
+        updateData.latitude = geocoded.latitude;
+        updateData.longitude = geocoded.longitude;
+      } else {
+        updateData.latitude = null;
+        updateData.longitude = null;
+        geocodeFailed = true;
+      }
+    } else {
+      updateData.latitude = null;
+      updateData.longitude = null;
+    }
   } else if (manual) {
     updateData.latitude = manual.latitude;
     updateData.longitude = manual.longitude;
