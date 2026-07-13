@@ -462,15 +462,16 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
-  let parsedBoxes: number | null = null;
-  if (boxesGenerated !== undefined && boxesGenerated !== null && boxesGenerated !== '') {
-    const value = Number(boxesGenerated);
-    if (!Number.isInteger(value) || value < 0) {
-      res.status(400).json({ success: false, error: 'Número de caixas deve ser um número inteiro maior ou igual a zero.' });
-      return;
-    }
-    parsedBoxes = value;
+  if (boxesGenerated === undefined || boxesGenerated === null || boxesGenerated === '') {
+    res.status(400).json({ success: false, error: 'Número de caixas aberta é obrigatório.' });
+    return;
   }
+  const parsedBoxesValue = Number(boxesGenerated);
+  if (!Number.isInteger(parsedBoxesValue) || parsedBoxesValue < 0) {
+    res.status(400).json({ success: false, error: 'Número de caixas deve ser um número inteiro maior ou igual a zero.' });
+    return;
+  }
+  const parsedBoxes: number = parsedBoxesValue;
 
   const activeItems = await prisma.checklistItem.findMany({ where: { active: true } });
   const photoCountByItem = new Map<string, number>();

@@ -121,7 +121,8 @@ function EncerramentoModal({
   const [noProductsFound, setNoProductsFound] = useState(visit.noProductsFound || false);
   const [boxesGenerated, setBoxesGenerated] = useState('');
   const validityCount = visit.validities?.length || 0;
-  const canConfirm = missingItems.length === 0 && (noProductsFound || validityCount > 0);
+  const boxesValid = boxesGenerated !== '' && Number.isInteger(Number(boxesGenerated)) && Number(boxesGenerated) >= 0;
+  const canConfirm = missingItems.length === 0 && (noProductsFound || validityCount > 0) && boxesValid;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -153,12 +154,13 @@ function EncerramentoModal({
           )}
 
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Número de caixas (opcional)</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Número de caixas aberta *</label>
             <input
               type="number"
               min="0"
               step="1"
               placeholder="0"
+              required
               className="input-field py-3 text-sm font-bold"
               value={boxesGenerated}
               onChange={e => setBoxesGenerated(e.target.value)}
