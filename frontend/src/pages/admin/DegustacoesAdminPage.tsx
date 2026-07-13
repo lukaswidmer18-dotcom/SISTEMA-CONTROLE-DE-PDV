@@ -134,6 +134,7 @@ export default function DegustacoesAdminPage() {
                 <th className="py-2 pr-4">Horário</th>
                 <th className="py-2 pr-4">Solicitante</th>
                 <th className="py-2 pr-4">Supervisor</th>
+                <th className="py-2 pr-4">Vendedor</th>
                 <th className="py-2 pr-4">Justificativa</th>
                 <th className="py-2 pr-4">Pedidos (PDF)</th>
                 <th className="py-2 pr-4">Status</th>
@@ -151,6 +152,7 @@ export default function DegustacoesAdminPage() {
                   <td className="py-2.5 pr-4 text-gray-500 whitespace-nowrap">{s.eventTime}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.requesterName}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{s.supervisor || '-'}</td>
+                  <td className="py-2.5 pr-4 text-gray-500">{s.sellerName || '-'}</td>
                   <td className="py-2.5 pr-4 text-gray-500 max-w-[220px] truncate" title={s.justification}>{s.justification || '-'}</td>
                   <td className="py-2.5 pr-4">
                     {s.documentPath ? (

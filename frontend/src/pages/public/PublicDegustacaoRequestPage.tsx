@@ -6,7 +6,7 @@ import { PlusCircle, CheckCircle, ClipboardList, FileText, X } from 'lucide-reac
 
 const MIN_LEAD_DAYS = 10;
 
-const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', supervisor: '', justification: '' };
+const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', supervisor: '', sellerName: '', justification: '' };
 
 export default function PublicDegustacaoRequestPage() {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -132,9 +132,15 @@ export default function PublicDegustacaoRequestPage() {
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto / Evento *</label>
             <input type="text" required placeholder="Ex: Coxinha Temperada" className="input-field py-3 text-sm font-bold" value={form.productEvent} onChange={e => setForm(f => ({ ...f, productEvent: e.target.value }))} />
           </div>
-          <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Supervisor</label>
-            <input type="text" placeholder="Nome do supervisor" className="input-field py-3 text-sm font-bold" value={form.supervisor} onChange={e => setForm(f => ({ ...f, supervisor: e.target.value }))} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Supervisor *</label>
+              <input type="text" required placeholder="Nome do supervisor" className="input-field py-3 text-sm font-bold" value={form.supervisor} onChange={e => setForm(f => ({ ...f, supervisor: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Vendedor *</label>
+              <input type="text" required placeholder="Nome do vendedor" className="input-field py-3 text-sm font-bold" value={form.sellerName} onChange={e => setForm(f => ({ ...f, sellerName: e.target.value }))} />
+            </div>
           </div>
           <div>
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Justificativa *</label>

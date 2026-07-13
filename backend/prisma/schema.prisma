@@ -198,6 +198,7 @@ model DegustacaoSolicitacao {
   productEvent         String
   eventTime            String
   supervisor           String   @default("")
+  sellerName           String   @default("")
   justification        String   @default("")
   documentPath         String?
   documentFileName     String?

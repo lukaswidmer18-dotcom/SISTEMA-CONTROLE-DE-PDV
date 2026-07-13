@@ -11,12 +11,12 @@ const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
 type DegustacaoStatus = (typeof DEGUSTACAO_STATUSES)[number];
 
 export async function createDegustacaoSolicitacao(req: Request, res: Response): Promise<void> {
-  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, justification } = req.body;
+  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
 
-  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !justification) {
+  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
     res.status(400).json({
       success: false,
-      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário e justificativa são obrigatórios.',
+      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
     });
     return;
   }
@@ -49,7 +49,8 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       store: String(store).trim(),
       productEvent: String(productEvent).trim(),
       eventTime: String(eventTime).trim(),
-      supervisor: typeof supervisor === 'string' ? supervisor.trim() : '',
+      supervisor: String(supervisor).trim(),
+      sellerName: String(sellerName).trim(),
       justification: String(justification).trim(),
       ...(documentData
         ? {
