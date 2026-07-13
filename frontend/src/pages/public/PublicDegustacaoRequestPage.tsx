@@ -6,10 +6,12 @@ import { PlusCircle, CheckCircle, ClipboardList, FileText, X } from 'lucide-reac
 
 const MIN_LEAD_DAYS = 10;
 
-const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', eventTime: '', supervisor: '', justification: '' };
+const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', supervisor: '', justification: '' };
 
 export default function PublicDegustacaoRequestPage() {
   const [form, setForm] = useState(EMPTY_FORM);
+  const [eventTimeStart, setEventTimeStart] = useState('');
+  const [eventTimeEnd, setEventTimeEnd] = useState('');
   const [document, setDocument] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,16 +30,23 @@ export default function PublicDegustacaoRequestPage() {
       setError(dateErrorMessage);
       return;
     }
+    if (!eventTimeStart || !eventTimeEnd) {
+      setError('Informe o horário de início e fim do evento.');
+      return;
+    }
 
     setLoading(true);
     try {
       const formData = new FormData();
       Object.entries(form).forEach(([key, value]) => formData.append(key, value));
+      formData.append('eventTime', `${eventTimeStart} às ${eventTimeEnd}`);
       if (document) formData.append('document', document, document.name);
 
       await api.post('/degustacoes/public', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setSuccess(true);
       setForm(f => ({ ...EMPTY_FORM, requesterName: f.requesterName }));
+      setEventTimeStart('');
+      setEventTimeEnd('');
       setDocument(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao enviar solicitação.');
@@ -94,9 +103,15 @@ export default function PublicDegustacaoRequestPage() {
                 <p className="text-[10px] text-gray-400 mt-1 ml-1">Mínimo {MIN_LEAD_DAYS} dias de antecedência.</p>
               )}
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Horário do Evento *</label>
-              <input type="text" required placeholder="Ex: 09h às 12h" className="input-field py-3 text-sm font-bold" value={form.eventTime} onChange={e => setForm(f => ({ ...f, eventTime: e.target.value }))} />
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Início do Evento *</label>
+              <input type="time" required className="input-field py-3 text-sm font-bold" value={eventTimeStart} onChange={e => setEventTimeStart(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Fim do Evento *</label>
+              <input type="time" required className="input-field py-3 text-sm font-bold" value={eventTimeEnd} onChange={e => setEventTimeEnd(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
