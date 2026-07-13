@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV, Product } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2 } from 'lucide-react';
 
 function ProductModal({ product, pdvs, onClose, onSaved }: {
   product?: Product | null; pdvs: PDV[]; onClose: () => void; onSaved: () => void;
@@ -93,6 +93,8 @@ export default function ProductsPage() {
   const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; product?: Product | null }>({ open: false });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   async function load() {
     setLoading(true);
@@ -110,6 +112,20 @@ export default function ProductsPage() {
   async function toggleActive(product: Product) {
     await api.patch(`/products/${product.id}/toggle`);
     load();
+  }
+
+  async function handleDelete(product: Product) {
+    if (!window.confirm(`Excluir o produto "${product.name}"? Essa ação não pode ser desfeita.`)) return;
+    setError('');
+    setDeletingId(product.id);
+    try {
+      await api.delete(`/products/${product.id}`);
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir produto.');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function pdvBadges(p: Product) {
@@ -135,6 +151,10 @@ export default function ProductsPage() {
           <Plus size={16} /> Novo Produto
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold mb-4">{error}</div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
@@ -163,6 +183,9 @@ export default function ProductsPage() {
                   <button onClick={() => toggleActive(p)} className={`p-2 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                     {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
+                  <button onClick={() => handleDelete(p)} disabled={deletingId === p.id} className="p-2 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -173,9 +196,9 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Marca</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">SKU</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Marca</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Código</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">PDVs</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="px-4 py-3"></th>
@@ -198,6 +221,9 @@ export default function ProductsPage() {
                         </button>
                         <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                           {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                        </button>
+                        <button onClick={() => handleDelete(p)} disabled={deletingId === p.id} className="p-1.5 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>

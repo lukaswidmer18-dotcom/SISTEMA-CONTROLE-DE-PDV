@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
 import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV } from '../controllers/pdvController';
-import { listProducts, createProduct, updateProduct, toggleProductActive } from '../controllers/productController';
+import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct } from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry } from '../controllers/routeController';
 import {
   listChecklistItems, createChecklistItem, updateChecklistItem, toggleChecklistItemActive, deleteChecklistItem, reorderChecklistItems,
@@ -48,6 +48,7 @@ router.get('/products', authenticate, listProducts);
 router.post('/products', authenticate, requireAdmin, createProduct);
 router.put('/products/:id', authenticate, requireAdmin, updateProduct);
 router.patch('/products/:id/toggle', authenticate, requireAdmin, toggleProductActive);
+router.delete('/products/:id', authenticate, requireAdmin, deleteProduct);
 
 // Rotas de visita — leitura liberada pro promotor (só vê a própria); mutação restrita ao admin
 router.get('/routes', authenticate, listRoutes);

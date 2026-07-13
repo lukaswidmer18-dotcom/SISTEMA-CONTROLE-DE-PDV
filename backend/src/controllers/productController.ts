@@ -87,3 +87,30 @@ export async function toggleProductActive(req: Request, res: Response): Promise<
   const updated = await prisma.product.update({ where: { id }, data: { active: !product.active } });
   res.json({ success: true, data: updated });
 }
+
+export async function deleteProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const product = await prisma.product.findUnique({ where: { id } });
+  if (!product) {
+    res.status(404).json({ success: false, error: 'Produto não encontrado.' });
+    return;
+  }
+
+  const [rupturaCount, priceCheckCount, validityCount] = await Promise.all([
+    prisma.rupturaRegistro.count({ where: { productId: id } }),
+    prisma.priceCheck.count({ where: { productId: id } }),
+    prisma.validity.count({ where: { productId: id } }),
+  ]);
+
+  if (rupturaCount + priceCheckCount + validityCount > 0) {
+    res.status(409).json({
+      success: false,
+      error: 'Produto tem histórico de visitas registrado e não pode ser excluído. Desative-o em vez de excluir.',
+    });
+    return;
+  }
+
+  await prisma.product.delete({ where: { id } });
+  res.json({ success: true, data: null });
+}
