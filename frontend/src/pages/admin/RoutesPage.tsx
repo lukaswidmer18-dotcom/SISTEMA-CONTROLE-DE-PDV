@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, MessageSquareWarning } from 'lucide-react';
+import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, MessageSquareWarning, GripVertical } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -48,7 +48,7 @@ function getWeekStart(weekOffset: number): Date {
   return addDays(todayMidnight, -todayMidnight.getDay() + weekOffset * 7);
 }
 
-function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onRemove }: {
+function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onRemove, onReorder }: {
   dayOfWeek: number;
   date: Date;
   routes: RotaVisita[];
@@ -56,16 +56,37 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   isToday: boolean;
   onAdd: (pdvId: string) => void;
   onRemove: (routeId: string) => void;
+  onReorder: (orderedIds: string[]) => void;
 }) {
   const dayColor = DAY_COLORS[dayOfWeek];
   const [selectedPdv, setSelectedPdv] = useState('');
+  const [orderedRoutes, setOrderedRoutes] = useState(routes);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const assignedIds = new Set(routes.map(r => r.pdvId));
   const options = availablePdvs.filter(p => !assignedIds.has(p.id));
+
+  useEffect(() => { setOrderedRoutes(routes); }, [routes]);
 
   function handleAdd() {
     if (!selectedPdv) return;
     onAdd(selectedPdv);
     setSelectedPdv('');
+  }
+
+  function handleDrop(targetIndex: number) {
+    if (dragIndex === null || dragIndex === targetIndex) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const next = [...orderedRoutes];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    setOrderedRoutes(next);
+    setDragIndex(null);
+    setDragOverIndex(null);
+    onReorder(next.map(r => r.id));
   }
 
   return (
@@ -83,16 +104,30 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
       </div>
 
       <div className="space-y-2 flex-1">
-        {routes.length === 0 ? (
+        {orderedRoutes.length === 0 ? (
           <div className="flex items-center gap-1.5 py-3 px-1">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
             <p className="text-xs text-gray-300 font-medium">Sem PDV nesse dia</p>
           </div>
         ) : (
-          routes.map((r, i) => (
-            <div key={r.id} className="group border-b border-gray-100 last:border-b-0 py-2.5 hover:bg-gray-50/70 transition-colors -mx-1 px-1 rounded-md">
+          orderedRoutes.map((r, i) => (
+            <div
+              key={r.id}
+              draggable={orderedRoutes.length > 1}
+              onDragStart={() => setDragIndex(i)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
+              onDragLeave={() => setDragOverIndex(prev => (prev === i ? null : prev))}
+              onDrop={(e) => { e.preventDefault(); handleDrop(i); }}
+              onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+              className={`group border-b border-gray-100 last:border-b-0 py-2.5 hover:bg-gray-50/70 transition-colors -mx-1 px-1 rounded-md ${
+                dragOverIndex === i && dragIndex !== null && dragIndex !== i ? 'bg-pluma-50 border-pluma-200' : ''
+              } ${dragIndex === i ? 'opacity-40' : ''}`}
+            >
               <div className="flex items-start justify-between gap-1.5">
                 <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
+                  {orderedRoutes.length > 1 && (
+                    <GripVertical size={12} className="shrink-0 text-gray-300 cursor-grab self-center" />
+                  )}
                   <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
                   {r.pdv?.name}
                 </p>
@@ -259,6 +294,17 @@ export default function RoutesPage() {
     }
   }
 
+  async function handleReorder(orderedIds: string[]) {
+    setError('');
+    try {
+      await api.patch('/routes/reorder', { ids: orderedIds });
+      await loadRoutes(selectedPromotor, weekDates);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao reordenar PDVs.');
+      await loadRoutes(selectedPromotor, weekDates);
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -388,6 +434,7 @@ export default function RoutesPage() {
               isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
               onAdd={(pdvId) => handleAdd(weekDates[dayOfWeek], pdvId)}
               onRemove={handleRemove}
+              onReorder={handleReorder}
             />
           ))}
         </div>

@@ -3,7 +3,7 @@ import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
 import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV } from '../controllers/pdvController';
 import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct } from '../controllers/productController';
-import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry } from '../controllers/routeController';
+import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry, reorderRouteEntries } from '../controllers/routeController';
 import {
   listChecklistItems, createChecklistItem, updateChecklistItem, toggleChecklistItemActive, deleteChecklistItem, reorderChecklistItems,
 } from '../controllers/checklistController';
@@ -53,6 +53,7 @@ router.delete('/products/:id', authenticate, requireAdmin, deleteProduct);
 // Rotas de visita — leitura liberada pro promotor (só vê a própria); mutação restrita ao admin
 router.get('/routes', authenticate, listRoutes);
 router.post('/routes', authenticate, requireAdmin, createRouteEntry);
+router.patch('/routes/reorder', authenticate, requireAdmin, reorderRouteEntries);
 router.delete('/routes/:id', authenticate, requireAdmin, deleteRouteEntry);
 router.patch('/routes/:id/justify', authenticate, justifyRouteEntry);
 

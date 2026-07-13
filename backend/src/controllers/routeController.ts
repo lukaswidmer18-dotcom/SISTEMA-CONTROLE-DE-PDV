@@ -111,6 +111,34 @@ export async function justifyRouteEntry(req: Request, res: Response): Promise<vo
   res.json({ success: true, data: updated });
 }
 
+export async function reorderRouteEntries(req: Request, res: Response): Promise<void> {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== 'string')) {
+    res.status(400).json({ success: false, error: 'Lista de IDs é obrigatória.' });
+    return;
+  }
+
+  const routes = await prisma.rotaVisita.findMany({ where: { id: { in: ids } } });
+  if (routes.length !== ids.length) {
+    res.status(404).json({ success: false, error: 'Um ou mais registros de rota não foram encontrados.' });
+    return;
+  }
+
+  const promotorIds = new Set(routes.map((r) => r.promotorId));
+  const dateKeys = new Set(routes.map((r) => r.date.toISOString()));
+  if (promotorIds.size > 1 || dateKeys.size > 1) {
+    res.status(400).json({ success: false, error: 'Todos os PDVs reordenados precisam ser do mesmo promotor e data.' });
+    return;
+  }
+
+  await prisma.$transaction(
+    ids.map((id: string, index: number) => prisma.rotaVisita.update({ where: { id }, data: { order: index } })),
+  );
+
+  res.json({ success: true, data: null });
+}
+
 export async function deleteRouteEntry(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
 
