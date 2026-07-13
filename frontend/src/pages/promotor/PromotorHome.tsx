@@ -70,8 +70,8 @@ function JustifyModal({ route, onClose, onSaved }: { route: RotaVisita; onClose:
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-black text-gray-900 tracking-tight">Justificar visita não realizada</h3>
@@ -125,8 +125,8 @@ function EncerramentoModal({
   const canConfirm = missingItems.length === 0 && (noProductsFound || validityCount > 0) && boxesValid;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl">
+    <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
+      <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-black text-gray-900 tracking-tight">Encerrar visita</h3>
