@@ -1,7 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV, Product } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2 } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle } from 'lucide-react';
+
+function ConfirmDeleteModal({ product, loading, onConfirm, onCancel }: {
+  product: Product; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir produto</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir o produto <span className="font-semibold text-gray-700">"{product.name}"</span>? Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProductModal({ product, pdvs, onClose, onSaved }: {
   product?: Product | null; pdvs: PDV[]; onClose: () => void; onSaved: () => void;
@@ -94,6 +127,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; product?: Product | null }>({ open: false });
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [error, setError] = useState('');
 
   async function load() {
@@ -114,15 +148,17 @@ export default function ProductsPage() {
     load();
   }
 
-  async function handleDelete(product: Product) {
-    if (!window.confirm(`Excluir o produto "${product.name}"? Essa ação não pode ser desfeita.`)) return;
+  async function confirmDelete() {
+    if (!productToDelete) return;
     setError('');
-    setDeletingId(product.id);
+    setDeletingId(productToDelete.id);
     try {
-      await api.delete(`/products/${product.id}`);
+      await api.delete(`/products/${productToDelete.id}`);
+      setProductToDelete(null);
       load();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao excluir produto.');
+      setProductToDelete(null);
     } finally {
       setDeletingId(null);
     }
@@ -183,7 +219,7 @@ export default function ProductsPage() {
                   <button onClick={() => toggleActive(p)} className={`p-2 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                     {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                   </button>
-                  <button onClick={() => handleDelete(p)} disabled={deletingId === p.id} className="p-2 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
+                  <button onClick={() => setProductToDelete(p)} disabled={deletingId === p.id} className="p-2 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -222,7 +258,7 @@ export default function ProductsPage() {
                         <button onClick={() => toggleActive(p)} className={`p-1.5 rounded ${p.active ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'}`}>
                           {p.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                         </button>
-                        <button onClick={() => handleDelete(p)} disabled={deletingId === p.id} className="p-1.5 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
+                        <button onClick={() => setProductToDelete(p)} disabled={deletingId === p.id} className="p-1.5 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-40">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -237,6 +273,15 @@ export default function ProductsPage() {
 
       {modal.open && (
         <ProductModal product={modal.product} pdvs={pdvs} onClose={() => setModal({ open: false })} onSaved={load} />
+      )}
+
+      {productToDelete && (
+        <ConfirmDeleteModal
+          product={productToDelete}
+          loading={deletingId === productToDelete.id}
+          onConfirm={confirmDelete}
+          onCancel={() => setProductToDelete(null)}
+        />
       )}
     </div>
   );
