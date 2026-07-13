@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText, Check, X } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -28,6 +28,18 @@ export default function DegustacoesAdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  async function copyRequestLink() {
+    const url = `${window.location.origin}/solicitar-degustacao`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setError('Não foi possível copiar o link. Copie manualmente: ' + url);
+    }
+  }
 
   const debouncedCity = useDebouncedValue(filterCity, 300);
   const debouncedRequester = useDebouncedValue(filterRequester, 300);
@@ -80,6 +92,14 @@ export default function DegustacoesAdminPage() {
           <p className="text-sm text-gray-500 mt-1 font-medium">
             Solicitações de degustação enviadas pelo portal público.
           </p>
+          <button
+            onClick={copyRequestLink}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 bg-pluma-50 text-pluma-700 border border-pluma-200 rounded-xl text-xs font-bold hover:bg-pluma-100 transition-colors"
+          >
+            {linkCopied ? <Check size={14} /> : <Link2 size={14} />}
+            {linkCopied ? 'Link copiado!' : 'Compartilhar link de solicitação'}
+            {!linkCopied && <Copy size={12} className="opacity-60" />}
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 w-36" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
