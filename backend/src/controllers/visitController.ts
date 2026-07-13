@@ -190,7 +190,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     `Promotor: ${visit.promotor.name}`,
     `Cliente: ${visit.pdv.name} · ${visit.pdv.city}`,
     coordinates.latitude != null && coordinates.longitude != null
-      ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
+      ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)} (${visit.pdv.name})`
       : 'GPS: indisponível',
   ];
   let photoBuffer = req.file.buffer;
