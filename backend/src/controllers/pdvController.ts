@@ -79,7 +79,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
 
 export async function updatePDV(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, city, state, active, radiusMeters, latitude, longitude } = req.body;
+  const { name, address, city, state, active, radiusMeters, latitude, longitude, clearCoordinates } = req.body;
 
   const pdv = await prisma.pDV.findUnique({ where: { id } });
   if (!pdv) {
@@ -102,7 +102,10 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
 
   const manual = parseManualCoords(latitude, longitude);
   let geocodeFailed = false;
-  if (manual) {
+  if (clearCoordinates === true || clearCoordinates === 'true') {
+    updateData.latitude = null;
+    updateData.longitude = null;
+  } else if (manual) {
     updateData.latitude = manual.latitude;
     updateData.longitude = manual.longitude;
   } else if (addressChanged) {

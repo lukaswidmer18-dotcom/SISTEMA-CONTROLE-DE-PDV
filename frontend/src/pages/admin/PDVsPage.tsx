@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2 } from 'lucide-react';
 
 function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
@@ -30,6 +30,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   // Campo de coordenada manual só fica editável sob demanda quando o PDV já tem coordenada salva,
   // pra não dar a impressão de que o valor sumiu (ele reabre vazio de propósito — ver comentário no input abaixo).
   const [editingCoord, setEditingCoord] = useState(!hasSavedCoord);
+  const [clearCoord, setClearCoord] = useState(false);
 
   function parseManualCoord(value: string): { latitude: number; longitude: number } | null {
     const trimmed = value.trim();
@@ -48,7 +49,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setError('');
     setWarning('');
 
-    const manual = parseManualCoord(form.manualCoord);
+    const manual = clearCoord ? { latitude: NaN, longitude: NaN } : parseManualCoord(form.manualCoord);
     if (manual === null) {
       setError("Coordenada manual inválida. Use o formato 'lat, lng', ex: -24.9555, -53.4561.");
       return;
@@ -57,7 +58,9 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setLoading(true);
     try {
       const payload: any = { name: form.name, address: form.address, city: form.city, state: form.state, radiusMeters: form.radiusMeters };
-      if (!Number.isNaN(manual.latitude)) {
+      if (clearCoord) {
+        payload.clearCoordinates = true;
+      } else if (!Number.isNaN(manual.latitude)) {
         payload.latitude = manual.latitude;
         payload.longitude = manual.longitude;
       }
@@ -131,19 +134,42 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Coordenada manual (opcional)</label>
-            {hasSavedCoord && !editingCoord ? (
+            {clearCoord ? (
+              <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+                <span className="flex items-center gap-1.5 text-sm text-amber-700 font-medium">
+                  <Trash2 size={15} className="shrink-0" />
+                  Coordenada será removida ao salvar.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setClearCoord(false)}
+                  className="flex items-center gap-1 text-xs font-semibold text-pluma-700 hover:text-pluma-900 shrink-0"
+                >
+                  <Undo2 size={13} /> Desfazer
+                </button>
+              </div>
+            ) : hasSavedCoord && !editingCoord ? (
               <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
                 <span className="flex items-center gap-1.5 text-sm text-green-700 font-medium">
                   <CheckCircle2 size={15} className="shrink-0" />
                   Coordenada salva: {pdv!.latitude}, {pdv!.longitude}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setEditingCoord(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-pluma-700 hover:text-pluma-900 shrink-0"
-                >
-                  <PencilLine size={13} /> Alterar
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCoord(true)}
+                    className="flex items-center gap-1 text-xs font-semibold text-pluma-700 hover:text-pluma-900"
+                  >
+                    <PencilLine size={13} /> Alterar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClearCoord(true)}
+                    className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 size={13} /> Apagar
+                  </button>
+                </div>
               </div>
             ) : (
               <>
