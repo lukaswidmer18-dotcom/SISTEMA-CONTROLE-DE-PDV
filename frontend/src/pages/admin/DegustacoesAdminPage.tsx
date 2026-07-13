@@ -153,9 +153,9 @@ export default function DegustacoesAdminPage() {
                   <td className="py-2.5 pr-4 text-gray-500">{s.supervisor || '-'}</td>
                   <td className="py-2.5 pr-4 text-gray-500 max-w-[220px] truncate" title={s.justification}>{s.justification || '-'}</td>
                   <td className="py-2.5 pr-4">
-                    {s.documentFileName ? (
+                    {s.documentPath ? (
                       <a
-                        href={`/uploads/${s.documentFileName}`}
+                        href={s.documentPath}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-pluma-700 hover:text-pluma-900 font-bold text-xs"

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
 import { AuthRequest } from '../middleware/auth';
+import { uploadToBlob } from '../utils/blobStorage';
 
 const prisma = new PrismaClient();
 
@@ -35,6 +36,10 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
     return;
   }
 
+  const documentData = req.file
+    ? await uploadToBlob(req.file.buffer, req.file.originalname, 'degustacao-docs')
+    : null;
+
   const solicitacao = await prisma.degustacaoSolicitacao.create({
     data: {
       requesterName: String(requesterName).trim(),
@@ -46,11 +51,11 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       eventTime: String(eventTime).trim(),
       supervisor: typeof supervisor === 'string' ? supervisor.trim() : '',
       justification: String(justification).trim(),
-      ...(req.file
+      ...(documentData
         ? {
-            documentPath: req.file.path,
-            documentFileName: req.file.filename,
-            documentOriginalName: req.file.originalname,
+            documentPath: documentData.url,
+            documentFileName: documentData.pathname,
+            documentOriginalName: req.file!.originalname,
           }
         : {}),
     },

@@ -78,10 +78,10 @@ export default function VisitDetailPromotorPage() {
             {visit.photos.map(photo => (
               <button
                 key={photo.id}
-                onClick={() => setLightbox(`/uploads/${photo.fileName}`)}
+                onClick={() => setLightbox(photo.filePath)}
                 className="aspect-square rounded-lg overflow-hidden border border-gray-200"
               >
-                <img src={`/uploads/${photo.fileName}`} alt="Foto" className="w-full h-full object-cover" />
+                <img src={photo.filePath} alt="Foto" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

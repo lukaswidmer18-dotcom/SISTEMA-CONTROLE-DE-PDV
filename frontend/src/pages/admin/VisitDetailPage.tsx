@@ -127,10 +127,10 @@ export default function VisitDetailPage() {
             {visit.photos.map((photo) => (
               <button
                 key={photo.id}
-                onClick={() => setLightbox(`/uploads/${photo.fileName}`)}
+                onClick={() => setLightbox(photo.filePath)}
                 className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-pluma-400 transition-colors"
               >
-                <img src={`/uploads/${photo.fileName}`} alt="Foto" className="w-full h-full object-cover" />
+                <img src={photo.filePath} alt="Foto" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

@@ -774,9 +774,9 @@ export default function PontoPage() {
                                         <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
                                       ) : (
                                         <img
-                                          src={`/uploads/${photo.fileName}`}
+                                          src={photo.filePath}
                                           className="w-full h-full object-cover cursor-pointer"
-                                          onClick={() => setExpandedPhoto(`/uploads/${photo.fileName}`)}
+                                          onClick={() => setExpandedPhoto(photo.filePath)}
                                           alt={item.label}
                                         />
                                       )}
@@ -865,11 +865,11 @@ export default function PontoPage() {
                             {visit.priceChecks.map((p: PriceCheck) => (
                               <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
                                 <div className="flex items-center gap-3 min-w-0">
-                                  {p.photoFileName ? (
+                                  {p.photoPath ? (
                                     <img
-                                      src={`/uploads/${p.photoFileName}`}
+                                      src={p.photoPath}
                                       className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200 cursor-pointer"
-                                      onClick={() => setExpandedPhoto(`/uploads/${p.photoFileName}`)}
+                                      onClick={() => setExpandedPhoto(p.photoPath!)}
                                       alt={p.product?.name}
                                     />
                                   ) : (

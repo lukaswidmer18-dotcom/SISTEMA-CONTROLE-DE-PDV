@@ -21,6 +21,7 @@ export interface DegustacaoSolicitacao {
   eventTime: string;
   supervisor: string;
   justification: string;
+  documentPath?: string | null;
   documentFileName?: string | null;
   documentOriginalName?: string | null;
   status: 'pendente' | 'aprovada' | 'reprovada';
@@ -142,6 +143,7 @@ export interface PriceCheck {
   ownPrice: number;
   competitorName?: string | null;
   competitorPrice?: number | null;
+  photoPath?: string | null;
   photoFileName?: string | null;
   product?: Product;
   visit?: { pdv?: PDV; promotor?: Pick<User, 'id' | 'name'> };

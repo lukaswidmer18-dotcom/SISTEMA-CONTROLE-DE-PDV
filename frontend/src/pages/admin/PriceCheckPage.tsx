@@ -99,11 +99,11 @@ export default function PriceCheckPage() {
                 return (
                   <tr key={pc.id} className="border-b border-gray-50 last:border-b-0">
                     <td className="py-2.5 pr-4">
-                      {pc.photoFileName ? (
+                      {pc.photoPath ? (
                         <img
-                          src={`/uploads/${pc.photoFileName}`}
+                          src={pc.photoPath}
                           className="w-10 h-10 rounded-lg object-cover border border-gray-200 cursor-pointer"
-                          onClick={() => setExpandedPhoto(`/uploads/${pc.photoFileName}`)}
+                          onClick={() => setExpandedPhoto(pc.photoPath!)}
                           alt={pc.product?.name}
                         />
                       ) : (

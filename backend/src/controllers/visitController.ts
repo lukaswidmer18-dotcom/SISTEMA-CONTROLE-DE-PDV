@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { Prisma, PrismaClient } from '@prisma/client';
-import fs from 'fs';
 import path from 'path';
 import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
 import { applyWatermark } from '../utils/watermark';
+import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 
 const prisma = new PrismaClient();
 
@@ -145,14 +145,12 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   }
 
   if (!checklistItemId) {
-    fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Item do checklist é obrigatório.' });
     return;
   }
 
   const checklistItem = await prisma.checklistItem.findUnique({ where: { id: checklistItemId } });
   if (!checklistItem || !checklistItem.active) {
-    fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Item do checklist inválido ou inativo.' });
     return;
   }
@@ -164,7 +162,6 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
 
   const currentCount = photoCountByItem.get(checklistItemId) || 0;
   if (currentCount >= checklistItem.requiredCount) {
-    fs.unlinkSync(req.file.path);
     res.status(422).json({
       success: false,
       error: `Já foram enviadas as ${checklistItem.requiredCount} foto(s) necessárias para "${checklistItem.label}".`,
@@ -178,7 +175,6 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   });
   const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < item.requiredCount);
   if (pendingPreceding) {
-    fs.unlinkSync(req.file.path);
     res.status(422).json({
       success: false,
       error: `Siga a ordem do checklist. Tire antes a foto de "${pendingPreceding.label}".`,
@@ -188,7 +184,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
-  const ext = path.extname(req.file.filename);
+  const ext = path.extname(req.file.originalname);
   const watermarkLines = [
     new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
     `Promotor: ${visit.promotor.name}`,
@@ -197,18 +193,21 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
       ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
       : 'GPS: indisponível',
   ];
+  let photoBuffer = req.file.buffer;
   try {
-    await applyWatermark(req.file.path, ext, watermarkLines);
+    photoBuffer = await applyWatermark(req.file.buffer, ext, watermarkLines);
   } catch (err) {
     console.error('Erro ao aplicar marca d\'água na foto:', err);
   }
+
+  const { url, pathname } = await uploadToBlob(photoBuffer, req.file.originalname, 'photos');
 
   const photo = await prisma.photo.create({
     data: {
       visitId,
       checklistItemId,
-      filePath: req.file.path,
-      fileName: req.file.filename,
+      filePath: url,
+      fileName: pathname,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
     },
@@ -322,37 +321,36 @@ export async function addPriceCheck(req: Request, res: Response): Promise<void> 
   const { productId, ownPrice, competitorName, competitorPrice } = req.body;
 
   if (!productId) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Produto é obrigatório.' });
     return;
   }
 
   const parsedOwnPrice = parseRequiredPositivePrice(ownPrice);
   if (parsedOwnPrice === INVALID_PRICE) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Preço próprio é obrigatório e deve ser maior que zero.' });
     return;
   }
 
   const parsedCompetitorPrice = parseOptionalPositivePrice(competitorPrice);
   if (parsedCompetitorPrice === INVALID_PRICE) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Preço da concorrência deve ser maior que zero.' });
     return;
   }
   const trimmedCompetitorName = typeof competitorName === 'string' ? competitorName.trim() : '';
   if (parsedCompetitorPrice !== null && !trimmedCompetitorName) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(400).json({ success: false, error: 'Informe o nome do concorrente junto com o preço dele.' });
     return;
   }
 
   const validation = await validateVisitInProgress(visitId, authReq.user.userId);
   if (!validation.visit) {
-    if (req.file) fs.unlinkSync(req.file.path);
     res.status(validation.status).json({ success: false, error: validation.error });
     return;
   }
+
+  const photoData = req.file
+    ? await uploadToBlob(req.file.buffer, req.file.originalname, 'price-checks')
+    : null;
 
   const priceCheck = await prisma.priceCheck.upsert({
     where: { visitId_productId: { visitId, productId } },
@@ -362,14 +360,14 @@ export async function addPriceCheck(req: Request, res: Response): Promise<void> 
       ownPrice: parsedOwnPrice,
       competitorName: trimmedCompetitorName || null,
       competitorPrice: parsedCompetitorPrice,
-      photoPath: req.file?.path,
-      photoFileName: req.file?.filename,
+      photoPath: photoData?.url,
+      photoFileName: photoData?.pathname,
     },
     update: {
       ownPrice: parsedOwnPrice,
       competitorName: trimmedCompetitorName || null,
       competitorPrice: parsedCompetitorPrice,
-      ...(req.file ? { photoPath: req.file.path, photoFileName: req.file.filename } : {}),
+      ...(photoData ? { photoPath: photoData.url, photoFileName: photoData.pathname } : {}),
     },
     include: { product: true },
   });
@@ -396,8 +394,8 @@ export async function deletePriceCheck(req: Request, res: Response): Promise<voi
   }
 
   await prisma.priceCheck.delete({ where: { id: priceCheckId } });
-  if (priceCheck.photoPath && fs.existsSync(priceCheck.photoPath)) {
-    fs.unlinkSync(priceCheck.photoPath);
+  if (priceCheck.photoPath) {
+    await deleteFromBlob(priceCheck.photoPath);
   }
   res.json({ success: true, data: null });
 }
@@ -442,13 +440,8 @@ export async function deletePhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Deletar o arquivo físico
-  if (photo.filePath && fs.existsSync(photo.filePath)) {
-    try {
-      fs.unlinkSync(photo.filePath);
-    } catch (err) {
-      console.error('Erro ao deletar arquivo:', err);
-    }
+  if (photo.filePath) {
+    await deleteFromBlob(photo.filePath);
   }
 
   await prisma.photo.delete({ where: { id: photoId } });
