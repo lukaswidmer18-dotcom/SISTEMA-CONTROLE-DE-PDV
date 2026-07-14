@@ -165,14 +165,61 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   );
 }
 
+function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
+  dayOfWeek: number;
+  date: Date;
+  routes: RotaVisita[];
+  isToday: boolean;
+}) {
+  const dayColor = DAY_COLORS[dayOfWeek];
+
+  return (
+    <div className={`card min-h-[260px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]} · {format(date, 'dd/MM')}</span>
+          <h4 className="text-sm font-black text-gray-900 tracking-tight">{DAYS[dayOfWeek]}</h4>
+        </div>
+        {isToday && (
+          <span className="text-[9px] font-black uppercase tracking-wide px-2 py-1 rounded-full bg-gold-50 text-gold-700 border border-gold-200">
+            Hoje
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2 flex-1">
+        {routes.length === 0 ? (
+          <div className="flex items-center gap-1.5 py-3 px-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
+            <p className="text-xs text-gray-300 font-medium">Sem PDV nesse dia</p>
+          </div>
+        ) : (
+          routes.map((r, i) => (
+            <div key={r.id} className="border-b border-gray-100 last:border-b-0 py-2.5">
+              <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
+                <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
+                {r.pdv?.name}
+              </p>
+              <p className="text-xs text-gray-400 leading-tight ml-4">
+                {r.promotor?.name}{r.pdv?.city ? ` · ${r.pdv.city}` : ''}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+const GERAL_VALUE = '__geral__';
+
 export default function RoutesPage() {
-  const [viewMode, setViewMode] = useState<'geral' | 'individual'>('individual');
   const [promotores, setPromotores] = useState<User[]>([]);
   const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [routes, setRoutes] = useState<RotaVisita[]>([]);
   const [allRoutes, setAllRoutes] = useState<RotaVisita[]>([]);
   const [loadingAll, setLoadingAll] = useState(false);
-  const [selectedPromotor, setSelectedPromotor] = useState('');
+  const [selectedPromotor, setSelectedPromotor] = useState(GERAL_VALUE);
   const [activeDays, setActiveDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -222,9 +269,19 @@ export default function RoutesPage() {
     }
   }
 
+  const isGeral = selectedPromotor === GERAL_VALUE;
+  const hasSelection = selectedPromotor !== '';
+
   useEffect(() => { load(); }, []);
-  useEffect(() => { loadRoutes(selectedPromotor, weekDates); }, [selectedPromotor, weekOffset]);
-  useEffect(() => { if (viewMode === 'geral') loadAllRoutes(weekDates); }, [viewMode, weekOffset]);
+  useEffect(() => {
+    if (selectedPromotor === GERAL_VALUE) {
+      setRoutes([]);
+      loadAllRoutes(weekDates);
+    } else {
+      setAllRoutes([]);
+      loadRoutes(selectedPromotor, weekDates);
+    }
+  }, [selectedPromotor, weekOffset]);
 
   const routesByDay = useMemo(() => {
     const grouped: Record<number, RotaVisita[]> = {};
@@ -236,25 +293,20 @@ export default function RoutesPage() {
     return grouped;
   }, [routes, weekDates]);
 
-  const overviewByPromotor = useMemo(() => {
-    const map = new Map<string, { promotorId: string; name: string; days: RotaVisita[][] }>();
-    for (const p of promotores) {
-      map.set(p.id, { promotorId: p.id, name: p.name, days: Array.from({ length: 7 }, () => []) });
-    }
+  const allRoutesByDay = useMemo(() => {
+    const grouped: Record<number, RotaVisita[]> = {};
+    for (let d = 0; d < 7; d++) grouped[d] = [];
     for (const r of allRoutes) {
       const idx = weekDates.findIndex(d => format(d, 'yyyy-MM-dd') === r.date.slice(0, 10));
-      if (idx === -1) continue;
-      let entry = map.get(r.promotorId);
-      if (!entry) {
-        entry = { promotorId: r.promotorId, name: r.promotor?.name || 'Promotor', days: Array.from({ length: 7 }, () => []) };
-        map.set(r.promotorId, entry);
-      }
-      entry.days[idx].push(r);
+      if (idx !== -1) grouped[idx].push(r);
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allRoutes, promotores, weekDates]);
+    for (let d = 0; d < 7; d++) {
+      grouped[d] = [...grouped[d]].sort((a, b) => (a.promotor?.name || '').localeCompare(b.promotor?.name || '') || a.order - b.order);
+    }
+    return grouped;
+  }, [allRoutes, weekDates]);
 
-  const selectedPromotorName = promotores.find(p => p.id === selectedPromotor)?.name;
+  const selectedPromotorName = !isGeral ? promotores.find(p => p.id === selectedPromotor)?.name : undefined;
 
   const mapDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, dayOfWeek) => dayOfWeek)
@@ -356,7 +408,7 @@ export default function RoutesPage() {
             Define quais PDVs cada promotor visita em datas específicas.
           </p>
         </div>
-        {viewMode === 'individual' && selectedPromotor && (
+        {!isGeral && selectedPromotor && (
           <div className="flex items-center gap-2 px-4 py-2 bg-pluma-50 text-pluma-800 rounded-xl text-xs font-bold border border-pluma-100">
             <Users size={14} />
             {routes.length} PDV{routes.length !== 1 ? 's' : ''} na semana de {selectedPromotorName}
@@ -364,106 +416,6 @@ export default function RoutesPage() {
         )}
       </div>
 
-      <div className="card flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setViewMode('geral')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-            viewMode === 'geral'
-              ? 'bg-pluma-800 text-white border-pluma-800 shadow-glow-pluma'
-              : 'bg-white text-gray-500 border-gray-200 hover:border-pluma-200 hover:text-pluma-600'
-          }`}
-        >
-          Visão Geral
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('individual')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-            viewMode === 'individual'
-              ? 'bg-pluma-800 text-white border-pluma-800 shadow-glow-pluma'
-              : 'bg-white text-gray-500 border-gray-200 hover:border-pluma-200 hover:text-pluma-600'
-          }`}
-        >
-          Por Promotor
-        </button>
-      </div>
-
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setWeekOffset(w => w - 1)}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <p className="text-sm font-black text-gray-800 tracking-tight min-w-[170px] text-center">
-              Semana de {format(weekDates[0], 'dd/MM', { locale: ptBR })} a {format(weekDates[6], 'dd/MM', { locale: ptBR })}
-            </p>
-            <button
-              type="button"
-              onClick={() => setWeekOffset(w => w + 1)}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-          {weekOffset !== 0 && (
-            <button type="button" onClick={() => setWeekOffset(0)} className="text-xs font-bold text-pluma-600 hover:text-pluma-800">
-              Voltar pra hoje
-            </button>
-          )}
-        </div>
-      </div>
-
-      {viewMode === 'geral' && (
-        <div className="card animate-fade-in overflow-x-auto">
-          {loadingAll ? (
-            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
-          ) : promotores.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Nenhum promotor ativo cadastrado.</p>
-          ) : (
-            <table className="w-full text-sm min-w-[900px]">
-              <thead>
-                <tr>
-                  <th className="text-left text-[11px] font-black text-gray-400 uppercase tracking-wider pb-3 pr-3 sticky left-0 bg-white">Promotor</th>
-                  {DAYS_SHORT.map((label, dayOfWeek) => (
-                    <th key={dayOfWeek} className="text-left text-[11px] font-black uppercase tracking-wider pb-3 px-2 min-w-[150px]">
-                      <span className={isSameDay(weekDates[dayOfWeek], todayDate) ? 'text-pluma-700' : 'text-gray-400'}>
-                        {label} · {format(weekDates[dayOfWeek], 'dd/MM')}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {overviewByPromotor.map(row => (
-                  <tr key={row.promotorId} className="border-t border-gray-100 align-top">
-                    <td className="py-3 pr-3 font-bold text-gray-800 sticky left-0 bg-white whitespace-nowrap">{row.name}</td>
-                    {row.days.map((dayRoutes, dayOfWeek) => (
-                      <td key={dayOfWeek} className="py-3 px-2">
-                        {dayRoutes.length === 0 ? (
-                          <span className="text-gray-300">—</span>
-                        ) : (
-                          <div className="space-y-1">
-                            {dayRoutes.map(r => (
-                              <p key={r.id} className="text-xs font-semibold text-gray-700 leading-snug">{r.pdv?.name}</p>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {viewMode === 'individual' && (
       <div className="card">
         <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1 flex items-center gap-1.5">
           <Users size={13} className="text-pluma-400" /> Promotor
@@ -474,16 +426,43 @@ export default function RoutesPage() {
           onChange={e => setSelectedPromotor(e.target.value)}
         >
           <option value="">Selecione um promotor...</option>
+          <option value={GERAL_VALUE}>Visão Geral (todos os promotores)</option>
           {promotores.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <p className="text-xs text-gray-400 mt-2">
           Promotor só consegue iniciar visita em PDV que estiver na rota do dia atual.
         </p>
       </div>
-      )}
 
-      {viewMode === 'individual' && selectedPromotor && (
+      {hasSelection && (
         <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setWeekOffset(w => w - 1)}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <p className="text-sm font-black text-gray-800 tracking-tight min-w-[170px] text-center">
+                Semana de {format(weekDates[0], 'dd/MM', { locale: ptBR })} a {format(weekDates[6], 'dd/MM', { locale: ptBR })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setWeekOffset(w => w + 1)}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            {weekOffset !== 0 && (
+              <button type="button" onClick={() => setWeekOffset(0)} className="text-xs font-bold text-pluma-600 hover:text-pluma-800">
+                Voltar pra hoje
+              </button>
+            )}
+          </div>
+
           <div>
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2 ml-1">
               Dias com visita
@@ -520,15 +499,17 @@ export default function RoutesPage() {
         </div>
       )}
 
-      {viewMode === 'individual' && (loading ? (
+      {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
-      ) : !selectedPromotor ? (
+      ) : !hasSelection ? (
         <div className="card text-center py-16 animate-fade-in">
           <div className="w-14 h-14 bg-pluma-50 text-pluma-300 rounded-2xl flex items-center justify-center mx-auto mb-3">
             <MapPin size={28} />
           </div>
-          <p className="text-sm text-gray-400 font-medium">Selecione um promotor pra montar a rota da semana.</p>
+          <p className="text-sm text-gray-400 font-medium">Selecione um promotor ou a Visão Geral pra montar a rota da semana.</p>
         </div>
+      ) : isGeral && loadingAll ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : activeDays.size === 0 ? (
         <div className="card text-center py-12 text-gray-400 animate-fade-in">
           Nenhum dia selecionado. Marque ao menos um dia acima.
@@ -536,22 +517,32 @@ export default function RoutesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 animate-fade-in">
           {DAYS.map((_, dayOfWeek) => activeDays.has(dayOfWeek) && (
-            <DayColumn
-              key={dayOfWeek}
-              dayOfWeek={dayOfWeek}
-              date={weekDates[dayOfWeek]}
-              routes={routesByDay[dayOfWeek] || []}
-              availablePdvs={pdvs}
-              isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
-              onAdd={(pdvId) => handleAdd(weekDates[dayOfWeek], pdvId)}
-              onRemove={handleRemove}
-              onReorder={handleReorder}
-            />
+            isGeral ? (
+              <GeralDayCard
+                key={dayOfWeek}
+                dayOfWeek={dayOfWeek}
+                date={weekDates[dayOfWeek]}
+                routes={allRoutesByDay[dayOfWeek] || []}
+                isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
+              />
+            ) : (
+              <DayColumn
+                key={dayOfWeek}
+                dayOfWeek={dayOfWeek}
+                date={weekDates[dayOfWeek]}
+                routes={routesByDay[dayOfWeek] || []}
+                availablePdvs={pdvs}
+                isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
+                onAdd={(pdvId) => handleAdd(weekDates[dayOfWeek], pdvId)}
+                onRemove={handleRemove}
+                onReorder={handleReorder}
+              />
+            )
           ))}
         </div>
-      ))}
+      )}
 
-      {viewMode === 'individual' && selectedPromotor && activeDays.size > 0 && (
+      {!isGeral && selectedPromotor && activeDays.size > 0 && (
         <div className="card animate-fade-in">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
