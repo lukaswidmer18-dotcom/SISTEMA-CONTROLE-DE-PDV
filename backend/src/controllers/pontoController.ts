@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
 
 const prisma = new PrismaClient();
@@ -41,7 +41,7 @@ function parseBatteryLevel(value: unknown): number | null | typeof INVALID_BATTE
 
 export async function registerPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { type, latitude, longitude, locationAvailable, batteryLevel } = req.body;
+  const { type, latitude, longitude, locationAvailable, batteryLevel, accuracy } = req.body;
 
   if (!type || !PONTO_SEQUENCE.includes(type)) {
     res.status(400).json({ success: false, error: 'Tipo de ponto inválido.' });
@@ -68,10 +68,11 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
   });
 
   if (activeVisit) {
-    const geofence = checkGeofence(activeVisit.pdv, {
-      latitude: coordinates.latitude ?? 0,
-      longitude: coordinates.longitude ?? 0,
-    });
+    const geofence = checkGeofence(
+      activeVisit.pdv,
+      { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 },
+      parseCoordinate(accuracy)
+    );
     if (geofence.allowed === false) {
       if (geofence.reason === 'NOT_CONFIGURED') {
         res.status(422).json({

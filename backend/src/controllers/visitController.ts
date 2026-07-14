@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Prisma, PrismaClient } from '@prisma/client';
 import path from 'path';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, checkGeofence } from '../utils/location';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
 import { applyWatermark } from '../utils/watermark';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 
@@ -36,7 +36,7 @@ async function validateVisitInProgress(visitId: string, userId: string): Promise
 
 export async function startVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { pdvId, latitude, longitude, locationAvailable } = req.body;
+  const { pdvId, latitude, longitude, locationAvailable, accuracy } = req.body;
 
   if (!pdvId) {
     res.status(400).json({ success: false, error: 'PDV é obrigatório.' });
@@ -52,7 +52,11 @@ export async function startVisit(req: Request, res: Response): Promise<void> {
   }
 
   const gpsAvailable = locationAvailable !== false && locationAvailable !== 'false';
-  const geofence = checkGeofence(pdv, { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 });
+  const geofence = checkGeofence(
+    pdv,
+    { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 },
+    parseCoordinate(accuracy)
+  );
   if (geofence.allowed === false) {
     if (geofence.reason === 'NOT_CONFIGURED') {
       res.status(422).json({

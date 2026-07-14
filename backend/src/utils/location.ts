@@ -66,16 +66,29 @@ export type GeofenceCheckResult =
   | { allowed: false; reason: 'NOT_CONFIGURED' }
   | { allowed: false; reason: 'OUT_OF_RANGE'; distanceMeters: number; radiusMeters: number };
 
+// Celular reporta o próprio raio de incerteza do GPS (accuracy). Chips fracos
+// (alguns Motorola de entrada) ou "modo economia de bateria" no Android podem
+// devolver centenas de metros de erro mesmo com o promotor fisicamente no PDV.
+// Absorvemos essa incerteza no raio permitido, com teto pra não abrir demais
+// o antifraude caso alguém forje um accuracy artificialmente alto.
+const MAX_ACCURACY_TOLERANCE_METERS = 150;
+
 export function checkGeofence(
   target: GeofenceTarget,
-  point: { latitude: number; longitude: number }
+  point: { latitude: number; longitude: number },
+  accuracyMeters?: number | null
 ): GeofenceCheckResult {
   if (target.latitude === null || target.longitude === null || target.radiusMeters === null) {
     return { allowed: false, reason: 'NOT_CONFIGURED' };
   }
 
   const distanceMeters = distanceInMeters(target.latitude, target.longitude, point.latitude, point.longitude);
-  if (distanceMeters > target.radiusMeters) {
+  const tolerance =
+    accuracyMeters != null && Number.isFinite(accuracyMeters)
+      ? Math.min(Math.max(accuracyMeters, 0), MAX_ACCURACY_TOLERANCE_METERS)
+      : 0;
+  const effectiveRadius = target.radiusMeters + tolerance;
+  if (distanceMeters > effectiveRadius) {
     return { allowed: false, reason: 'OUT_OF_RANGE', distanceMeters, radiusMeters: target.radiusMeters };
   }
 

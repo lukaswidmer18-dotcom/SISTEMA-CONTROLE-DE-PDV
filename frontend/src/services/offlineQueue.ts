@@ -23,6 +23,7 @@ export interface OfflinePontoAction extends OfflineActionBase {
     longitude: number;
     locationAvailable: boolean;
     batteryLevel: number | null;
+    accuracy?: number;
   };
 }
 
@@ -34,6 +35,7 @@ export interface OfflineStartVisitAction extends OfflineActionBase {
     latitude: number;
     longitude: number;
     locationAvailable: boolean;
+    accuracy?: number;
   };
 }
 

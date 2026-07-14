@@ -8,6 +8,7 @@ interface ResolvedLocation {
   latitude: number;
   longitude: number;
   locationAvailable: boolean;
+  accuracy?: number;
 }
 
 export interface RegisterPontoResult {
@@ -31,10 +32,10 @@ export function useRegisterPonto(resolveLocation: () => Promise<ResolvedLocation
       } catch (err: unknown) {
         if (!isNetworkError(err)) throw err;
 
-        const { latitude, longitude, locationAvailable } = location;
+        const { latitude, longitude, locationAvailable, accuracy } = location;
         const queued = await queueOfflineAction({
           kind: 'ponto',
-          payload: { type, latitude, longitude, locationAvailable, batteryLevel },
+          payload: { type, latitude, longitude, locationAvailable, batteryLevel, accuracy },
         });
         await refreshCount();
 

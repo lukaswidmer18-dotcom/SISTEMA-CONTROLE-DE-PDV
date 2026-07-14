@@ -6,6 +6,7 @@ interface ResolvedLocation {
   latitude: number;
   longitude: number;
   locationAvailable: boolean;
+  accuracy?: number;
 }
 
 const FALLBACK_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min — cobre a duração normal de uma visita

@@ -8,6 +8,7 @@ interface ResolvedLocation {
   latitude: number;
   longitude: number;
   locationAvailable: boolean;
+  accuracy?: number;
 }
 
 export interface StartVisitResult {
@@ -46,7 +47,13 @@ export function useStartVisit(resolveLocation: () => Promise<ResolvedLocation>) 
         await queueOfflineAction({
           kind: 'startVisit',
           localVisitId,
-          payload: { pdvId: pdv.id, latitude: location.latitude, longitude: location.longitude, locationAvailable: location.locationAvailable },
+          payload: {
+            pdvId: pdv.id,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            locationAvailable: location.locationAvailable,
+            accuracy: location.accuracy,
+          },
         });
         return { visit: toVisit(offlineVisit), offline: true };
       }
