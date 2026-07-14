@@ -425,7 +425,6 @@ export default function RoutesPage() {
           value={selectedPromotor}
           onChange={e => setSelectedPromotor(e.target.value)}
         >
-          <option value="">Selecione um promotor...</option>
           <option value={GERAL_VALUE}>Visão Geral (todos os promotores)</option>
           {promotores.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
