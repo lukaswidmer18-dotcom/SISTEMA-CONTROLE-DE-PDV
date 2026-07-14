@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -18,6 +18,143 @@ const STATUS_BADGE: Record<DegustacaoSolicitacao['status'], string> = {
   reprovada: 'bg-red-50 text-red-700 border-red-200',
 };
 
+const EDIT_FIELDS: { key: keyof EditForm; label: string; type: 'text' | 'date' | 'textarea' }[] = [
+  { key: 'requesterName', label: 'Solicitante', type: 'text' },
+  { key: 'date', label: 'Data', type: 'date' },
+  { key: 'city', label: 'Cidade', type: 'text' },
+  { key: 'address', label: 'Endereço', type: 'text' },
+  { key: 'store', label: 'Loja', type: 'text' },
+  { key: 'productEvent', label: 'Produto/Evento', type: 'text' },
+  { key: 'eventTime', label: 'Horário', type: 'text' },
+  { key: 'supervisor', label: 'Supervisor', type: 'text' },
+  { key: 'sellerName', label: 'Vendedor', type: 'text' },
+  { key: 'justification', label: 'Justificativa', type: 'textarea' },
+];
+
+interface EditForm {
+  requesterName: string;
+  date: string;
+  city: string;
+  address: string;
+  store: string;
+  productEvent: string;
+  eventTime: string;
+  supervisor: string;
+  sellerName: string;
+  justification: string;
+}
+
+function toEditForm(s: DegustacaoSolicitacao): EditForm {
+  return {
+    requesterName: s.requesterName,
+    date: s.date.slice(0, 10),
+    city: s.city,
+    address: s.address,
+    store: s.store,
+    productEvent: s.productEvent,
+    eventTime: s.eventTime,
+    supervisor: s.supervisor,
+    sellerName: s.sellerName,
+    justification: s.justification,
+  };
+}
+
+function EditDegustacaoModal({ solicitacao, onClose, onSaved }: {
+  solicitacao: DegustacaoSolicitacao; onClose: () => void; onSaved: (updated: DegustacaoSolicitacao) => void;
+}) {
+  const [form, setForm] = useState<EditForm>(toEditForm(solicitacao));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await api.put(`/admin/degustacoes/${solicitacao.id}`, form);
+      onSaved(data.data);
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao salvar solicitação de degustação.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Editar Degustação</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          {EDIT_FIELDS.map(field => (
+            <div key={field.key}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{field.label} *</label>
+              {field.type === 'textarea' ? (
+                <textarea
+                  className="input-field"
+                  rows={3}
+                  required
+                  value={form[field.key]}
+                  onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                />
+              ) : (
+                <input
+                  type={field.type}
+                  className="input-field"
+                  required
+                  value={form[field.key]}
+                  onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+          {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">{loading ? 'Salvando...' : 'Salvar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDeleteDegustacaoModal({ solicitacao, loading, onConfirm, onCancel }: {
+  solicitacao: DegustacaoSolicitacao; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir solicitação</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir a solicitação de degustação da loja <span className="font-semibold text-gray-700">"{solicitacao.store}"</span>? Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DegustacoesAdminPage() {
   const [solicitacoes, setSolicitacoes] = useState<DegustacaoSolicitacao[]>([]);
   const [filterCity, setFilterCity] = useState('');
@@ -29,6 +166,9 @@ export default function DegustacoesAdminPage() {
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [editing, setEditing] = useState<DegustacaoSolicitacao | null>(null);
+  const [deleting, setDeleting] = useState<DegustacaoSolicitacao | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function copyRequestLink() {
     const url = `${window.location.origin}/solicitar-degustacao`;
@@ -76,6 +216,21 @@ export default function DegustacoesAdminPage() {
       setError(err.response?.data?.error || 'Erro ao atualizar status da degustação.');
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setError('');
+    setDeletingId(deleting.id);
+    try {
+      await api.delete(`/admin/degustacoes/${deleting.id}`);
+      setSolicitacoes(prev => prev.filter(s => s.id !== deleting.id));
+      setDeleting(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir solicitação de degustação.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -174,26 +329,41 @@ export default function DegustacoesAdminPage() {
                     </span>
                   </td>
                   <td className="py-2.5 pr-4">
-                    {s.status === 'pendente' ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => updateStatus(s.id, 'aprovada')}
-                          disabled={updatingId === s.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-40 transition-colors"
-                        >
-                          <Check size={13} /> Aprovar
-                        </button>
-                        <button
-                          onClick={() => updateStatus(s.id, 'reprovada')}
-                          disabled={updatingId === s.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-40 transition-colors"
-                        >
-                          <X size={13} /> Reprovar
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {s.status === 'pendente' && (
+                        <>
+                          <button
+                            onClick={() => updateStatus(s.id, 'aprovada')}
+                            disabled={updatingId === s.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 disabled:opacity-40 transition-colors"
+                          >
+                            <Check size={13} /> Aprovar
+                          </button>
+                          <button
+                            onClick={() => updateStatus(s.id, 'reprovada')}
+                            disabled={updatingId === s.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-40 transition-colors"
+                          >
+                            <X size={13} /> Reprovar
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => setEditing(s)}
+                        className="p-1.5 text-gray-500 hover:text-pluma-600 rounded-lg hover:bg-pluma-50 transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        onClick={() => setDeleting(s)}
+                        disabled={deletingId === s.id}
+                        className="p-1.5 text-gray-500 hover:text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-40 transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -201,6 +371,23 @@ export default function DegustacoesAdminPage() {
           </table>
         )}
       </div>
+
+      {editing && (
+        <EditDegustacaoModal
+          solicitacao={editing}
+          onClose={() => setEditing(null)}
+          onSaved={updated => setSolicitacoes(prev => prev.map(s => (s.id === updated.id ? updated : s)))}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmDeleteDegustacaoModal
+          solicitacao={deleting}
+          loading={deletingId === deleting.id}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { rateVisit } from '../controllers/ratingController';
 import { getPromotorRanking } from '../controllers/rankingController';
 import { getRupturaAlertas } from '../controllers/rupturaController';
 import { listPriceChecks } from '../controllers/priceCheckController';
-import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus } from '../controllers/degustacaoController';
+import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus, updateDegustacaoSolicitacao, deleteDegustacaoSolicitacao } from '../controllers/degustacaoController';
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
@@ -108,6 +108,8 @@ router.post('/degustacoes/public', publicDegustacaoRateLimit, uploadPdf.single('
 router.get('/degustacoes/public/minhas', publicDegustacaoRateLimit, listMyDegustacaoSolicitacoes);
 router.get('/admin/degustacoes', authenticate, requireAdmin, listAllDegustacaoSolicitacoes);
 router.patch('/admin/degustacoes/:id/status', authenticate, requireAdmin, updateDegustacaoSolicitacaoStatus);
+router.put('/admin/degustacoes/:id', authenticate, requireAdmin, updateDegustacaoSolicitacao);
+router.delete('/admin/degustacoes/:id', authenticate, requireAdmin, deleteDegustacaoSolicitacao);
 
 // Admin Custo por Atendimento
 router.get('/admin/custos/visitas', authenticate, requireAdmin, getVisitCosts);

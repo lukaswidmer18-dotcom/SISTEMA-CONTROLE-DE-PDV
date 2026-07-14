@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
 import { AuthRequest } from '../middleware/auth';
-import { uploadToBlob } from '../utils/blobStorage';
+import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 
 const prisma = new PrismaClient();
 
@@ -133,4 +133,65 @@ export async function updateDegustacaoSolicitacaoStatus(req: AuthRequest, res: R
   });
 
   res.json({ success: true, data: solicitacao });
+}
+
+export async function updateDegustacaoSolicitacao(req: AuthRequest, res: Response): Promise<void> {
+  const { id } = req.params;
+  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
+
+  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
+    res.status(400).json({
+      success: false,
+      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
+    });
+    return;
+  }
+
+  const parsedDate = parseDateOnly(date);
+  if (!parsedDate) {
+    res.status(400).json({ success: false, error: 'Data inválida. Use o formato AAAA-MM-DD.' });
+    return;
+  }
+
+  const existing = await prisma.degustacaoSolicitacao.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Solicitação de degustação não encontrada.' });
+    return;
+  }
+
+  const solicitacao = await prisma.degustacaoSolicitacao.update({
+    where: { id },
+    data: {
+      requesterName: String(requesterName).trim(),
+      date: parsedDate,
+      city: String(city).trim(),
+      address: String(address).trim(),
+      store: String(store).trim(),
+      productEvent: String(productEvent).trim(),
+      eventTime: String(eventTime).trim(),
+      supervisor: String(supervisor).trim(),
+      sellerName: String(sellerName).trim(),
+      justification: String(justification).trim(),
+    },
+  });
+
+  res.json({ success: true, data: solicitacao });
+}
+
+export async function deleteDegustacaoSolicitacao(req: AuthRequest, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const existing = await prisma.degustacaoSolicitacao.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Solicitação de degustação não encontrada.' });
+    return;
+  }
+
+  if (existing.documentPath) {
+    await deleteFromBlob(existing.documentPath);
+  }
+
+  await prisma.degustacaoSolicitacao.delete({ where: { id } });
+
+  res.json({ success: true });
 }
