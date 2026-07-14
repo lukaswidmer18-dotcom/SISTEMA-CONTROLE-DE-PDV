@@ -1,7 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import L from 'leaflet';
 import api from '../../services/api';
 import { PDV } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed } from 'lucide-react';
+
+// Fix for default marker icons in Leaflet with React (bundler não resolve os assets sem isso)
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 interface GpsSuggestion {
   suggestion: { latitude: number; longitude: number } | null;
@@ -14,6 +28,31 @@ const GPS_SUGGESTION_MIN_DIVERGENCE_METERS = 25;
 
 function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
+}
+
+function PDVLocationPicker({ latitude, longitude, radiusMeters, onChange }: {
+  latitude: number; longitude: number; radiusMeters: number | null; onChange: (lat: number, lng: number) => void;
+}) {
+  return (
+    <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: 220 }}>
+      <MapContainer center={[latitude, longitude]} zoom={16} className="h-full w-full" style={{ background: '#f8fafc' }}>
+        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker
+          draggable
+          position={[latitude, longitude]}
+          eventHandlers={{
+            dragend: (e) => {
+              const pos = (e.target as L.Marker).getLatLng();
+              onChange(pos.lat, pos.lng);
+            },
+          }}
+        />
+        {radiusMeters != null && radiusMeters > 0 && (
+          <Circle center={[latitude, longitude]} radius={radiusMeters} pathOptions={{ color: '#2563eb', fillOpacity: 0.08 }} />
+        )}
+      </MapContainer>
+    </div>
+  );
 }
 
 function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => void; onSaved: () => void }) {
@@ -42,6 +81,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   const [clearCoord, setClearCoord] = useState(false);
   const [gpsSuggestion, setGpsSuggestion] = useState<GpsSuggestion | null>(null);
   const [gpsAdopted, setGpsAdopted] = useState(false);
+  const [mapVersion, setMapVersion] = useState(0);
 
   useEffect(() => {
     if (!pdv?.id) return;
@@ -65,6 +105,23 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setForm(f => ({ ...f, manualCoord: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
     setEditingCoord(true);
     setGpsAdopted(true);
+    setMapVersion(v => v + 1);
+  }
+
+  // Coordenada exibida no mapa: prioriza edição manual em andamento, depois a salva, depois a sugestão de GPS.
+  const manualCoordParsed = editingCoord ? parseManualCoord(form.manualCoord) : null;
+  const manualCoordValid = manualCoordParsed != null && !Number.isNaN(manualCoordParsed.latitude);
+  const mapCoord = clearCoord
+    ? null
+    : manualCoordValid
+    ? manualCoordParsed
+    : hasSavedCoord && !editingCoord
+    ? { latitude: pdv!.latitude!, longitude: pdv!.longitude! }
+    : gpsSuggestion?.suggestion ?? null;
+
+  function handleMapDrag(latitude: number, longitude: number) {
+    setForm(f => ({ ...f, manualCoord: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+    setEditingCoord(true);
   }
 
   function parseManualCoord(value: string): { latitude: number; longitude: number } | null {
@@ -245,6 +302,19 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           {gpsAdopted && (
             <div className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
               Coordenada dos check-ins preenchida no campo acima. Revise e salve pra aplicar.
+            </div>
+          )}
+          {mapCoord && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Conferir no mapa</label>
+              <PDVLocationPicker
+                key={mapVersion}
+                latitude={mapCoord.latitude}
+                longitude={mapCoord.longitude}
+                radiusMeters={Number(form.radiusMeters) || null}
+                onChange={handleMapDrag}
+              />
+              <p className="text-xs text-gray-400 mt-1">Arraste o marcador pra ajustar a coordenada exata do PDV.</p>
             </div>
           )}
           {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning}</div>}
