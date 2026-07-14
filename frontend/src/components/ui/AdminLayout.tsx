@@ -22,52 +22,71 @@ interface NavGroup {
 
 const dashboardItem: NavItem = { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true };
 
-const navGroups: NavGroup[] = [
+type NavEntry =
+  | { type: 'group'; group: NavGroup }
+  | { type: 'link'; item: NavItem };
+
+const navEntries: NavEntry[] = [
   {
-    key: 'monitoramento',
-    label: 'Monitoramento',
-    icon: Activity,
-    items: [
-      { to: '/admin/mapa', label: 'Rastreamento', icon: Map },
-      { to: '/admin/cobertura', label: 'Cobertura', icon: CheckCircle2 },
-      { to: '/admin/ranking', label: 'Ranking', icon: Trophy },
-    ],
+    type: 'group',
+    group: {
+      key: 'operacao',
+      label: 'Operação de Campo',
+      icon: Compass,
+      items: [
+        { to: '/admin/rotas', label: 'Criar Rota', icon: RouteIcon },
+        { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
+        { to: '/admin/pontos', label: 'Registro de ponto', icon: Clock },
+        { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
+      ],
+    },
   },
   {
-    key: 'operacao',
-    label: 'Operação de Campo',
-    icon: Compass,
-    items: [
-      { to: '/admin/rotas', label: 'Rotas', icon: RouteIcon },
-      { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
-      { to: '/admin/pontos', label: 'Pontos', icon: Clock },
-      { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
-    ],
+    type: 'group',
+    group: {
+      key: 'indicadores',
+      label: 'Indicadores Comerciais',
+      icon: BarChart3,
+      items: [
+        { to: '/admin/ruptura', label: 'Ruptura', icon: PackageX },
+        { to: '/admin/precos', label: 'Preços', icon: Tags },
+        { to: '/admin/degustacoes', label: 'Degustações', icon: UtensilsCrossed },
+        { to: '/admin/custos', label: 'Custo/Atendimento', icon: DollarSign },
+      ],
+    },
   },
   {
-    key: 'indicadores',
-    label: 'Indicadores Comerciais',
-    icon: BarChart3,
-    items: [
-      { to: '/admin/ruptura', label: 'Ruptura', icon: PackageX },
-      { to: '/admin/precos', label: 'Preços', icon: Tags },
-      { to: '/admin/degustacoes', label: 'Degustações', icon: UtensilsCrossed },
-      { to: '/admin/custos', label: 'Custo/Atendimento', icon: DollarSign },
-    ],
+    type: 'group',
+    group: {
+      key: 'monitoramento',
+      label: 'Monitoramento',
+      icon: Activity,
+      items: [
+        { to: '/admin/mapa', label: 'Rastreamento', icon: Map },
+        { to: '/admin/cobertura', label: 'Cobertura', icon: CheckCircle2 },
+        { to: '/admin/ranking', label: 'Ranking', icon: Trophy },
+      ],
+    },
   },
+  { type: 'link', item: dashboardItem },
   {
-    key: 'cadastros',
-    label: 'Cadastros',
-    icon: Database,
-    items: [
-      { to: '/admin/usuarios', label: 'Usuários', icon: Users },
-      { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
-      { to: '/admin/produtos', label: 'Produtos', icon: Package },
-    ],
+    type: 'group',
+    group: {
+      key: 'cadastros',
+      label: 'Cadastros',
+      icon: Database,
+      items: [
+        { to: '/admin/usuarios', label: 'Usuários', icon: Users },
+        { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
+        { to: '/admin/produtos', label: 'Produtos', icon: Package },
+      ],
+    },
   },
 ];
 
-const allNavItems: NavItem[] = [dashboardItem, ...navGroups.flatMap(g => g.items)];
+const navGroups: NavGroup[] = navEntries.filter((e): e is Extract<NavEntry, { type: 'group' }> => e.type === 'group').map(e => e.group);
+
+const allNavItems: NavItem[] = navEntries.flatMap(e => (e.type === 'link' ? [e.item] : e.group.items));
 
 function findActiveGroupKey(pathname: string): string | null {
   return navGroups.find(g => g.items.some(item => pathname.startsWith(item.to)))?.key ?? null;
@@ -116,22 +135,29 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          <NavLink
-            to={dashboardItem.to}
-            end={dashboardItem.end}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-gold-500/[0.15] text-gold-300 border-l-2 border-gold-400 pl-[10px] shadow-glow-gold'
-                  : 'text-pluma-200 hover:bg-white/[0.08] hover:text-white border-l-2 border-transparent pl-[10px]'
-              }`
+          {navEntries.map(entry => {
+            if (entry.type === 'link') {
+              const { to, label, icon: Icon, end } = entry.item;
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'bg-gold-500/[0.15] text-gold-300 border-l-2 border-gold-400 pl-[10px] shadow-glow-gold'
+                        : 'text-pluma-200 hover:bg-white/[0.08] hover:text-white border-l-2 border-transparent pl-[10px]'
+                    }`
+                  }
+                >
+                  <Icon size={17} />
+                  {label}
+                </NavLink>
+              );
             }
-          >
-            <dashboardItem.icon size={17} />
-            {dashboardItem.label}
-          </NavLink>
 
-          {navGroups.map(group => {
+            const group = entry.group;
             const isOpen = openGroup === group.key;
             const GroupIcon = group.icon;
             return (
