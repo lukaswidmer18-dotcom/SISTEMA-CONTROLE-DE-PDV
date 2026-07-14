@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { PlusCircle, CheckCircle, ClipboardList, FileText, X } from 'lucide-react';
 
 const MIN_LEAD_DAYS = 10;
+const MIN_JUSTIFICATION_LENGTH = 300;
 
 const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', supervisor: '', sellerName: '', justification: '' };
 
@@ -21,6 +22,8 @@ export default function PublicDegustacaoRequestPage() {
   const minDateLabel = useMemo(() => format(addDays(new Date(), MIN_LEAD_DAYS), 'dd/MM/yyyy'), []);
   const dateInvalid = form.date !== '' && form.date < minDate;
   const dateErrorMessage = `A degustação precisa ser solicitada com pelo menos ${MIN_LEAD_DAYS} dias de antecedência. Data mínima: ${minDateLabel}.`;
+  const justificationLength = form.justification.trim().length;
+  const justificationInvalid = form.justification !== '' && justificationLength < MIN_JUSTIFICATION_LENGTH;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +35,14 @@ export default function PublicDegustacaoRequestPage() {
     }
     if (!eventTimeStart || !eventTimeEnd) {
       setError('Informe o horário de início e fim do evento.');
+      return;
+    }
+    if (justificationLength < MIN_JUSTIFICATION_LENGTH) {
+      setError(`A justificativa precisa ter pelo menos ${MIN_JUSTIFICATION_LENGTH} caracteres.`);
+      return;
+    }
+    if (!document) {
+      setError('Anexe o PDF com os pedidos feitos ao PDV.');
       return;
     }
 
@@ -143,18 +154,21 @@ export default function PublicDegustacaoRequestPage() {
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Justificativa *</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Justificativa * (mínimo {MIN_JUSTIFICATION_LENGTH} caracteres)</label>
             <textarea
               required
-              rows={3}
+              rows={5}
               placeholder="Explique o motivo da solicitação de degustação neste PDV..."
-              className="input-field text-sm font-bold"
+              className={`input-field text-sm font-bold ${justificationInvalid ? 'border-red-400 focus:border-red-500' : ''}`}
               value={form.justification}
               onChange={e => setForm(f => ({ ...f, justification: e.target.value }))}
             />
+            <p className={`text-[10px] mt-1 ml-1 font-bold ${justificationInvalid ? 'text-red-600' : 'text-gray-400'}`}>
+              {justificationLength}/{MIN_JUSTIFICATION_LENGTH} caracteres
+            </p>
           </div>
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Pedidos feitos ao PDV (PDF, opcional)</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Pedidos feitos ao PDV (PDF) *</label>
             {document ? (
               <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
                 <div className="flex items-center gap-2 min-w-0">
@@ -179,7 +193,13 @@ export default function PublicDegustacaoRequestPage() {
             )}
             <p className="text-[10px] text-gray-400 mt-1 ml-1">Ajuda o administrador a decidir sobre a degustação.</p>
           </div>
-          <button type="submit" disabled={loading || dateInvalid} className="btn-primary w-full py-3.5 font-bold">{loading ? 'Enviando...' : 'Enviar Solicitação'}</button>
+          <button
+            type="submit"
+            disabled={loading || dateInvalid || justificationLength < MIN_JUSTIFICATION_LENGTH || !document}
+            className="btn-primary w-full py-3.5 font-bold"
+          >
+            {loading ? 'Enviando...' : 'Enviar Solicitação'}
+          </button>
         </form>
 
         <Link to="/solicitar-degustacao/minhas" className="flex items-center justify-center gap-2 text-sm font-bold text-pluma-600 hover:text-pluma-800 transition-colors">

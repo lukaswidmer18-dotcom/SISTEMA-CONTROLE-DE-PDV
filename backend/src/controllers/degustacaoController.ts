@@ -7,6 +7,7 @@ import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 const prisma = new PrismaClient();
 
 const MIN_LEAD_DAYS = 10;
+const MIN_JUSTIFICATION_LENGTH = 300;
 const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
 type DegustacaoStatus = (typeof DEGUSTACAO_STATUSES)[number];
 
@@ -18,6 +19,19 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       success: false,
       error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
     });
+    return;
+  }
+
+  if (String(justification).trim().length < MIN_JUSTIFICATION_LENGTH) {
+    res.status(400).json({
+      success: false,
+      error: `A justificativa precisa ter pelo menos ${MIN_JUSTIFICATION_LENGTH} caracteres.`,
+    });
+    return;
+  }
+
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'O PDF com os pedidos feitos ao PDV é obrigatório.' });
     return;
   }
 
@@ -36,9 +50,7 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
     return;
   }
 
-  const documentData = req.file
-    ? await uploadToBlob(req.file.buffer, req.file.originalname, 'degustacao-docs')
-    : null;
+  const documentData = await uploadToBlob(req.file.buffer, req.file.originalname, 'degustacao-docs');
 
   const solicitacao = await prisma.degustacaoSolicitacao.create({
     data: {
@@ -52,13 +64,9 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       supervisor: String(supervisor).trim(),
       sellerName: String(sellerName).trim(),
       justification: String(justification).trim(),
-      ...(documentData
-        ? {
-            documentPath: documentData.url,
-            documentFileName: documentData.pathname,
-            documentOriginalName: req.file!.originalname,
-          }
-        : {}),
+      documentPath: documentData.url,
+      documentFileName: documentData.pathname,
+      documentOriginalName: req.file.originalname,
     },
   });
 
