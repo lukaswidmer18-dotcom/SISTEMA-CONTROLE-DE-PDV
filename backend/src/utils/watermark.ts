@@ -28,7 +28,7 @@ export async function applyWatermark(buffer: Buffer, ext: string, lines: string[
   const textSvg = lines
     .map((line, i) => {
       const y = bandTop + padding + fontSize + i * lineHeight;
-      return `<text x="${padding}" y="${y}" font-family="sans-serif" font-size="${fontSize}" font-weight="600" fill="white">${escapeXml(line)}</text>`;
+      return `<text x="${padding}" y="${y}" font-family="DejaVu Sans, sans-serif" font-size="${fontSize}" font-weight="600" fill="white">${escapeXml(line)}</text>`;
     })
     .join('');
 

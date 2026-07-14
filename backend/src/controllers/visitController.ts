@@ -189,12 +189,14 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
   const ext = path.extname(req.file.originalname);
+  const dateTimeFormat: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
   const watermarkLines = [
-    new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+    new Date().toLocaleString('pt-BR', dateTimeFormat),
     `Promotor: ${visit.promotor.name}`,
-    `Cliente: ${visit.pdv.name} · ${visit.pdv.city}`,
+    `PDV: ${visit.pdv.name} · ${visit.pdv.city}`,
+    `Início da visita: ${visit.startedAt.toLocaleString('pt-BR', dateTimeFormat)}`,
     coordinates.latitude != null && coordinates.longitude != null
-      ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)} (${visit.pdv.name})`
+      ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
       : 'GPS: indisponível',
   ];
   let photoBuffer = req.file.buffer;
