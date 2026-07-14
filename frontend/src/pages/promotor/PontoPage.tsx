@@ -362,6 +362,7 @@ export default function PontoPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadingPreview, setUploadingPreview] = useState<{ itemId: string; url: string } | null>(null);
   const [showValidityModal, setShowValidityModal] = useState(false);
   const [showRupturaModal, setShowRupturaModal] = useState(false);
   const [showPriceCheckModal, setShowPriceCheckModal] = useState(false);
@@ -420,6 +421,8 @@ export default function PontoPage() {
   // Visit Action Handlers
   async function executePhotoUpload(rawFile: File, checklistItemId: string, location: { latitude: number; longitude: number }, locationAvailable = true) {
     if (!visit) return;
+    const previewUrl = URL.createObjectURL(rawFile);
+    setUploadingPreview({ itemId: checklistItemId, url: previewUrl });
     setUploading(true);
     const file = await compressImage(rawFile);
     try {
@@ -430,10 +433,10 @@ export default function PontoPage() {
       formData.append('longitude', String(location.longitude ?? 0));
       formData.append('locationAvailable', String(locationAvailable));
 
-      await api.post(`/visits/${visit.id}/photos`, formData, {
+      const { data } = await api.post(`/visits/${visit.id}/photos`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      await load();
+      setVisit(prev => prev ? { ...prev, photos: [...(prev.photos || []), data.data] } : prev);
       setNotice(locationAvailable ? 'Foto enviada!' : 'Foto enviada (Modo de Contingência - Sem GPS).');
     } catch (err: any) {
       if (isNetworkError(err)) {
@@ -474,6 +477,8 @@ export default function PontoPage() {
       }
     } finally {
       setUploading(false);
+      setUploadingPreview(null);
+      URL.revokeObjectURL(previewUrl);
     }
   }
 
@@ -789,6 +794,14 @@ export default function PontoPage() {
                                       </button>
                                     </div>
                                   ))}
+                                  {uploadingPreview?.itemId === item.id && (
+                                    <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                      <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                        <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
+                                      </div>
+                                    </div>
+                                  )}
                                   {!covered && !locked && (
                                     <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
                                       <Plus size={18} className="text-gray-300" />
