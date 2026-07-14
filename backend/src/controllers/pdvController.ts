@@ -8,6 +8,8 @@ const prisma = new PrismaClient();
 
 const GEOCODE_FAILED_MESSAGE =
   'Não foi possível localizar este endereço no mapa. Verifique o endereço, cidade e UF e tente novamente, ou informe a coordenada manual.';
+const GEOCODE_APPROXIMATE_MESSAGE =
+  'Número do endereço não foi localizado com precisão; a coordenada ficou aproximada (nível da rua). Confira no mapa e ajuste manualmente se necessário.';
 
 function parseRadiusMeters(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
@@ -74,6 +76,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
     success: true,
     data: pdv,
     ...(!coords && { warning: GEOCODE_FAILED_MESSAGE }),
+    ...(geocoded?.approximate && { warning: GEOCODE_APPROXIMATE_MESSAGE }),
   });
 }
 
@@ -102,12 +105,14 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
 
   const manual = parseManualCoords(latitude, longitude);
   let geocodeFailed = false;
+  let geocodeApproximate = false;
   if (clearCoordinates === true || clearCoordinates === 'true') {
     if (nextAddress) {
       const geocoded = await geocodeAddress(nextAddress, nextCity, nextState);
       if (geocoded) {
         updateData.latitude = geocoded.latitude;
         updateData.longitude = geocoded.longitude;
+        geocodeApproximate = geocoded.approximate;
       } else {
         updateData.latitude = null;
         updateData.longitude = null;
@@ -125,6 +130,7 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
     if (geocoded) {
       updateData.latitude = geocoded.latitude;
       updateData.longitude = geocoded.longitude;
+      geocodeApproximate = geocoded.approximate;
     } else {
       updateData.latitude = null;
       updateData.longitude = null;
@@ -137,6 +143,7 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
     success: true,
     data: updated,
     ...(geocodeFailed && { warning: GEOCODE_FAILED_MESSAGE }),
+    ...(geocodeApproximate && { warning: GEOCODE_APPROXIMATE_MESSAGE }),
   });
 }
 
