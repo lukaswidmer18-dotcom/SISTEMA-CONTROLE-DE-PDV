@@ -6,6 +6,7 @@ import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 
 const prisma = new PrismaClient();
 
+const MIN_LEAD_DAYS_ENABLED = false; // desativado a pedido do usuário (2026-07-14); reativar trocando pra true
 const MIN_LEAD_DAYS = 10;
 const MIN_JUSTIFICATION_LENGTH = 300;
 const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
@@ -41,13 +42,15 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
     return;
   }
 
-  const minDate = new Date(todayDateOnly().getTime() + MIN_LEAD_DAYS * 24 * 60 * 60 * 1000);
-  if (parsedDate.getTime() < minDate.getTime()) {
-    res.status(422).json({
-      success: false,
-      error: `A degustação precisa ser solicitada com pelo menos ${MIN_LEAD_DAYS} dias de antecedência. Data mínima: ${minDate.toISOString().slice(0, 10)}.`,
-    });
-    return;
+  if (MIN_LEAD_DAYS_ENABLED) {
+    const minDate = new Date(todayDateOnly().getTime() + MIN_LEAD_DAYS * 24 * 60 * 60 * 1000);
+    if (parsedDate.getTime() < minDate.getTime()) {
+      res.status(422).json({
+        success: false,
+        error: `A degustação precisa ser solicitada com pelo menos ${MIN_LEAD_DAYS} dias de antecedência. Data mínima: ${minDate.toISOString().slice(0, 10)}.`,
+      });
+      return;
+    }
   }
 
   const documentData = await uploadToBlob(req.file.buffer, req.file.originalname, 'degustacao-docs');

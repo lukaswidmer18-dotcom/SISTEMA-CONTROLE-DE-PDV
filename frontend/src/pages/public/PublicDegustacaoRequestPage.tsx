@@ -4,6 +4,7 @@ import { format, addDays } from 'date-fns';
 import api from '../../services/api';
 import { PlusCircle, CheckCircle, ClipboardList, FileText, X } from 'lucide-react';
 
+const MIN_LEAD_DAYS_ENABLED = false; // desativado a pedido do usuário (2026-07-14); reativar trocando pra true
 const MIN_LEAD_DAYS = 10;
 const MIN_JUSTIFICATION_LENGTH = 300;
 
@@ -18,9 +19,9 @@ export default function PublicDegustacaoRequestPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const minDate = useMemo(() => format(addDays(new Date(), MIN_LEAD_DAYS), 'yyyy-MM-dd'), []);
+  const minDate = useMemo(() => format(addDays(new Date(), MIN_LEAD_DAYS_ENABLED ? MIN_LEAD_DAYS : 0), 'yyyy-MM-dd'), []);
   const minDateLabel = useMemo(() => format(addDays(new Date(), MIN_LEAD_DAYS), 'dd/MM/yyyy'), []);
-  const dateInvalid = form.date !== '' && form.date < minDate;
+  const dateInvalid = MIN_LEAD_DAYS_ENABLED && form.date !== '' && form.date < minDate;
   const dateErrorMessage = `A degustação precisa ser solicitada com pelo menos ${MIN_LEAD_DAYS} dias de antecedência. Data mínima: ${minDateLabel}.`;
   const justificationLength = form.justification.trim().length;
   const justificationInvalid = form.justification !== '' && justificationLength < MIN_JUSTIFICATION_LENGTH;
@@ -108,10 +109,8 @@ export default function PublicDegustacaoRequestPage() {
                 value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
               />
-              {dateInvalid ? (
+              {dateInvalid && (
                 <p className="text-[10px] text-red-600 font-bold mt-1 ml-1">{dateErrorMessage}</p>
-              ) : (
-                <p className="text-[10px] text-gray-400 mt-1 ml-1">Mínimo {MIN_LEAD_DAYS} dias de antecedência.</p>
               )}
             </div>
           </div>
