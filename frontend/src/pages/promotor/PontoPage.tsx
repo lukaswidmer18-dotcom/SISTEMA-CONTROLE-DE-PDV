@@ -8,6 +8,7 @@ import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
+import { compressImage } from '../../utils/imageCompression';
 import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock } from 'lucide-react';
 import {
   getOfflineActiveVisit,
@@ -245,12 +246,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
     setError('');
     setLoading(true);
 
+    const compressedFile = file ? await compressImage(file) : null;
+
     const formData = new FormData();
     formData.append('productId', form.productId);
     formData.append('ownPrice', form.ownPrice);
     formData.append('competitorName', form.competitorName);
     formData.append('competitorPrice', form.competitorPrice);
-    if (file) formData.append('photo', file, file.name);
+    if (compressedFile) formData.append('photo', compressedFile, compressedFile.name);
 
     try {
       const { data } = await api.post(`/visits/${visitId}/price-checks`, formData, {
@@ -263,7 +266,7 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
         const queued = await queueOfflineAction({
           kind: 'priceCheck',
           ...getVisitReference(visitId),
-          payload: { ...form, file: file || undefined, fileName: file?.name },
+          payload: { ...form, file: compressedFile || undefined, fileName: compressedFile?.name },
         });
         onAdded({
           id: queued.id,
@@ -415,12 +418,13 @@ export default function PontoPage() {
 
 
   // Visit Action Handlers
-  async function executePhotoUpload(file: File, checklistItemId: string, location: { latitude: number; longitude: number }, locationAvailable = true) {
+  async function executePhotoUpload(rawFile: File, checklistItemId: string, location: { latitude: number; longitude: number }, locationAvailable = true) {
     if (!visit) return;
     setUploading(true);
+    const file = await compressImage(rawFile);
     try {
       const formData = new FormData();
-      formData.append('photo', file);
+      formData.append('photo', file, file.name);
       formData.append('checklistItemId', checklistItemId);
       formData.append('latitude', String(location.latitude ?? 0));
       formData.append('longitude', String(location.longitude ?? 0));
