@@ -6,7 +6,7 @@ import { PlusCircle, CheckCircle, ClipboardList, FileText, X } from 'lucide-reac
 
 const MIN_LEAD_DAYS_ENABLED = false; // desativado a pedido do usuário (2026-07-14); reativar trocando pra true
 const MIN_LEAD_DAYS = 10;
-const MIN_JUSTIFICATION_LENGTH = 300;
+const MIN_JUSTIFICATION_LENGTH = 50;
 
 const EMPTY_FORM = { requesterName: '', date: '', city: '', address: '', store: '', productEvent: '', supervisor: '', sellerName: '', justification: '' };
 
@@ -95,8 +95,8 @@ export default function PublicDegustacaoRequestPage() {
 
         <form onSubmit={handleSubmit} className="card space-y-5">
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Seu nome *</label>
-            <input type="text" required placeholder="Nome do solicitante" className="input-field py-3 text-sm font-bold" value={form.requesterName} onChange={e => setForm(f => ({ ...f, requesterName: e.target.value }))} />
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Supervisor *</label>
+            <input type="text" required placeholder="Nome do supervisor" className="input-field py-3 text-sm font-bold" value={form.requesterName} onChange={e => setForm(f => ({ ...f, requesterName: e.target.value }))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -144,12 +144,12 @@ export default function PublicDegustacaoRequestPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Supervisor *</label>
-              <input type="text" required placeholder="Nome do supervisor" className="input-field py-3 text-sm font-bold" value={form.supervisor} onChange={e => setForm(f => ({ ...f, supervisor: e.target.value }))} />
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Vendedor *</label>
+              <input type="text" required placeholder="Nome do vendedor" className="input-field py-3 text-sm font-bold" value={form.supervisor} onChange={e => setForm(f => ({ ...f, supervisor: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Vendedor *</label>
-              <input type="text" required placeholder="Nome do vendedor" className="input-field py-3 text-sm font-bold" value={form.sellerName} onChange={e => setForm(f => ({ ...f, sellerName: e.target.value }))} />
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Promotor *</label>
+              <input type="text" required placeholder="Nome do promotor" className="input-field py-3 text-sm font-bold" value={form.sellerName} onChange={e => setForm(f => ({ ...f, sellerName: e.target.value }))} />
             </div>
           </div>
           <div>

@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 
 const MIN_LEAD_DAYS_ENABLED = false; // desativado a pedido do usuário (2026-07-14); reativar trocando pra true
 const MIN_LEAD_DAYS = 10;
-const MIN_JUSTIFICATION_LENGTH = 300;
+const MIN_JUSTIFICATION_LENGTH = 50;
 const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
 type DegustacaoStatus = (typeof DEGUSTACAO_STATUSES)[number];
 

@@ -19,15 +19,15 @@ const STATUS_BADGE: Record<DegustacaoSolicitacao['status'], string> = {
 };
 
 const EDIT_FIELDS: { key: keyof EditForm; label: string; type: 'text' | 'date' | 'textarea' }[] = [
-  { key: 'requesterName', label: 'Solicitante', type: 'text' },
+  { key: 'requesterName', label: 'Supervisor', type: 'text' },
   { key: 'date', label: 'Data', type: 'date' },
   { key: 'city', label: 'Cidade', type: 'text' },
   { key: 'address', label: 'Endereço', type: 'text' },
   { key: 'store', label: 'Loja', type: 'text' },
   { key: 'productEvent', label: 'Produto/Evento', type: 'text' },
   { key: 'eventTime', label: 'Horário', type: 'text' },
-  { key: 'supervisor', label: 'Supervisor', type: 'text' },
-  { key: 'sellerName', label: 'Vendedor', type: 'text' },
+  { key: 'supervisor', label: 'Vendedor', type: 'text' },
+  { key: 'sellerName', label: 'Promotor', type: 'text' },
   { key: 'justification', label: 'Justificativa', type: 'textarea' },
 ];
 
@@ -258,7 +258,7 @@ export default function DegustacoesAdminPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 w-36" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
-          <input type="text" placeholder="Filtrar solicitante..." className="input-field text-sm py-2.5 w-40" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
+          <input type="text" placeholder="Filtrar supervisor..." className="input-field text-sm py-2.5 w-40" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
           <input type="text" placeholder="Filtrar loja..." className="input-field text-sm py-2.5 w-40" value={filterStore} onChange={e => setFilterStore(e.target.value)} />
           <input type="date" className="input-field text-sm py-2.5" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
           <input type="date" className="input-field text-sm py-2.5" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
@@ -287,9 +287,9 @@ export default function DegustacoesAdminPage() {
                 <th className="py-2 pr-4">Loja</th>
                 <th className="py-2 pr-4">Produto/Evento</th>
                 <th className="py-2 pr-4">Horário</th>
-                <th className="py-2 pr-4">Solicitante</th>
                 <th className="py-2 pr-4">Supervisor</th>
                 <th className="py-2 pr-4">Vendedor</th>
+                <th className="py-2 pr-4">Promotor</th>
                 <th className="py-2 pr-4">Justificativa</th>
                 <th className="py-2 pr-4">Pedidos (PDF)</th>
                 <th className="py-2 pr-4">Status</th>

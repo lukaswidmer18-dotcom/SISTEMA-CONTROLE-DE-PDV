@@ -56,7 +56,7 @@ export default function PublicMyDegustacoesPage() {
         </div>
 
         <form onSubmit={handleSearch} className="card flex gap-3">
-          <input type="text" required placeholder="Seu nome" className="input-field py-3 text-sm font-bold flex-1" value={nome} onChange={e => setNome(e.target.value)} />
+          <input type="text" required placeholder="Nome do supervisor" className="input-field py-3 text-sm font-bold flex-1" value={nome} onChange={e => setNome(e.target.value)} />
           <button type="submit" disabled={loading} className="btn-primary px-5 flex items-center gap-2 font-bold">
             <Search size={16} /> {loading ? 'Buscando...' : 'Buscar'}
           </button>
@@ -91,7 +91,7 @@ export default function PublicMyDegustacoesPage() {
                     <p><span className="font-bold text-gray-400 uppercase text-[10px]">Cidade</span><br />{s.city}</p>
                     <p><span className="font-bold text-gray-400 uppercase text-[10px]">Horário</span><br />{s.eventTime}</p>
                     <p className="col-span-2"><span className="font-bold text-gray-400 uppercase text-[10px]">Endereço</span><br />{s.address}</p>
-                    {s.supervisor && <p className="col-span-2"><span className="font-bold text-gray-400 uppercase text-[10px]">Supervisor</span><br />{s.supervisor}</p>}
+                    {s.supervisor && <p className="col-span-2"><span className="font-bold text-gray-400 uppercase text-[10px]">Vendedor</span><br />{s.supervisor}</p>}
                   </div>
                 </div>
               ))}
