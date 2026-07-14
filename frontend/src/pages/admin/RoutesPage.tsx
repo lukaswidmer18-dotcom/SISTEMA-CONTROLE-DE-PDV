@@ -166,9 +166,12 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
 }
 
 export default function RoutesPage() {
+  const [viewMode, setViewMode] = useState<'geral' | 'individual'>('individual');
   const [promotores, setPromotores] = useState<User[]>([]);
   const [pdvs, setPdvs] = useState<PDV[]>([]);
   const [routes, setRoutes] = useState<RotaVisita[]>([]);
+  const [allRoutes, setAllRoutes] = useState<RotaVisita[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [selectedPromotor, setSelectedPromotor] = useState('');
   const [activeDays, setActiveDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
   const [weekOffset, setWeekOffset] = useState(0);
@@ -204,8 +207,24 @@ export default function RoutesPage() {
     setRoutes(data.data || []);
   }
 
+  async function loadAllRoutes(dates: Date[]) {
+    setLoadingAll(true);
+    setError('');
+    try {
+      const { data } = await api.get('/routes', {
+        params: { from: format(dates[0], 'yyyy-MM-dd'), to: format(dates[6], 'yyyy-MM-dd') },
+      });
+      setAllRoutes(data.data || []);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao carregar rotas.');
+    } finally {
+      setLoadingAll(false);
+    }
+  }
+
   useEffect(() => { load(); }, []);
   useEffect(() => { loadRoutes(selectedPromotor, weekDates); }, [selectedPromotor, weekOffset]);
+  useEffect(() => { if (viewMode === 'geral') loadAllRoutes(weekDates); }, [viewMode, weekOffset]);
 
   const routesByDay = useMemo(() => {
     const grouped: Record<number, RotaVisita[]> = {};
@@ -216,6 +235,24 @@ export default function RoutesPage() {
     }
     return grouped;
   }, [routes, weekDates]);
+
+  const overviewByPromotor = useMemo(() => {
+    const map = new Map<string, { promotorId: string; name: string; days: RotaVisita[][] }>();
+    for (const p of promotores) {
+      map.set(p.id, { promotorId: p.id, name: p.name, days: Array.from({ length: 7 }, () => []) });
+    }
+    for (const r of allRoutes) {
+      const idx = weekDates.findIndex(d => format(d, 'yyyy-MM-dd') === r.date.slice(0, 10));
+      if (idx === -1) continue;
+      let entry = map.get(r.promotorId);
+      if (!entry) {
+        entry = { promotorId: r.promotorId, name: r.promotor?.name || 'Promotor', days: Array.from({ length: 7 }, () => []) };
+        map.set(r.promotorId, entry);
+      }
+      entry.days[idx].push(r);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRoutes, promotores, weekDates]);
 
   const selectedPromotorName = promotores.find(p => p.id === selectedPromotor)?.name;
 
@@ -319,7 +356,7 @@ export default function RoutesPage() {
             Define quais PDVs cada promotor visita em datas específicas.
           </p>
         </div>
-        {selectedPromotor && (
+        {viewMode === 'individual' && selectedPromotor && (
           <div className="flex items-center gap-2 px-4 py-2 bg-pluma-50 text-pluma-800 rounded-xl text-xs font-bold border border-pluma-100">
             <Users size={14} />
             {routes.length} PDV{routes.length !== 1 ? 's' : ''} na semana de {selectedPromotorName}
@@ -327,6 +364,106 @@ export default function RoutesPage() {
         )}
       </div>
 
+      <div className="card flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setViewMode('geral')}
+          className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+            viewMode === 'geral'
+              ? 'bg-pluma-800 text-white border-pluma-800 shadow-glow-pluma'
+              : 'bg-white text-gray-500 border-gray-200 hover:border-pluma-200 hover:text-pluma-600'
+          }`}
+        >
+          Visão Geral
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('individual')}
+          className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+            viewMode === 'individual'
+              ? 'bg-pluma-800 text-white border-pluma-800 shadow-glow-pluma'
+              : 'bg-white text-gray-500 border-gray-200 hover:border-pluma-200 hover:text-pluma-600'
+          }`}
+        >
+          Por Promotor
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWeekOffset(w => w - 1)}
+              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <p className="text-sm font-black text-gray-800 tracking-tight min-w-[170px] text-center">
+              Semana de {format(weekDates[0], 'dd/MM', { locale: ptBR })} a {format(weekDates[6], 'dd/MM', { locale: ptBR })}
+            </p>
+            <button
+              type="button"
+              onClick={() => setWeekOffset(w => w + 1)}
+              className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          {weekOffset !== 0 && (
+            <button type="button" onClick={() => setWeekOffset(0)} className="text-xs font-bold text-pluma-600 hover:text-pluma-800">
+              Voltar pra hoje
+            </button>
+          )}
+        </div>
+      </div>
+
+      {viewMode === 'geral' && (
+        <div className="card animate-fade-in overflow-x-auto">
+          {loadingAll ? (
+            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
+          ) : promotores.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">Nenhum promotor ativo cadastrado.</p>
+          ) : (
+            <table className="w-full text-sm min-w-[900px]">
+              <thead>
+                <tr>
+                  <th className="text-left text-[11px] font-black text-gray-400 uppercase tracking-wider pb-3 pr-3 sticky left-0 bg-white">Promotor</th>
+                  {DAYS_SHORT.map((label, dayOfWeek) => (
+                    <th key={dayOfWeek} className="text-left text-[11px] font-black uppercase tracking-wider pb-3 px-2 min-w-[150px]">
+                      <span className={isSameDay(weekDates[dayOfWeek], todayDate) ? 'text-pluma-700' : 'text-gray-400'}>
+                        {label} · {format(weekDates[dayOfWeek], 'dd/MM')}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {overviewByPromotor.map(row => (
+                  <tr key={row.promotorId} className="border-t border-gray-100 align-top">
+                    <td className="py-3 pr-3 font-bold text-gray-800 sticky left-0 bg-white whitespace-nowrap">{row.name}</td>
+                    {row.days.map((dayRoutes, dayOfWeek) => (
+                      <td key={dayOfWeek} className="py-3 px-2">
+                        {dayRoutes.length === 0 ? (
+                          <span className="text-gray-300">—</span>
+                        ) : (
+                          <div className="space-y-1">
+                            {dayRoutes.map(r => (
+                              <p key={r.id} className="text-xs font-semibold text-gray-700 leading-snug">{r.pdv?.name}</p>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {viewMode === 'individual' && (
       <div className="card">
         <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1 flex items-center gap-1.5">
           <Users size={13} className="text-pluma-400" /> Promotor
@@ -343,36 +480,10 @@ export default function RoutesPage() {
           Promotor só consegue iniciar visita em PDV que estiver na rota do dia atual.
         </p>
       </div>
+      )}
 
-      {selectedPromotor && (
+      {viewMode === 'individual' && selectedPromotor && (
         <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setWeekOffset(w => w - 1)}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <p className="text-sm font-black text-gray-800 tracking-tight min-w-[170px] text-center">
-                Semana de {format(weekDates[0], 'dd/MM', { locale: ptBR })} a {format(weekDates[6], 'dd/MM', { locale: ptBR })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setWeekOffset(w => w + 1)}
-                className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-pluma-200 hover:text-pluma-600 transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            {weekOffset !== 0 && (
-              <button type="button" onClick={() => setWeekOffset(0)} className="text-xs font-bold text-pluma-600 hover:text-pluma-800">
-                Voltar pra hoje
-              </button>
-            )}
-          </div>
-
           <div>
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2 ml-1">
               Dias com visita
@@ -409,7 +520,7 @@ export default function RoutesPage() {
         </div>
       )}
 
-      {loading ? (
+      {viewMode === 'individual' && (loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : !selectedPromotor ? (
         <div className="card text-center py-16 animate-fade-in">
@@ -438,9 +549,9 @@ export default function RoutesPage() {
             />
           ))}
         </div>
-      )}
+      ))}
 
-      {selectedPromotor && activeDays.size > 0 && (
+      {viewMode === 'individual' && selectedPromotor && activeDays.size > 0 && (
         <div className="card animate-fade-in">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
