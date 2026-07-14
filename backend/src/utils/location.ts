@@ -47,6 +47,14 @@ export function distanceInMeters(
   return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Mediana por eixo: GPS de celular gera outlier com frequência (sinal ruim dentro da loja),
+// e a mediana ignora pontos aberrantes sem precisar de limpeza manual.
+export function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 export interface GeofenceTarget {
   latitude: number | null;
   longitude: number | null;

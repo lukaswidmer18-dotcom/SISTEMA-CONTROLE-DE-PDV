@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2 } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed } from 'lucide-react';
+
+interface GpsSuggestion {
+  suggestion: { latitude: number; longitude: number } | null;
+  samples: number;
+  distanceMeters: number | null;
+}
+
+// Divergência menor que isso é ruído normal de GPS; não vale sugerir troca.
+const GPS_SUGGESTION_MIN_DIVERGENCE_METERS = 25;
 
 function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
@@ -31,6 +40,32 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   // pra não dar a impressão de que o valor sumiu (ele reabre vazio de propósito — ver comentário no input abaixo).
   const [editingCoord, setEditingCoord] = useState(!hasSavedCoord);
   const [clearCoord, setClearCoord] = useState(false);
+  const [gpsSuggestion, setGpsSuggestion] = useState<GpsSuggestion | null>(null);
+  const [gpsAdopted, setGpsAdopted] = useState(false);
+
+  useEffect(() => {
+    if (!pdv?.id) return;
+    let cancelled = false;
+    api.get(`/pdvs/${pdv.id}/gps-sugestao`)
+      .then(({ data }) => { if (!cancelled) setGpsSuggestion(data.data); })
+      .catch(() => { /* sugestão é opcional; falha aqui não pode travar o formulário */ });
+    return () => { cancelled = true; };
+  }, [pdv?.id]);
+
+  // Sugere quando há check-ins e: PDV sem coordenada, ou coordenada divergindo além do ruído de GPS.
+  const showGpsSuggestion =
+    !gpsAdopted &&
+    !clearCoord &&
+    gpsSuggestion?.suggestion != null &&
+    (gpsSuggestion.distanceMeters === null || gpsSuggestion.distanceMeters >= GPS_SUGGESTION_MIN_DIVERGENCE_METERS);
+
+  function adoptGpsSuggestion() {
+    if (!gpsSuggestion?.suggestion) return;
+    const { latitude, longitude } = gpsSuggestion.suggestion;
+    setForm(f => ({ ...f, manualCoord: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+    setEditingCoord(true);
+    setGpsAdopted(true);
+  }
 
   function parseManualCoord(value: string): { latitude: number; longitude: number } | null {
     const trimmed = value.trim();
@@ -188,6 +223,30 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               </>
             )}
           </div>
+          {showGpsSuggestion && gpsSuggestion?.suggestion && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 space-y-1.5">
+              <p className="flex items-start gap-1.5 text-sm text-blue-800 font-medium">
+                <LocateFixed size={15} className="shrink-0 mt-0.5" />
+                <span>
+                  {gpsSuggestion.distanceMeters === null
+                    ? `GPS dos check-ins dos promotores (${gpsSuggestion.samples} ${gpsSuggestion.samples === 1 ? 'visita' : 'visitas'}) indica a localização real deste PDV.`
+                    : `GPS dos check-ins (${gpsSuggestion.samples} ${gpsSuggestion.samples === 1 ? 'visita' : 'visitas'}) aponta ~${gpsSuggestion.distanceMeters}m de distância da coordenada cadastrada.`}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={adoptGpsSuggestion}
+                className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900"
+              >
+                <MapPin size={13} /> Usar coordenada dos check-ins ({gpsSuggestion.suggestion.latitude.toFixed(6)}, {gpsSuggestion.suggestion.longitude.toFixed(6)})
+              </button>
+            </div>
+          )}
+          {gpsAdopted && (
+            <div className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
+              Coordenada dos check-ins preenchida no campo acima. Revise e salve pra aplicar.
+            </div>
+          )}
           {warning && <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded">{warning}</div>}
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">

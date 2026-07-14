@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
-import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV } from '../controllers/pdvController';
+import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, getPdvGpsSuggestion } from '../controllers/pdvController';
 import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct } from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry, reorderRouteEntries } from '../controllers/routeController';
 import {
@@ -42,6 +42,7 @@ router.post('/pdvs', authenticate, requireAdmin, createPDV);
 router.put('/pdvs/:id', authenticate, requireAdmin, updatePDV);
 router.patch('/pdvs/:id/toggle', authenticate, requireAdmin, togglePDVActive);
 router.delete('/pdvs/:id', authenticate, requireAdmin, deletePDV);
+router.get('/pdvs/:id/gps-sugestao', authenticate, requireAdmin, getPdvGpsSuggestion);
 
 // Products
 router.get('/products', authenticate, listProducts);

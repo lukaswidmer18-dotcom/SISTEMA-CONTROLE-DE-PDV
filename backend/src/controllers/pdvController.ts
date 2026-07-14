@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { geocodeAddress } from '../utils/geocoding';
 import { todayDateOnly } from '../utils/date';
-import { parseCoordinate } from '../utils/location';
+import { parseCoordinate, distanceInMeters, median } from '../utils/location';
 
 const prisma = new PrismaClient();
 
@@ -182,4 +182,40 @@ export async function deletePDV(req: Request, res: Response): Promise<void> {
 
   await prisma.pDV.delete({ where: { id } });
   res.json({ success: true, data: null });
+}
+
+const GPS_SUGGESTION_SAMPLE_LIMIT = 20;
+
+export async function getPdvGpsSuggestion(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const pdv = await prisma.pDV.findUnique({ where: { id } });
+  if (!pdv) {
+    res.status(404).json({ success: false, error: 'PDV não encontrado.' });
+    return;
+  }
+
+  const visits = await prisma.visit.findMany({
+    where: { pdvId: id, latitudeStart: { not: null }, longitudeStart: { not: null } },
+    orderBy: { startedAt: 'desc' },
+    take: GPS_SUGGESTION_SAMPLE_LIMIT,
+    select: { latitudeStart: true, longitudeStart: true },
+  });
+
+  if (visits.length === 0) {
+    res.json({ success: true, data: { suggestion: null, samples: 0, distanceMeters: null } });
+    return;
+  }
+
+  const suggestion = {
+    latitude: median(visits.map((v) => v.latitudeStart as number)),
+    longitude: median(visits.map((v) => v.longitudeStart as number)),
+  };
+
+  const distanceMeters =
+    pdv.latitude != null && pdv.longitude != null
+      ? Math.round(distanceInMeters(pdv.latitude, pdv.longitude, suggestion.latitude, suggestion.longitude))
+      : null;
+
+  res.json({ success: true, data: { suggestion, samples: visits.length, distanceMeters } });
 }
