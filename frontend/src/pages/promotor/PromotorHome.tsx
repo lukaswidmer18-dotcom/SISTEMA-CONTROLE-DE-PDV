@@ -454,11 +454,163 @@ export default function PromotorHome() {
         </div>
       )}
 
+      {/* PDVs da Rota da Semana */}
+      <div className="card animate-slide-up" style={{ animationDelay: '90ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
+            <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
+              <Store size={20} />
+            </div>
+            PDVs da Semana
+          </h3>
+          <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Gerenciar</Link>
+        </div>
+
+        {/* Day of Week Tabs */}
+        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+          {weekDates.map((date, i) => {
+            const isSelected = isSameDay(date, selectedDate);
+            const isToday = isSameDay(date, new Date());
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => setSelectedDate(date)}
+                className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border transition-colors ${
+                  isSelected
+                    ? 'bg-pluma-800 border-pluma-800 text-white'
+                    : isToday
+                    ? 'bg-pluma-50 border-pluma-200 text-pluma-700'
+                    : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-pluma-200'
+                }`}
+              >
+                <span className="text-[9px] font-black uppercase">{DAYS_SHORT[i]}</span>
+                <span className="text-sm font-black">{format(date, 'd')}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+        ) : selectedDayRoutes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+            <AlertCircle size={32} className="text-orange-400 mb-2" />
+            <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra esse dia.</p>
+            <p className="text-xs text-gray-400 mt-1">Fale com o administrador pra montar sua rota.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {selectedDayRoutes.map(route => {
+              if (!route.pdv) return null;
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              const status = getPdvStatusForDate(route.pdv.id, dateStr);
+              const canJustify = status === 'PENDENTE';
+              const isSelectedPdv = selectedPdv?.id === route.pdv.id;
+              return (
+                <div
+                  key={route.id}
+                  onClick={() => handleSelectPdv(route.pdv as PDV)}
+                  className={`border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
+                    isSelectedPdv ? 'bg-pluma-50 border-pluma-300' : 'bg-gray-50 border-gray-100 hover:border-pluma-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
+                        <Store size={16} className="text-pluma-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 truncate">{route.pdv.name}</p>
+                        {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
+                      {STATUS_LABELS[status]}
+                    </span>
+                  </div>
+                  {route.justification ? (
+                    <div className="mt-2 ml-11 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                      <MessageSquareWarning size={13} className="shrink-0 mt-0.5" />
+                      <p className="leading-tight">{route.justification}</p>
+                    </div>
+                  ) : canJustify ? (
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setJustifyRoute(route);
+                      }}
+                      className="mt-2 ml-11 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-800 transition-colors"
+                    >
+                      <MessageSquareWarning size={13} /> Justificar não comparecimento
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
+        {/* Active Visit Section */}
+        <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex flex-col" style={{ animationDelay: '160ms' }}>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
+              <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
+                <MapPin size={20} />
+              </div>
+              Visita em Andamento
+            </h3>
+          </div>
+
+          <div className="flex-1">
+            {loading ? (
+              <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
+            ) : activeVisit ? (
+              <div className="bg-gradient-to-br from-pluma-50 to-white border border-pluma-100 rounded-2xl p-5 mb-4 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-pluma-600 uppercase mb-1 tracking-wider">PDV Atual</p>
+                    <p className="text-xl font-black text-gray-900 leading-tight">{activeVisit.pdv?.name}</p>
+                  </div>
+                  <div className="bg-white p-2 rounded-xl shadow-sm border border-pluma-50">
+                    <MapPin size={20} className="text-pluma-800" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock size={16} className="text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">Início: {format(new Date(activeVisit.startedAt), 'HH:mm')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={16} className={checklistItems.length > 0 && completedChecklistItems >= checklistItems.length ? 'text-green-500' : 'text-gray-400'} />
+                    <span className="text-xs font-semibold text-gray-600">
+                      {completedChecklistItems}/{checklistItems.length} itens
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mb-4">
+                <MapPin size={32} className="text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500 font-medium">Nenhuma visita em andamento.</p>
+                <p className="text-xs text-gray-400 mt-1">Selecione um PDV em "PDVs da Semana" acima pra iniciar.</p>
+              </div>
+            )}
+          </div>
+
+          {activeVisit && (
+            <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
+              Continuar Visita
+            </Link>
+          )}
+        </div>
+
         {/* Ponto Section */}
-        <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex flex-col" style={{ animationDelay: '90ms' }}>
+        <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex flex-col" style={{ animationDelay: '230ms' }}>
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
               <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
@@ -553,158 +705,6 @@ export default function PromotorHome() {
             </p>
           )}
         </div>
-
-        {/* Active Visit Section */}
-        <div className="card hover:shadow-card-hover transition-all duration-300 animate-slide-up flex flex-col" style={{ animationDelay: '160ms' }}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
-              <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
-                <MapPin size={20} />
-              </div>
-              Visita em Andamento
-            </h3>
-          </div>
-
-          <div className="flex-1">
-            {loading ? (
-              <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
-            ) : activeVisit ? (
-              <div className="bg-gradient-to-br from-pluma-50 to-white border border-pluma-100 rounded-2xl p-5 mb-4 shadow-sm">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-pluma-600 uppercase mb-1 tracking-wider">PDV Atual</p>
-                    <p className="text-xl font-black text-gray-900 leading-tight">{activeVisit.pdv?.name}</p>
-                  </div>
-                  <div className="bg-white p-2 rounded-xl shadow-sm border border-pluma-50">
-                    <MapPin size={20} className="text-pluma-800" />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Clock size={16} className="text-gray-400" />
-                    <span className="text-xs font-semibold text-gray-600">Início: {format(new Date(activeVisit.startedAt), 'HH:mm')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className={checklistItems.length > 0 && completedChecklistItems >= checklistItems.length ? 'text-green-500' : 'text-gray-400'} />
-                    <span className="text-xs font-semibold text-gray-600">
-                      {completedChecklistItems}/{checklistItems.length} itens
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mb-4">
-                <MapPin size={32} className="text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500 font-medium">Nenhuma visita em andamento.</p>
-                <p className="text-xs text-gray-400 mt-1">Selecione um PDV em "PDVs da Semana" abaixo pra iniciar.</p>
-              </div>
-            )}
-          </div>
-
-          {activeVisit && (
-            <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
-              Continuar Visita
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* PDVs da Rota da Semana */}
-      <div className="card animate-slide-up" style={{ animationDelay: '200ms' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2 lg:text-lg">
-            <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
-              <Store size={20} />
-            </div>
-            PDVs da Semana
-          </h3>
-          <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Gerenciar</Link>
-        </div>
-
-        {/* Day of Week Tabs */}
-        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
-          {weekDates.map((date, i) => {
-            const isSelected = isSameDay(date, selectedDate);
-            const isToday = isSameDay(date, new Date());
-            return (
-              <button
-                key={date.toISOString()}
-                onClick={() => setSelectedDate(date)}
-                className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border transition-colors ${
-                  isSelected
-                    ? 'bg-pluma-800 border-pluma-800 text-white'
-                    : isToday
-                    ? 'bg-pluma-50 border-pluma-200 text-pluma-700'
-                    : 'bg-gray-50 border-gray-100 text-gray-500 hover:border-pluma-200'
-                }`}
-              >
-                <span className="text-[9px] font-black uppercase">{DAYS_SHORT[i]}</span>
-                <span className="text-sm font-black">{format(date, 'd')}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
-        ) : selectedDayRoutes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-            <AlertCircle size={32} className="text-orange-400 mb-2" />
-            <p className="text-sm text-gray-600 font-medium">Nenhum PDV atribuído pra esse dia.</p>
-            <p className="text-xs text-gray-400 mt-1">Fale com o administrador pra montar sua rota.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {selectedDayRoutes.map(route => {
-              if (!route.pdv) return null;
-              const dateStr = format(selectedDate, 'yyyy-MM-dd');
-              const status = getPdvStatusForDate(route.pdv.id, dateStr);
-              const canJustify = status === 'PENDENTE';
-              const isSelectedPdv = selectedPdv?.id === route.pdv.id;
-              return (
-                <div
-                  key={route.id}
-                  onClick={() => handleSelectPdv(route.pdv as PDV)}
-                  className={`border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
-                    isSelectedPdv ? 'bg-pluma-50 border-pluma-300' : 'bg-gray-50 border-gray-100 hover:border-pluma-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 shrink-0">
-                        <Store size={16} className="text-pluma-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{route.pdv.name}</p>
-                        {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
-                      {STATUS_LABELS[status]}
-                    </span>
-                  </div>
-                  {route.justification ? (
-                    <div className="mt-2 ml-11 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
-                      <MessageSquareWarning size={13} className="shrink-0 mt-0.5" />
-                      <p className="leading-tight">{route.justification}</p>
-                    </div>
-                  ) : canJustify ? (
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        setJustifyRoute(route);
-                      }}
-                      className="mt-2 ml-11 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-800 transition-colors"
-                    >
-                      <MessageSquareWarning size={13} /> Justificar não comparecimento
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {justifyRoute && (
