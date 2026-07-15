@@ -379,7 +379,7 @@ export default function PromotorHome() {
         <div className="pointer-events-none absolute right-0 top-0 h-full w-2/3 bg-gradient-to-l from-gold-400/[0.14] to-transparent" />
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <p className="text-pluma-200 text-sm lg:text-base font-medium">Bom dia,</p>
+            <p className="text-pluma-200 text-sm lg:text-base font-medium">Olá,</p>
             <h2 className="text-2xl lg:text-4xl font-black tracking-tight">{user?.name}</h2>
             <p className="text-gold-400 text-xs lg:text-sm mt-1 font-semibold flex items-center gap-2">
               <Clock size={14} />
