@@ -20,7 +20,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const dashboardItem: NavItem = { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true };
+const dashboardItem: NavItem = { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true };
 
 type NavEntry =
   | { type: 'group'; group: NavGroup }

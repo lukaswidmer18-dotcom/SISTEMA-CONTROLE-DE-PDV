@@ -55,7 +55,8 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
+          <Route index element={<Navigate to="rotas" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="usuarios" element={<UsersPage />} />
           <Route path="pdvs" element={<PDVsPage />} />
           <Route path="rotas" element={<RoutesPage />} />
