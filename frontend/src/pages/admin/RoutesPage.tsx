@@ -374,6 +374,11 @@ export default function RoutesPage() {
   }
 
   async function handleRemove(routeId: string) {
+    const confirmed = window.confirm(
+      'Remover este PDV da rota também apaga a visita do dia (fotos, checklist e demais dados), caso já tenha sido iniciada. Essa ação não pode ser desfeita. Deseja continuar?',
+    );
+    if (!confirmed) return;
+
     setError('');
     try {
       await api.delete(`/routes/${routeId}`);

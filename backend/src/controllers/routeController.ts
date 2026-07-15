@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { parseDateOnly } from '../utils/date';
+import { deleteFromBlob } from '../utils/blobStorage';
 
 const prisma = new PrismaClient();
 
@@ -148,6 +149,38 @@ export async function deleteRouteEntry(req: Request, res: Response): Promise<voi
     return;
   }
 
-  await prisma.rotaVisita.delete({ where: { id } });
+  const dayStart = route.date;
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const visits = await prisma.visit.findMany({
+    where: {
+      promotorId: route.promotorId,
+      pdvId: route.pdvId,
+      startedAt: { gte: dayStart, lt: dayEnd },
+    },
+    include: { photos: true, priceChecks: true },
+  });
+  const visitIds = visits.map((v) => v.id);
+
+  for (const visit of visits) {
+    for (const photo of visit.photos) {
+      if (photo.filePath) await deleteFromBlob(photo.filePath);
+    }
+    for (const priceCheck of visit.priceChecks) {
+      if (priceCheck.photoPath) await deleteFromBlob(priceCheck.photoPath);
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.ponto.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.photo.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.validity.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.visitRating.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.rupturaRegistro.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.priceCheck.deleteMany({ where: { visitId: { in: visitIds } } }),
+    prisma.visit.deleteMany({ where: { id: { in: visitIds } } }),
+    prisma.rotaVisita.delete({ where: { id } }),
+  ]);
+
   res.json({ success: true, data: null });
 }
