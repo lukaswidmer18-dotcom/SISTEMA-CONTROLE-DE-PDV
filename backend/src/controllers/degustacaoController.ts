@@ -91,12 +91,28 @@ export async function listMyDegustacaoSolicitacoes(req: Request, res: Response):
 }
 
 export async function listAllDegustacaoSolicitacoes(req: Request, res: Response): Promise<void> {
-  const { from, to, city, requesterName, store } = req.query;
+  const { from, to, q, status } = req.query;
 
   const where: any = {};
-  if (city) where.city = { contains: city as string, mode: 'insensitive' };
-  if (requesterName) where.requesterName = { contains: requesterName as string, mode: 'insensitive' };
-  if (store) where.store = { contains: store as string, mode: 'insensitive' };
+
+  if (q) {
+    const search = q as string;
+    where.OR = [
+      { city: { contains: search, mode: 'insensitive' } },
+      { address: { contains: search, mode: 'insensitive' } },
+      { store: { contains: search, mode: 'insensitive' } },
+      { clifor: { contains: search, mode: 'insensitive' } },
+      { productEvent: { contains: search, mode: 'insensitive' } },
+      { requesterName: { contains: search, mode: 'insensitive' } },
+      { supervisor: { contains: search, mode: 'insensitive' } },
+      { sellerName: { contains: search, mode: 'insensitive' } },
+      { justification: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  if (status && DEGUSTACAO_STATUSES.includes(status as DegustacaoStatus)) {
+    where.status = status as DegustacaoStatus;
+  }
 
   const fromDate = parseDateOnly(from);
   const toDate = parseDateOnly(to);

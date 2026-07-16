@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -160,9 +160,8 @@ function ConfirmDeleteDegustacaoModal({ solicitacao, loading, onConfirm, onCance
 
 export default function DegustacoesAdminPage() {
   const [solicitacoes, setSolicitacoes] = useState<DegustacaoSolicitacao[]>([]);
-  const [filterCity, setFilterCity] = useState('');
-  const [filterRequester, setFilterRequester] = useState('');
-  const [filterStore, setFilterStore] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'' | DegustacaoSolicitacao['status']>('');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
   const [loading, setLoading] = useState(true);
@@ -186,18 +185,15 @@ export default function DegustacoesAdminPage() {
     }
   }
 
-  const debouncedCity = useDebouncedValue(filterCity, 300);
-  const debouncedRequester = useDebouncedValue(filterRequester, 300);
-  const debouncedStore = useDebouncedValue(filterStore, 300);
+  const debouncedSearch = useDebouncedValue(search, 300);
 
   async function load() {
     setLoading(true);
     setError('');
     try {
       const params: Record<string, string> = {};
-      if (debouncedCity) params.city = debouncedCity;
-      if (debouncedRequester) params.requesterName = debouncedRequester;
-      if (debouncedStore) params.store = debouncedStore;
+      if (debouncedSearch) params.q = debouncedSearch;
+      if (filterStatus) params.status = filterStatus;
       if (filterFrom) params.from = filterFrom;
       if (filterTo) params.to = filterTo;
       const { data } = await api.get('/admin/degustacoes', { params });
@@ -209,9 +205,9 @@ export default function DegustacoesAdminPage() {
     }
   }
 
-  useEffect(() => { load(); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
+  useEffect(() => { load(); }, [debouncedSearch, filterStatus, filterFrom, filterTo]);
 
-  useEffect(() => { setPage(1); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, filterStatus, filterFrom, filterTo]);
 
   const totalPages = Math.max(1, Math.ceil(solicitacoes.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -270,15 +266,34 @@ export default function DegustacoesAdminPage() {
             {!linkCopied && <Copy size={12} className="opacity-60" />}
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 w-full lg:w-auto">
-          <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 col-span-1" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
-          <input type="text" placeholder="Filtrar supervisor..." className="input-field text-sm py-2.5 col-span-1" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
-          <input type="text" placeholder="Filtrar loja..." className="input-field text-sm py-2.5 col-span-1" value={filterStore} onChange={e => setFilterStore(e.target.value)} />
-          <input type="date" title="Data inicial" className="input-field text-sm py-2.5 col-span-1" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
-          <input type="date" title="Data final" className="input-field text-sm py-2.5 col-span-1" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
-          <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors flex items-center justify-center col-span-1">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 w-full lg:w-auto lg:min-w-[640px]">
+          <div className="relative sm:col-span-2 lg:col-span-2">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar cidade, loja, endereço, clifor, produto, supervisor, vendedor, promotor, justificativa..."
+              className="input-field text-sm py-2.5 pl-9 w-full"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className="input-field text-sm py-2.5"
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value as '' | DegustacaoSolicitacao['status'])}
+          >
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="aprovada">Aprovada</option>
+            <option value="reprovada">Reprovada</option>
+          </select>
+          <input type="date" title="Data inicial" className="input-field text-sm py-2.5" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+          <div className="flex gap-2">
+            <input type="date" title="Data final" className="input-field text-sm py-2.5 flex-1" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+            <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors flex items-center justify-center shrink-0">
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
       </div>
 
