@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -172,6 +172,8 @@ export default function DegustacoesAdminPage() {
   const [editing, setEditing] = useState<DegustacaoSolicitacao | null>(null);
   const [deleting, setDeleting] = useState<DegustacaoSolicitacao | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   async function copyRequestLink() {
     const url = `${window.location.origin}/solicitar-degustacao`;
@@ -208,6 +210,15 @@ export default function DegustacoesAdminPage() {
   }
 
   useEffect(() => { load(); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
+
+  useEffect(() => { setPage(1); }, [debouncedCity, debouncedRequester, debouncedStore, filterFrom, filterTo]);
+
+  const totalPages = Math.max(1, Math.ceil(solicitacoes.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => solicitacoes.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [solicitacoes, currentPage]
+  );
 
   async function updateStatus(id: string, status: 'aprovada' | 'reprovada') {
     setUpdatingId(id);
@@ -301,7 +312,7 @@ export default function DegustacoesAdminPage() {
               </tr>
             </thead>
             <tbody>
-              {solicitacoes.map(s => (
+              {paginated.map(s => (
                 <tr key={s.id} className="border-b border-gray-50 last:border-b-0">
                   <td className="py-2.5 pr-4 font-bold text-gray-800 whitespace-nowrap">{format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.city}</td>
@@ -374,6 +385,31 @@ export default function DegustacoesAdminPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && solicitacoes.length > 0 && (
+          <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
+            <p className="text-xs text-gray-400 font-semibold">
+              Mostrando {(currentPage - 1) * PAGE_SIZE + 1}
+              –{Math.min(currentPage * PAGE_SIZE, solicitacoes.length)} de {solicitacoes.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs font-bold text-gray-600">Página {currentPage} de {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
