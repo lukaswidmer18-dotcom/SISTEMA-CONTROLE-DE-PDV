@@ -17,6 +17,7 @@ export interface DegustacaoSolicitacao {
   city: string;
   address: string;
   store: string;
+  clifor: string;
   productEvent: string;
   eventTime: string;
   supervisor: string;

@@ -195,6 +195,7 @@ model DegustacaoSolicitacao {
   city                 String
   address              String
   store                String
+  clifor               String   @default("")
   productEvent         String
   eventTime            String
   supervisor           String   @default("")

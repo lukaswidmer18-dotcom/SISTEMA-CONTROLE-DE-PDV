@@ -24,6 +24,7 @@ const EDIT_FIELDS: { key: keyof EditForm; label: string; type: 'text' | 'date' |
   { key: 'city', label: 'Cidade', type: 'text' },
   { key: 'address', label: 'Endereço', type: 'text' },
   { key: 'store', label: 'Loja', type: 'text' },
+  { key: 'clifor', label: 'Clifor', type: 'text' },
   { key: 'productEvent', label: 'Produto/Evento', type: 'text' },
   { key: 'eventTime', label: 'Horário', type: 'text' },
   { key: 'supervisor', label: 'Vendedor', type: 'text' },
@@ -37,6 +38,7 @@ interface EditForm {
   city: string;
   address: string;
   store: string;
+  clifor: string;
   productEvent: string;
   eventTime: string;
   supervisor: string;
@@ -51,6 +53,7 @@ function toEditForm(s: DegustacaoSolicitacao): EditForm {
     city: s.city,
     address: s.address,
     store: s.store,
+    clifor: s.clifor,
     productEvent: s.productEvent,
     eventTime: s.eventTime,
     supervisor: s.supervisor,
@@ -285,6 +288,7 @@ export default function DegustacoesAdminPage() {
                 <th className="py-2 pr-4">Cidade</th>
                 <th className="py-2 pr-4">Endereço</th>
                 <th className="py-2 pr-4">Loja</th>
+                <th className="py-2 pr-4">Clifor</th>
                 <th className="py-2 pr-4">Produto/Evento</th>
                 <th className="py-2 pr-4">Horário</th>
                 <th className="py-2 pr-4">Supervisor</th>
@@ -303,6 +307,7 @@ export default function DegustacoesAdminPage() {
                   <td className="py-2.5 pr-4 text-gray-700">{s.city}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{s.address}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.store}</td>
+                  <td className="py-2.5 pr-4 text-gray-700">{s.clifor}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.productEvent}</td>
                   <td className="py-2.5 pr-4 text-gray-500 whitespace-nowrap">{s.eventTime}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.requesterName}</td>

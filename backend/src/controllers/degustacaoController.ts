@@ -13,12 +13,12 @@ const DEGUSTACAO_STATUSES = ['pendente', 'aprovada', 'reprovada'] as const;
 type DegustacaoStatus = (typeof DEGUSTACAO_STATUSES)[number];
 
 export async function createDegustacaoSolicitacao(req: Request, res: Response): Promise<void> {
-  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
+  const { requesterName, date, city, address, store, clifor, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
 
-  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
+  if (!requesterName || !date || !city || !address || !store || !clifor || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
     res.status(400).json({
       success: false,
-      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
+      error: 'Nome do solicitante, data, cidade, endereço, loja, clifor, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
     });
     return;
   }
@@ -62,6 +62,7 @@ export async function createDegustacaoSolicitacao(req: Request, res: Response): 
       city: String(city).trim(),
       address: String(address).trim(),
       store: String(store).trim(),
+      clifor: String(clifor).trim(),
       productEvent: String(productEvent).trim(),
       eventTime: String(eventTime).trim(),
       supervisor: String(supervisor).trim(),
@@ -148,12 +149,12 @@ export async function updateDegustacaoSolicitacaoStatus(req: AuthRequest, res: R
 
 export async function updateDegustacaoSolicitacao(req: AuthRequest, res: Response): Promise<void> {
   const { id } = req.params;
-  const { requesterName, date, city, address, store, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
+  const { requesterName, date, city, address, store, clifor, productEvent, eventTime, supervisor, sellerName, justification } = req.body;
 
-  if (!requesterName || !date || !city || !address || !store || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
+  if (!requesterName || !date || !city || !address || !store || !clifor || !productEvent || !eventTime || !supervisor || !sellerName || !justification) {
     res.status(400).json({
       success: false,
-      error: 'Nome do solicitante, data, cidade, endereço, loja, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
+      error: 'Nome do solicitante, data, cidade, endereço, loja, clifor, produto/evento, horário, supervisor, vendedor e justificativa são obrigatórios.',
     });
     return;
   }
@@ -178,6 +179,7 @@ export async function updateDegustacaoSolicitacao(req: AuthRequest, res: Respons
       city: String(city).trim(),
       address: String(address).trim(),
       store: String(store).trim(),
+      clifor: String(clifor).trim(),
       productEvent: String(productEvent).trim(),
       eventTime: String(eventTime).trim(),
       supervisor: String(supervisor).trim(),

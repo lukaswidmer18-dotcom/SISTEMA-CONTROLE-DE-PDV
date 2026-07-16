@@ -88,6 +88,7 @@ export default function PublicMyDegustacoesPage() {
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                    <p><span className="font-bold text-gray-400 uppercase text-[10px]">Clifor</span><br />{s.clifor}</p>
                     <p><span className="font-bold text-gray-400 uppercase text-[10px]">Cidade</span><br />{s.city}</p>
                     <p><span className="font-bold text-gray-400 uppercase text-[10px]">Horário</span><br />{s.eventTime}</p>
                     <p className="col-span-2"><span className="font-bold text-gray-400 uppercase text-[10px]">Endereço</span><br />{s.address}</p>
