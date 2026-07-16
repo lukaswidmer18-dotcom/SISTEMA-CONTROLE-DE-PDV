@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { UtensilsCrossed, RefreshCw, FileText, Check, X, Link2, Copy, Pencil, Trash2, AlertTriangle, ChevronLeft, ChevronRight, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const STATUS_LABEL: Record<DegustacaoSolicitacao['status'], string> = {
   pendente: 'Pendente',
@@ -185,6 +187,35 @@ export default function DegustacoesAdminPage() {
     }
   }
 
+  function exportPdf() {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('Solicitações de Degustação', 14, 12);
+    doc.setFontSize(9);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · ${solicitacoes.length} registro(s)`, 14, 18);
+
+    autoTable(doc, {
+      startY: 22,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [23, 65, 59] },
+      head: [['Data', 'Cidade', 'Loja', 'Clifor', 'Produto/Evento', 'Horário', 'Supervisor', 'Vendedor', 'Promotor', 'Status']],
+      body: solicitacoes.map(s => [
+        format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR }),
+        s.city,
+        s.store,
+        s.clifor || '-',
+        s.productEvent,
+        s.eventTime,
+        s.requesterName,
+        s.supervisor || '-',
+        s.sellerName || '-',
+        STATUS_LABEL[s.status],
+      ]),
+    });
+
+    doc.save(`degustacoes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+  }
+
   const debouncedSearch = useDebouncedValue(search, 300);
 
   async function load() {
@@ -257,14 +288,24 @@ export default function DegustacoesAdminPage() {
           <p className="text-sm text-gray-500 mt-1 font-medium">
             Solicitações de degustação enviadas pelo portal público.
           </p>
-          <button
-            onClick={copyRequestLink}
-            className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 bg-pluma-50 text-pluma-700 border border-pluma-200 rounded-xl text-xs font-bold hover:bg-pluma-100 transition-colors"
-          >
-            {linkCopied ? <Check size={14} /> : <Link2 size={14} />}
-            {linkCopied ? 'Link copiado!' : 'Compartilhar link de solicitação'}
-            {!linkCopied && <Copy size={12} className="opacity-60" />}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={copyRequestLink}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 bg-pluma-50 text-pluma-700 border border-pluma-200 rounded-xl text-xs font-bold hover:bg-pluma-100 transition-colors"
+            >
+              {linkCopied ? <Check size={14} /> : <Link2 size={14} />}
+              {linkCopied ? 'Link copiado!' : 'Compartilhar link de solicitação'}
+              {!linkCopied && <Copy size={12} className="opacity-60" />}
+            </button>
+            <button
+              onClick={exportPdf}
+              disabled={solicitacoes.length === 0}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 bg-pluma-800 text-white rounded-xl text-xs font-bold hover:bg-pluma-700 disabled:opacity-40 transition-colors"
+            >
+              <Download size={14} />
+              Exportar PDF
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 w-full lg:w-auto lg:min-w-[640px]">
           <div className="relative sm:col-span-2 lg:col-span-2">
