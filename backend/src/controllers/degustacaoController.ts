@@ -83,7 +83,7 @@ export async function listMyDegustacaoSolicitacoes(req: Request, res: Response):
   }
 
   const solicitacoes = await prisma.degustacaoSolicitacao.findMany({
-    where: { requesterName: { contains: nome } },
+    where: { requesterName: { contains: nome, mode: 'insensitive' } },
     orderBy: { date: 'desc' },
   });
 
@@ -94,9 +94,9 @@ export async function listAllDegustacaoSolicitacoes(req: Request, res: Response)
   const { from, to, city, requesterName, store } = req.query;
 
   const where: any = {};
-  if (city) where.city = { contains: city as string };
-  if (requesterName) where.requesterName = { contains: requesterName as string };
-  if (store) where.store = { contains: store as string };
+  if (city) where.city = { contains: city as string, mode: 'insensitive' };
+  if (requesterName) where.requesterName = { contains: requesterName as string, mode: 'insensitive' };
+  if (store) where.store = { contains: store as string, mode: 'insensitive' };
 
   const fromDate = parseDateOnly(from);
   const toDate = parseDateOnly(to);

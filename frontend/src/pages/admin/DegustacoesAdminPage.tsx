@@ -270,13 +270,13 @@ export default function DegustacoesAdminPage() {
             {!linkCopied && <Copy size={12} className="opacity-60" />}
           </button>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 w-36" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
-          <input type="text" placeholder="Filtrar supervisor..." className="input-field text-sm py-2.5 w-40" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
-          <input type="text" placeholder="Filtrar loja..." className="input-field text-sm py-2.5 w-40" value={filterStore} onChange={e => setFilterStore(e.target.value)} />
-          <input type="date" className="input-field text-sm py-2.5" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
-          <input type="date" className="input-field text-sm py-2.5" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
-          <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 w-full lg:w-auto">
+          <input type="text" placeholder="Filtrar cidade..." className="input-field text-sm py-2.5 col-span-1" value={filterCity} onChange={e => setFilterCity(e.target.value)} />
+          <input type="text" placeholder="Filtrar supervisor..." className="input-field text-sm py-2.5 col-span-1" value={filterRequester} onChange={e => setFilterRequester(e.target.value)} />
+          <input type="text" placeholder="Filtrar loja..." className="input-field text-sm py-2.5 col-span-1" value={filterStore} onChange={e => setFilterStore(e.target.value)} />
+          <input type="date" title="Data inicial" className="input-field text-sm py-2.5 col-span-1" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+          <input type="date" title="Data final" className="input-field text-sm py-2.5 col-span-1" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+          <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors flex items-center justify-center col-span-1">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
