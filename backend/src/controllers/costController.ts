@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { parseDateOnly } from '../utils/date';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 // Divisor padrão CLT (44h/semana) para converter salário mensal em custo/hora.
 const MONTHLY_HOURS = 220;

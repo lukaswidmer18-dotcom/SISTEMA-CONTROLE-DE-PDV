@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const PONTO_SEQUENCE = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'];
 

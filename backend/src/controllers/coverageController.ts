@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 type CoverageStatus = 'NAO_ATENDIDO' | 'EM_ATENDIMENTO' | 'ATENDIDO';
 

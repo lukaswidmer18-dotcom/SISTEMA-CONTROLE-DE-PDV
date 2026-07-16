@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { parseDateOnly } from '../utils/date';
 import { deleteFromBlob } from '../utils/blobStorage';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export async function listRoutes(req: Request, res: Response): Promise<void> {
   const authReq = req as any;

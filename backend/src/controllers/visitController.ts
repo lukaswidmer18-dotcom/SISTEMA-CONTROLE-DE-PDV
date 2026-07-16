@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import path from 'path';
 import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
 import { applyWatermark } from '../utils/watermark';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 type VisitWithDetails = Prisma.VisitGetPayload<{
   include: {

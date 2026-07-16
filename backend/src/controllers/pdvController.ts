@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { geocodeAddress } from '../utils/geocoding';
 import { todayDateOnly } from '../utils/date';
 import { parseCoordinate, distanceInMeters, median } from '../utils/location';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const GEOCODE_FAILED_MESSAGE =
   'Não foi possível localizar este endereço no mapa. Verifique o endereço, cidade e UF e tente novamente, ou informe a coordenada manual.';

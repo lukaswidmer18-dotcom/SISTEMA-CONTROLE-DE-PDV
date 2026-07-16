@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 type RiskLevel = 'CRITICO' | 'ATENCAO' | 'OK';
 const RISK_ORDER: Record<RiskLevel, number> = { CRITICO: 0, ATENCAO: 1, OK: 2 };

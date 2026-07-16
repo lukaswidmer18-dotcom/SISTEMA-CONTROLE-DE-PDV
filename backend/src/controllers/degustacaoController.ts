@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
 import { AuthRequest } from '../middleware/auth';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const MIN_LEAD_DAYS_ENABLED = false; // desativado a pedido do usuário (2026-07-14); reativar trocando pra true
 const MIN_LEAD_DAYS = 10;

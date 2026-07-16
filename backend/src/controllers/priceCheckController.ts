@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { parseDateOnly } from '../utils/date';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export async function listPriceChecks(req: Request, res: Response): Promise<void> {
   const { productId, pdvId, from, to } = req.query;

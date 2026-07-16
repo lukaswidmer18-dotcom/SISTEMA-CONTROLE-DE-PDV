@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 const VALID_ROLES = ['ADMIN', 'PROMOTOR'];
 
 function normalizeRole(role: unknown): string {

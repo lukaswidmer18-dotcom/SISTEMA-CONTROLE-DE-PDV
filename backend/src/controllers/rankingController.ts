@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export async function getPromotorRanking(_req: Request, res: Response): Promise<void> {
   const promotores = await prisma.user.findMany({ where: { role: 'PROMOTOR', active: true } });
