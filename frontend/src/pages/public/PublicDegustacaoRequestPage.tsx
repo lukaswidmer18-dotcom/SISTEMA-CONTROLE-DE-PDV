@@ -104,7 +104,6 @@ export default function PublicDegustacaoRequestPage() {
               <input
                 type="date"
                 required
-                min={minDate}
                 className={`input-field py-3 text-sm font-bold ${dateInvalid ? 'border-red-400 focus:border-red-500' : ''}`}
                 value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
