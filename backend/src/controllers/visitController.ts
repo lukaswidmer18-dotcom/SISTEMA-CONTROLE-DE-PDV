@@ -135,13 +135,6 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   const { visitId } = req.params;
   const { latitude, longitude, checklistItemId } = req.body;
 
-  const validation = await validateVisitInProgress(visitId, authReq.user.userId);
-  if (!validation.visit) {
-    res.status(validation.status).json({ success: false, error: validation.error });
-    return;
-  }
-  const { visit } = validation;
-
   if (!req.file) {
     res.status(400).json({ success: false, error: 'Foto não enviada.' });
     return;
@@ -152,8 +145,20 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const checklistItem = await prisma.checklistItem.findUnique({ where: { id: checklistItemId } });
-  if (!checklistItem || !checklistItem.active) {
+  // Uma query pro item + itens anteriores juntos (lista de checklist é pequena e cabe inteira em memória),
+  // em paralelo com a validação da visita — evita 2 round-trips sequenciais de banco.
+  const [validation, activeChecklistItems] = await Promise.all([
+    validateVisitInProgress(visitId, authReq.user.userId),
+    prisma.checklistItem.findMany({ where: { active: true }, orderBy: { order: 'asc' } }),
+  ]);
+  if (!validation.visit) {
+    res.status(validation.status).json({ success: false, error: validation.error });
+    return;
+  }
+  const { visit } = validation;
+
+  const checklistItem = activeChecklistItems.find((item) => item.id === checklistItemId);
+  if (!checklistItem) {
     res.status(400).json({ success: false, error: 'Item do checklist inválido ou inativo.' });
     return;
   }
@@ -172,10 +177,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const precedingItems = await prisma.checklistItem.findMany({
-    where: { active: true, order: { lt: checklistItem.order } },
-    orderBy: { order: 'asc' },
-  });
+  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order);
   const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < item.requiredCount);
   if (pendingPreceding) {
     res.status(422).json({

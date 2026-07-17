@@ -23,6 +23,7 @@ model User {
   rotas        RotaVisita[]
   ratingsGiven VisitRating[] @relation("RatedBy")
 
+  @@index([role, active])
   @@map("users")
 }
 
@@ -78,6 +79,8 @@ model Ponto {
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
   visit Visit? @relation(fields: [visitId], references: [id])
 
+  @@index([userId])
+  @@index([visitId])
   @@map("pontos")
 }
 
@@ -106,6 +109,10 @@ model Visit {
   rupturas    RupturaRegistro[]
   priceChecks PriceCheck[]
 
+  @@index([promotorId])
+  @@index([pdvId])
+  @@index([status])
+  @@index([startedAt])
   @@map("visits")
 }
 
@@ -121,6 +128,7 @@ model VisitRating {
   visit   Visit @relation(fields: [visitId], references: [id])
   ratedBy User? @relation("RatedBy", fields: [ratedById], references: [id], onDelete: SetNull)
 
+  @@index([ratedById])
   @@map("visit_ratings")
 }
 
@@ -137,6 +145,8 @@ model Photo {
   visit         Visit          @relation(fields: [visitId], references: [id])
   checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id])
 
+  @@index([visitId])
+  @@index([checklistItemId])
   @@map("photos")
 }
 
@@ -169,6 +179,8 @@ model RotaVisita {
   pdv      PDV?  @relation(fields: [pdvId], references: [id], onDelete: SetNull)
 
   @@unique([promotorId, pdvId, date])
+  @@index([pdvId])
+  @@index([date])
   @@map("rotas_visita")
 }
 
@@ -185,6 +197,7 @@ model RupturaRegistro {
   product Product @relation(fields: [productId], references: [id])
 
   @@unique([visitId, productId])
+  @@index([productId])
   @@map("ruptura_registros")
 }
 
@@ -227,6 +240,7 @@ model PriceCheck {
   product Product @relation(fields: [productId], references: [id])
 
   @@unique([visitId, productId])
+  @@index([productId])
   @@map("price_checks")
 }
 
@@ -241,5 +255,7 @@ model Validity {
   visit   Visit   @relation(fields: [visitId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 
+  @@index([visitId])
+  @@index([productId])
   @@map("validities")
 }
