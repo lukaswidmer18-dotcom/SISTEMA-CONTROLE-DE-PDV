@@ -12,7 +12,7 @@ import { getCoverageToday, getPdvsNaoVisitados } from '../controllers/coverageCo
 import { rateVisit } from '../controllers/ratingController';
 import { getPromotorRanking } from '../controllers/rankingController';
 import { getRupturaAlertas } from '../controllers/rupturaController';
-import { listPriceChecks } from '../controllers/priceCheckController';
+import { listPriceChecks, deletePriceCheckAdmin } from '../controllers/priceCheckController';
 import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus, updateDegustacaoSolicitacao, deleteDegustacaoSolicitacao } from '../controllers/degustacaoController';
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
 import {
@@ -103,6 +103,7 @@ router.get('/admin/ruptura/alertas', authenticate, requireAdmin, getRupturaAlert
 
 // Admin Pesquisa de Preço
 router.get('/admin/price-checks', authenticate, requireAdmin, listPriceChecks);
+router.delete('/admin/price-checks/:id', authenticate, requireAdmin, deletePriceCheckAdmin);
 
 // Degustação — portal público (sem login, identificação por nome), admin acompanha tudo
 router.post('/degustacoes/public', publicDegustacaoRateLimit, uploadPdf.single('document'), createDegustacaoSolicitacao);

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { parseDateOnly } from '../utils/date';
 import { prisma } from '../lib/prisma';
+import { deleteFromBlob } from '../utils/blobStorage';
 
 export async function listPriceChecks(req: Request, res: Response): Promise<void> {
   const { productId, pdvId, from, to } = req.query;
@@ -27,4 +28,21 @@ export async function listPriceChecks(req: Request, res: Response): Promise<void
   });
 
   res.json({ success: true, data: priceChecks });
+}
+
+export async function deletePriceCheckAdmin(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const priceCheck = await prisma.priceCheck.findUnique({ where: { id } });
+  if (!priceCheck) {
+    res.status(404).json({ success: false, error: 'Registro de preço não encontrado.' });
+    return;
+  }
+
+  await prisma.priceCheck.delete({ where: { id } });
+  if (priceCheck.photoPath) {
+    await deleteFromBlob(priceCheck.photoPath);
+  }
+
+  res.json({ success: true, data: null });
 }

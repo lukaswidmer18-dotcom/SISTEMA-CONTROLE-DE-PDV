@@ -1,10 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { PriceCheck, Product, PDV } from '../../types';
-import { Tags, RefreshCw, TrendingDown, TrendingUp, Camera } from 'lucide-react';
+import { Tags, RefreshCw, TrendingDown, TrendingUp, Camera, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+function ConfirmDeletePriceCheckModal({ priceCheck, loading, onConfirm, onCancel }: {
+  priceCheck: PriceCheck; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir registro de preço</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir o registro de <span className="font-semibold text-gray-700">"{priceCheck.product?.name}"</span>? Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PriceCheckPage() {
   const [priceChecks, setPriceChecks] = useState<PriceCheck[]>([]);
@@ -15,6 +50,8 @@ export default function PriceCheckPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<PriceCheck | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -40,6 +77,52 @@ export default function PriceCheckPage() {
 
   useEffect(() => { load(); }, [filterProduct, filterPdv]);
 
+  async function confirmDelete() {
+    if (!deleting) return;
+    setError('');
+    setDeletingId(deleting.id);
+    try {
+      await api.delete(`/admin/price-checks/${deleting.id}`);
+      setPriceChecks(prev => prev.filter(pc => pc.id !== deleting.id));
+      setDeleting(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir registro de preço.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function exportPdf() {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFontSize(14);
+    doc.text('Pesquisa de Preço', 14, 12);
+    doc.setFontSize(9);
+    doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} · ${priceChecks.length} registro(s)`, 14, 18);
+
+    autoTable(doc, {
+      startY: 22,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [23, 65, 59] },
+      head: [['Data', 'PDV', 'Produto', 'Nosso preço', 'Concorrente', 'Preço concorrente', 'Diferença', 'Promotor']],
+      body: priceChecks.map(pc => {
+        const diff = pc.competitorPrice != null ? pc.ownPrice - pc.competitorPrice : null;
+        const diffLabel = diff == null ? '-' : diff === 0 ? formatCurrency(0) : `${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'mais caro' : 'mais barato'}`;
+        return [
+          pc.createdAt ? format(new Date(pc.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-',
+          pc.visit?.pdv?.name || '-',
+          pc.product?.name || '-',
+          formatCurrency(pc.ownPrice),
+          pc.competitorName || '-',
+          pc.competitorPrice != null ? formatCurrency(pc.competitorPrice) : '-',
+          diffLabel,
+          pc.visit?.promotor?.name || '-',
+        ];
+      }),
+    });
+
+    doc.save(`pesquisa_preco_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -63,6 +146,14 @@ export default function PriceCheckPage() {
             <option value="">Todos os PDVs</option>
             {pdvs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          <button
+            onClick={exportPdf}
+            disabled={loading || priceChecks.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-white border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          >
+            <Download size={16} />
+            PDF
+          </button>
           <button onClick={load} disabled={loading} className="p-2.5 bg-pluma-800 text-white rounded-xl hover:bg-pluma-700 disabled:opacity-40 transition-colors">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -91,6 +182,7 @@ export default function PriceCheckPage() {
                 <th className="py-2 pr-4">Preço concorrente</th>
                 <th className="py-2 pr-4">Diferença</th>
                 <th className="py-2 pr-4">Promotor</th>
+                <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
@@ -129,6 +221,15 @@ export default function PriceCheckPage() {
                       )}
                     </td>
                     <td className="py-2.5 pr-4 text-gray-500">{pc.visit?.promotor?.name}</td>
+                    <td className="py-2.5 pr-4">
+                      <button
+                        onClick={() => setDeleting(pc)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -141,6 +242,15 @@ export default function PriceCheckPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md" onClick={() => setExpandedPhoto(null)}>
           <img src={expandedPhoto} alt="Expandida" className="max-w-[95vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl" />
         </div>
+      )}
+
+      {deleting && (
+        <ConfirmDeletePriceCheckModal
+          priceCheck={deleting}
+          loading={deletingId === deleting.id}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
       )}
     </div>
   );
