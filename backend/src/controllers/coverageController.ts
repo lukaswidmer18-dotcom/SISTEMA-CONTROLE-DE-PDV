@@ -22,7 +22,8 @@ export async function getCoverageToday(req: Request, res: Response): Promise<voi
     where: { startedAt: { gte: startOfDay, lte: endOfDay } },
   });
 
-  const coverage = routes.map((r) => {
+  const coverage = routes.filter((r) => r.pdv !== null).map((r) => {
+    const pdv = r.pdv!;
     const visit = visits.find((v) => v.promotorId === r.promotorId && v.pdvId === r.pdvId);
     let status: CoverageStatus = 'NAO_ATENDIDO';
     let checkin: { latitude: number | null; longitude: number | null; time: string } | null = null;
@@ -33,12 +34,12 @@ export async function getCoverageToday(req: Request, res: Response): Promise<voi
     return {
       rotaId: r.id,
       pdvId: r.pdvId,
-      pdvName: r.pdv.name,
-      pdvCity: r.pdv.city,
-      latitude: r.pdv.latitude,
-      longitude: r.pdv.longitude,
+      pdvName: pdv.name,
+      pdvCity: pdv.city,
+      latitude: pdv.latitude,
+      longitude: pdv.longitude,
       promotorId: r.promotorId,
-      promotorName: r.promotor.name,
+      promotorName: r.promotor?.name ?? null,
       status,
       checkin,
     };

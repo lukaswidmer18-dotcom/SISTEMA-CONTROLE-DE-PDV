@@ -67,7 +67,7 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
 
   if (activeVisit) {
     const geofence = checkGeofence(
-      activeVisit.pdv,
+      activeVisit.pdv ?? { latitude: null, longitude: null, radiusMeters: null },
       { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 },
       parseCoordinate(accuracy)
     );

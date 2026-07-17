@@ -65,7 +65,7 @@ model Product {
 
 model Ponto {
   id                String   @id @default(uuid())
-  userId            String
+  userId            String?
   visitId           String?
   type              String
   timestamp         DateTime @default(now())
@@ -75,7 +75,7 @@ model Ponto {
   batteryLevel      Int?
   createdAt         DateTime @default(now())
 
-  user  User   @relation(fields: [userId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
   visit Visit? @relation(fields: [visitId], references: [id])
 
   @@map("pontos")
@@ -83,8 +83,8 @@ model Ponto {
 
 model Visit {
   id               String    @id @default(uuid())
-  promotorId       String
-  pdvId            String
+  promotorId       String?
+  pdvId            String?
   status           String    @default("IN_PROGRESS")
   startedAt        DateTime  @default(now())
   completedAt      DateTime?
@@ -97,8 +97,8 @@ model Visit {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  promotor    User              @relation(fields: [promotorId], references: [id])
-  pdv         PDV               @relation(fields: [pdvId], references: [id])
+  promotor    User?             @relation(fields: [promotorId], references: [id], onDelete: SetNull)
+  pdv         PDV?              @relation(fields: [pdvId], references: [id], onDelete: SetNull)
   photos      Photo[]
   validities  Validity[]
   pontos      Ponto[]
@@ -113,13 +113,13 @@ model VisitRating {
   id        String   @id @default(uuid())
   visitId   String   @unique
   score     Float
-  ratedById String
+  ratedById String?
   ratedAt   DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   visit   Visit @relation(fields: [visitId], references: [id])
-  ratedBy User  @relation("RatedBy", fields: [ratedById], references: [id])
+  ratedBy User? @relation("RatedBy", fields: [ratedById], references: [id], onDelete: SetNull)
 
   @@map("visit_ratings")
 }
@@ -156,8 +156,8 @@ model ChecklistItem {
 
 model RotaVisita {
   id            String    @id @default(uuid())
-  promotorId    String
-  pdvId         String
+  promotorId    String?
+  pdvId         String?
   date          DateTime
   order         Int       @default(0)
   justification String?
@@ -165,8 +165,8 @@ model RotaVisita {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  promotor User @relation(fields: [promotorId], references: [id])
-  pdv      PDV  @relation(fields: [pdvId], references: [id])
+  promotor User? @relation(fields: [promotorId], references: [id], onDelete: SetNull)
+  pdv      PDV?  @relation(fields: [pdvId], references: [id], onDelete: SetNull)
 
   @@unique([promotorId, pdvId, date])
   @@map("rotas_visita")

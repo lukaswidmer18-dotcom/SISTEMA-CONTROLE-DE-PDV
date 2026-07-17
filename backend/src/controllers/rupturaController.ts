@@ -28,14 +28,14 @@ export async function getRupturaAlertas(req: Request, res: Response): Promise<vo
     if (!latestByKey.has(key)) latestByKey.set(key, r);
   }
 
-  const alertas = Array.from(latestByKey.values()).map((r) => ({
+  const alertas = Array.from(latestByKey.values()).filter((r) => r.visit.pdv !== null).map((r) => ({
     id: r.id,
     pdvId: r.visit.pdvId,
-    pdvName: r.visit.pdv.name,
-    pdvCity: r.visit.pdv.city,
+    pdvName: r.visit.pdv!.name,
+    pdvCity: r.visit.pdv!.city,
     productId: r.productId,
     productName: r.product.name,
-    promotorName: r.visit.promotor.name,
+    promotorName: r.visit.promotor?.name ?? null,
     qtyGondola: r.qtyGondola,
     qtyDeposito: r.qtyDeposito,
     qtySeparadoTroca: r.qtySeparadoTroca,

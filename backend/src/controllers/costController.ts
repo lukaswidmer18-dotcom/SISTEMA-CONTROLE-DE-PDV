@@ -42,17 +42,17 @@ export async function getVisitCosts(req: Request, res: Response): Promise<void> 
   });
 
   const data = visits.map((v) => {
-    const hourlyCost = hourlyRate(v.promotor.monthlySalary);
+    const hourlyCost = hourlyRate(v.promotor?.monthlySalary ?? null);
     const { durationHours, cost } = computeCost(v.startedAt, v.completedAt!, hourlyCost);
     const boxes = v.boxesGenerated;
 
     return {
       visitId: v.id,
-      pdvId: v.pdv.id,
-      pdvName: v.pdv.name,
-      pdvCity: v.pdv.city,
-      promotorId: v.promotor.id,
-      promotorName: v.promotor.name,
+      pdvId: v.pdv?.id ?? null,
+      pdvName: v.pdv?.name ?? null,
+      pdvCity: v.pdv?.city ?? null,
+      promotorId: v.promotor?.id ?? null,
+      promotorName: v.promotor?.name ?? null,
       completedAt: v.completedAt,
       durationHours,
       hourlyCost,
@@ -80,15 +80,16 @@ export async function getPdvCostSummary(req: Request, res: Response): Promise<vo
   }>();
 
   for (const v of visits) {
-    const { cost } = computeCost(v.startedAt, v.completedAt!, hourlyRate(v.promotor.monthlySalary));
-    const entry = byPdv.get(v.pdvId) || {
+    if (!v.pdv) continue;
+    const { cost } = computeCost(v.startedAt, v.completedAt!, hourlyRate(v.promotor?.monthlySalary ?? null));
+    const entry = byPdv.get(v.pdv.id) || {
       pdvId: v.pdv.id, pdvName: v.pdv.name, pdvCity: v.pdv.city,
       visitCount: 0, totalCost: 0, costKnownCount: 0, totalBoxes: 0, boxesKnownCount: 0,
     };
     entry.visitCount += 1;
     if (cost != null) { entry.totalCost += cost; entry.costKnownCount += 1; }
     if (v.boxesGenerated != null) { entry.totalBoxes += v.boxesGenerated; entry.boxesKnownCount += 1; }
-    byPdv.set(v.pdvId, entry);
+    byPdv.set(v.pdv.id, entry);
   }
 
   const data = Array.from(byPdv.values()).map((e) => {

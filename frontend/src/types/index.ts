@@ -106,7 +106,7 @@ export interface VisitRating {
   id: string;
   visitId: string;
   score: number;
-  ratedById: string;
+  ratedById: string | null;
   ratedAt: string;
 }
 
@@ -130,7 +130,7 @@ export interface RupturaAlerta {
   pdvCity: string;
   productId: string;
   productName: string;
-  promotorName: string;
+  promotorName: string | null;
   qtyGondola: number;
   qtyDeposito: number;
   qtySeparadoTroca: number;
@@ -154,8 +154,8 @@ export interface PriceCheck {
 
 export interface Visit {
   id: string;
-  promotorId: string;
-  pdvId: string;
+  promotorId: string | null;
+  pdvId: string | null;
   status: VisitStatus;
   startedAt: string;
   completedAt?: string | null;
@@ -191,8 +191,8 @@ export interface PromotorRanking {
 
 export interface RotaVisita {
   id: string;
-  promotorId: string;
-  pdvId: string;
+  promotorId: string | null;
+  pdvId: string | null;
   date: string;
   order: number;
   justification?: string | null;
@@ -211,8 +211,8 @@ export interface CoverageEntry {
   pdvCity: string;
   latitude?: number | null;
   longitude?: number | null;
-  promotorId: string;
-  promotorName: string;
+  promotorId: string | null;
+  promotorName: string | null;
   status: CoverageStatus;
   checkin: { latitude: number | null; longitude: number | null; time: string } | null;
 }
@@ -227,11 +227,11 @@ export interface PdvNaoVisitado {
 
 export interface VisitCostEntry {
   visitId: string;
-  pdvId: string;
-  pdvName: string;
-  pdvCity: string;
-  promotorId: string;
-  promotorName: string;
+  pdvId: string | null;
+  pdvName: string | null;
+  pdvCity: string | null;
+  promotorId: string | null;
+  promotorName: string | null;
   completedAt: string;
   durationHours: number;
   hourlyCost: number | null;

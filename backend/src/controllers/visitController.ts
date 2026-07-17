@@ -191,8 +191,8 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   const dateTimeFormat: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
   const watermarkLines = [
     new Date().toLocaleString('pt-BR', dateTimeFormat),
-    `Promotor: ${visit.promotor.name}`,
-    `PDV: ${visit.pdv.name} · ${visit.pdv.city}`,
+    `Promotor: ${visit.promotor?.name ?? 'N/D'}`,
+    `PDV: ${visit.pdv?.name ?? 'N/D'} · ${visit.pdv?.city ?? ''}`,
     `Início da visita: ${visit.startedAt.toLocaleString('pt-BR', dateTimeFormat)}`,
     coordinates.latitude != null && coordinates.longitude != null
       ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
@@ -594,7 +594,7 @@ export async function listAllVisits(req: Request, res: Response): Promise<void> 
     orderBy: { startedAt: 'desc' },
   });
 
-  const promotorIds = Array.from(new Set(visits.map((v) => v.promotorId)));
+  const promotorIds = Array.from(new Set(visits.map((v) => v.promotorId).filter((id): id is string => id !== null)));
   const dateKeys = Array.from(new Set(visits.map((v) => v.startedAt.toISOString().slice(0, 10))));
   const routes = promotorIds.length
     ? await prisma.rotaVisita.findMany({
@@ -667,13 +667,13 @@ export async function getMapData(req: Request, res: Response): Promise<void> {
     const activeVisit = userVisits.find((v) => v.status === 'IN_PROGRESS');
     if (activeVisit) {
       status = 'EM_VISITA';
-      currentPDV = activeVisit.pdv.name;
+      currentPDV = activeVisit.pdv?.name ?? null;
       if (hasRealLocation(activeVisit.latitudeStart, activeVisit.longitudeStart)) {
         lastLocation = { lat: activeVisit.latitudeStart, lng: activeVisit.longitudeStart, time: activeVisit.startedAt };
       } else if (userPontos.length > 0) {
         const lastPonto = userPontos[userPontos.length - 1];
         lastLocation = { lat: lastPonto.latitude, lng: lastPonto.longitude, time: lastPonto.timestamp };
-      } else if (hasRealLocation(activeVisit.pdv.latitude, activeVisit.pdv.longitude)) {
+      } else if (activeVisit.pdv && hasRealLocation(activeVisit.pdv.latitude, activeVisit.pdv.longitude)) {
         // GPS do promotor falhou na visita — usa a coordenada cadastrada do PDV como aproximação
         lastLocation = { lat: activeVisit.pdv.latitude, lng: activeVisit.pdv.longitude, time: activeVisit.startedAt };
       }
@@ -686,8 +686,8 @@ export async function getMapData(req: Request, res: Response): Promise<void> {
     // Gerar o rastro (sequência de pontos temporais) — ignora pontos sem localização real
     const trail = [
       ...userPontos.map((p) => ({ lat: p.latitude, lng: p.longitude, time: p.timestamp, type: 'PONTO', label: p.type, state: null })),
-      ...userVisits.filter(v => hasRealLocation(v.latitudeStart, v.longitudeStart)).map((v) => ({ lat: v.latitudeStart, lng: v.longitudeStart, time: v.startedAt, type: 'VISITA_START', label: `Início: ${v.pdv.name}`, state: v.pdv.state })),
-      ...userVisits.filter(v => hasRealLocation(v.latitudeEnd, v.longitudeEnd)).map((v) => ({ lat: v.latitudeEnd, lng: v.longitudeEnd, time: v.completedAt, type: 'VISITA_END', label: `Fim: ${v.pdv.name}`, state: v.pdv.state })),
+      ...userVisits.filter(v => hasRealLocation(v.latitudeStart, v.longitudeStart)).map((v) => ({ lat: v.latitudeStart, lng: v.longitudeStart, time: v.startedAt, type: 'VISITA_START', label: `Início: ${v.pdv?.name ?? 'PDV removido'}`, state: v.pdv?.state ?? null })),
+      ...userVisits.filter(v => hasRealLocation(v.latitudeEnd, v.longitudeEnd)).map((v) => ({ lat: v.latitudeEnd, lng: v.longitudeEnd, time: v.completedAt, type: 'VISITA_END', label: `Fim: ${v.pdv?.name ?? 'PDV removido'}`, state: v.pdv?.state ?? null })),
     ].sort((a, b) => new Date(a.time!).getTime() - new Date(b.time!).getTime());
 
     return {
@@ -695,7 +695,7 @@ export async function getMapData(req: Request, res: Response): Promise<void> {
       promotorName: user.name,
       status,
       currentPDV,
-      lastState: activeVisit?.pdv?.state || (userVisits.length > 0 ? userVisits[userVisits.length - 1].pdv.state : null),
+      lastState: activeVisit?.pdv?.state || (userVisits.length > 0 ? userVisits[userVisits.length - 1].pdv?.state ?? null : null),
       lastLocation,
       trail,
     };

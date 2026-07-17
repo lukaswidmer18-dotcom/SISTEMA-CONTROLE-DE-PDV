@@ -165,19 +165,6 @@ export async function deletePDV(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const [visitsCount, rotasCount] = await Promise.all([
-    prisma.visit.count({ where: { pdvId: id } }),
-    prisma.rotaVisita.count({ where: { pdvId: id } }),
-  ]);
-
-  if (visitsCount > 0 || rotasCount > 0) {
-    res.status(409).json({
-      success: false,
-      error: 'Este PDV já tem histórico (visitas ou rotas) e não pode ser excluído. Use "Desativar" para removê-lo sem perder o histórico.',
-    });
-    return;
-  }
-
   await prisma.pDV.delete({ where: { id } });
   res.json({ success: true, data: null });
 }
