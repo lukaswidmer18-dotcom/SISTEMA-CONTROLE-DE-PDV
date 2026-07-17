@@ -286,10 +286,6 @@ export default function PromotorHome() {
     return visited ? 'VISITADA' : 'PENDENTE';
   }
 
-  function handleSelectPdv(pdv: PDV) {
-    setSelectedPdv(prev => (prev?.id === pdv.id ? null : pdv));
-  }
-
   async function handleStartVisit(pdv: PDV) {
     setVisitError('');
     try {
@@ -512,9 +508,8 @@ export default function PromotorHome() {
               return (
                 <div
                   key={route.id}
-                  onClick={() => handleSelectPdv(route.pdv as PDV)}
-                  className={`border rounded-xl px-4 py-3 cursor-pointer transition-colors ${
-                    isSelectedPdv ? 'bg-pluma-50 border-pluma-300' : 'bg-gray-50 border-gray-100 hover:border-pluma-200'
+                  className={`border rounded-xl px-4 py-3 transition-colors ${
+                    isSelectedPdv ? 'bg-pluma-50 border-pluma-300' : 'bg-gray-50 border-gray-100'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -534,10 +529,7 @@ export default function PromotorHome() {
                     </div>
                     {status === 'PENDENTE' && !activeVisit && (
                       <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleStartVisit(route.pdv as PDV);
-                        }}
+                        onClick={() => handleStartVisit(route.pdv as PDV)}
                         disabled={starting}
                         className="p-2.5 bg-pluma-800 text-white rounded-full hover:bg-pluma-700 disabled:opacity-40 transition-colors shrink-0 shadow-sm"
                         title="Iniciar visita"
@@ -553,10 +545,7 @@ export default function PromotorHome() {
                     </div>
                   ) : canJustify ? (
                     <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        setJustifyRoute(route);
-                      }}
+                      onClick={() => setJustifyRoute(route)}
                       className="mt-2 ml-11 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-800 transition-colors"
                     >
                       <MessageSquareWarning size={13} /> Justificar não comparecimento
