@@ -13,7 +13,7 @@ import { isLocalVisit, getVisitReference, clearOfflineActiveVisit } from '../../
 import { getNextPonto } from '../../utils/ponto';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium, Play } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   ENTRADA: 'Início',
@@ -301,6 +301,9 @@ export default function PromotorHome() {
         load();
       }
     } catch (err: any) {
+      // Mantém o PDV selecionado pra exibir o erro no painel "PDV Selecionado" mesmo quando o
+      // início foi disparado direto pelo botão de play, sem passar pela etapa de seleção.
+      setSelectedPdv(pdv);
       setVisitError(err.response?.data?.error || err.message || 'Erro ao iniciar visita.');
     }
   }
@@ -521,12 +524,27 @@ export default function PromotorHome() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{route.pdv.name}</p>
-                        {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
+                          <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
+                            {STATUS_LABELS[status]}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
-                      {STATUS_LABELS[status]}
-                    </span>
+                    {status === 'PENDENTE' && !activeVisit && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleStartVisit(route.pdv as PDV);
+                        }}
+                        disabled={starting}
+                        className="p-2.5 bg-pluma-800 text-white rounded-full hover:bg-pluma-700 disabled:opacity-40 transition-colors shrink-0 shadow-sm"
+                        title="Iniciar visita"
+                      >
+                        <Play size={16} fill="currentColor" />
+                      </button>
+                    )}
                   </div>
                   {route.justification ? (
                     <div className="mt-2 ml-11 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
