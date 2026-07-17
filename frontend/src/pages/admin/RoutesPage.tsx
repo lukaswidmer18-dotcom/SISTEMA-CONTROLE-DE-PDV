@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, MessageSquareWarning, GripVertical } from 'lucide-react';
+import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, MessageSquareWarning, GripVertical } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -55,7 +55,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   availablePdvs: PDV[];
   isToday: boolean;
   onAdd: (pdvId: string) => void;
-  onRemove: (routeId: string) => void;
+  onRemove: (route: RotaVisita) => void;
   onReorder: (orderedIds: string[]) => void;
 }) {
   const dayColor = DAY_COLORS[dayOfWeek];
@@ -131,7 +131,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
                   <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
                   {r.pdv?.name}
                 </p>
-                <button onClick={() => onRemove(r.id)} className="p-0.5 text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => onRemove(r)} className="p-0.5 text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <X size={14} />
                 </button>
               </div>
@@ -211,6 +211,39 @@ function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
   );
 }
 
+function ConfirmRemoveRouteModal({ route, loading, onConfirm, onCancel }: {
+  route: RotaVisita; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Remover PDV da rota</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Remover <span className="font-semibold text-gray-700">"{route.pdv?.name}"</span> da rota também apaga a visita do dia (fotos, checklist e demais dados), caso já tenha sido iniciada. Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Removendo...' : 'Remover'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const GERAL_VALUE = '__geral__';
 
 export default function RoutesPage() {
@@ -224,6 +257,8 @@ export default function RoutesPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [removingRoute, setRemovingRoute] = useState<RotaVisita | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset]);
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -373,18 +408,22 @@ export default function RoutesPage() {
     }
   }
 
-  async function handleRemove(routeId: string) {
-    const confirmed = window.confirm(
-      'Remover este PDV da rota também apaga a visita do dia (fotos, checklist e demais dados), caso já tenha sido iniciada. Essa ação não pode ser desfeita. Deseja continuar?',
-    );
-    if (!confirmed) return;
+  function handleRemove(route: RotaVisita) {
+    setRemovingRoute(route);
+  }
 
+  async function confirmRemove() {
+    if (!removingRoute) return;
     setError('');
+    setRemoving(true);
     try {
-      await api.delete(`/routes/${routeId}`);
+      await api.delete(`/routes/${removingRoute.id}`);
       await loadRoutes(selectedPromotor, weekDates);
+      setRemovingRoute(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao remover PDV da rota.');
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -598,6 +637,15 @@ export default function RoutesPage() {
             </div>
           )}
         </div>
+      )}
+
+      {removingRoute && (
+        <ConfirmRemoveRouteModal
+          route={removingRoute}
+          loading={removing}
+          onConfirm={confirmRemove}
+          onCancel={() => setRemovingRoute(null)}
+        />
       )}
     </div>
   );
