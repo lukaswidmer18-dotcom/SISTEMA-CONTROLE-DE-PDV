@@ -76,9 +76,9 @@ const navEntries: NavEntry[] = [
       label: 'Cadastros',
       icon: Database,
       items: [
-        { to: '/admin/usuarios', label: 'Usuários', icon: Users },
         { to: '/admin/pdvs', label: 'PDVs', icon: MapPin },
         { to: '/admin/produtos', label: 'Produtos', icon: Package },
+        { to: '/admin/usuarios', label: 'Usuários', icon: Users },
       ],
     },
   },
