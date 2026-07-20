@@ -549,7 +549,7 @@ export async function getVisitDetail(req: Request, res: Response): Promise<void>
     include: {
       pdv: true,
       promotor: { select: { id: true, name: true, email: true } },
-      photos: true,
+      photos: { include: { checklistItem: true } },
       validities: { include: { product: true } },
       rupturas: { include: { product: true } },
       priceChecks: { include: { product: true } },

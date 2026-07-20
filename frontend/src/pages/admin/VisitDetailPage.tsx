@@ -6,12 +6,14 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
+import PhotoCaption from '../../components/photos/PhotoCaption';
+import { Photo } from '../../types';
 
 export default function VisitDetailPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<Photo | null>(null);
   const [savingRating, setSavingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
 
@@ -123,15 +125,28 @@ export default function VisitDetailPage() {
           <Camera size={16} /> Fotos ({visit.photos?.length || 0}/10)
         </h3>
         {visit.photos && visit.photos.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {visit.photos.map((photo) => (
-              <button
-                key={photo.id}
-                onClick={() => setLightbox(photo.filePath)}
-                className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-pluma-400 transition-colors"
-              >
-                <img src={photo.filePath} alt="Foto" className="w-full h-full object-cover" />
-              </button>
+              <div key={photo.id}>
+                <button
+                  onClick={() => setLightbox(photo)}
+                  className="aspect-square w-full rounded-lg overflow-hidden border border-gray-200 hover:border-pluma-400 transition-colors"
+                >
+                  <img src={photo.filePath} alt={photo.checklistItem?.label || 'Foto'} className="w-full h-full object-cover" />
+                </button>
+                <PhotoCaption
+                  photo={{
+                    itemLabel: photo.checklistItem?.label,
+                    pdvName: visit.pdv?.name,
+                    pdvCity: visit.pdv?.city,
+                    pdvState: visit.pdv?.state,
+                    promotorName: visit.promotor?.name,
+                    uploadedAt: photo.uploadedAt,
+                    latitude: photo.latitude,
+                    longitude: photo.longitude,
+                  }}
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -198,8 +213,23 @@ export default function VisitDetailPage() {
 
       {/* Lightbox */}
       {lightbox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Foto" className="max-w-full max-h-full rounded-lg object-contain" onClick={e => e.stopPropagation()} />
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4" onClick={() => setLightbox(null)}>
+          <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" onClick={e => e.stopPropagation()} />
+          <div onClick={e => e.stopPropagation()}>
+            <PhotoCaption
+              variant="lightbox"
+              photo={{
+                itemLabel: lightbox.checklistItem?.label,
+                pdvName: visit.pdv?.name,
+                pdvCity: visit.pdv?.city,
+                pdvState: visit.pdv?.state,
+                promotorName: visit.promotor?.name,
+                uploadedAt: lightbox.uploadedAt,
+                latitude: lightbox.latitude,
+                longitude: lightbox.longitude,
+              }}
+            />
+          </div>
           <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/80">
             ✕
           </button>
