@@ -78,7 +78,7 @@ function ProductModal({ product, pdvs, onClose, onSaved }: {
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
             <input className="input-field" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
@@ -86,7 +86,7 @@ function ProductModal({ product, pdvs, onClose, onSaved }: {
             <input className="input-field" value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">SKU / Código</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
             <input className="input-field" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} />
           </div>
           <div>
