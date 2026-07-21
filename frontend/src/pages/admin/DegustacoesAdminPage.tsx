@@ -48,6 +48,11 @@ interface EditForm {
   justification: string;
 }
 
+function formatDateOnly(dateStr: string): string {
+  const [year, month, day] = dateStr.slice(0, 10).split('-');
+  return `${day}/${month}/${year}`;
+}
+
 function toEditForm(s: DegustacaoSolicitacao): EditForm {
   return {
     requesterName: s.requesterName,
@@ -200,7 +205,7 @@ export default function DegustacoesAdminPage() {
       headStyles: { fillColor: [23, 65, 59] },
       head: [['Data', 'Cidade', 'Loja', 'Clifor', 'Produto/Evento', 'Horário', 'Supervisor', 'Vendedor', 'Promotor', 'Status']],
       body: solicitacoes.map(s => [
-        format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR }),
+        formatDateOnly(s.date),
         s.city,
         s.store,
         s.clifor || '-',
@@ -370,7 +375,7 @@ export default function DegustacoesAdminPage() {
             <tbody>
               {paginated.map(s => (
                 <tr key={s.id} className="border-b border-gray-50 last:border-b-0">
-                  <td className="py-2.5 pr-4 font-bold text-gray-800 whitespace-nowrap">{format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                  <td className="py-2.5 pr-4 font-bold text-gray-800 whitespace-nowrap">{formatDateOnly(s.date)}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.city}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{s.address}</td>
                   <td className="py-2.5 pr-4 text-gray-700">{s.store}</td>

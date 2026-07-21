@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
 import { ClipboardList, Search, ArrowLeft } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+
+function formatDateOnly(dateStr: string): string {
+  const [year, month, day] = dateStr.slice(0, 10).split('-');
+  return `${day}/${month}/${year}`;
+}
 
 const STATUS_LABEL: Record<DegustacaoSolicitacao['status'], string> = {
   pendente: 'Em análise',
@@ -80,7 +83,7 @@ export default function PublicMyDegustacoesPage() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <span className="text-xs font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full">
-                        {format(new Date(s.date), 'dd/MM/yyyy', { locale: ptBR })}
+                        {formatDateOnly(s.date)}
                       </span>
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${STATUS_BADGE[s.status]}`}>
                         {STATUS_LABEL[s.status]}
