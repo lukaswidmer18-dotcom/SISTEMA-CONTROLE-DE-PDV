@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit } from '../../types';
+import { Visit, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronRight, Camera, Calendar, MapPin, ClipboardList, Store, Clock, AlertCircle } from 'lucide-react';
+import { getRequiredPhotoTotal } from '../../utils/checklist';
 
 export default function VisitHistoryPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
 
   useEffect(() => {
     async function load() {
       try {
-        const { data } = await api.get('/visits/my');
-        setVisits(data.data || []);
+        const [visitsRes, checklistRes] = await Promise.all([
+          api.get('/visits/my'),
+          api.get('/checklist'),
+        ]);
+        setVisits(visitsRes.data.data || []);
+        setRequiredPhotoTotal(getRequiredPhotoTotal((checklistRes.data.data || []) as ChecklistItem[]));
       } finally {
         setLoading(false);
       }
@@ -90,9 +96,9 @@ export default function VisitHistoryPage() {
                       {format(new Date(v.startedAt), 'HH:mm')} – {v.completedAt ? format(new Date(v.completedAt), 'HH:mm') : '...' }
                     </div>
                     <div className="flex items-center gap-2 text-xs font-semibold">
-                      <Camera size={14} className={v._count?.photos && v._count.photos >= 10 ? 'text-green-500' : 'text-orange-400'} />
-                      <span className={v._count?.photos && v._count.photos >= 10 ? 'text-green-700' : 'text-orange-600'}>
-                        {v._count?.photos || 0}/10 Fotos
+                      <Camera size={14} className={v._count?.photos && v._count.photos >= requiredPhotoTotal ? 'text-green-500' : 'text-orange-400'} />
+                      <span className={v._count?.photos && v._count.photos >= requiredPhotoTotal ? 'text-green-700' : 'text-orange-600'}>
+                        {v._count?.photos || 0}/{requiredPhotoTotal} Fotos
                       </span>
                     </div>
                     {v.noProductsFound && (

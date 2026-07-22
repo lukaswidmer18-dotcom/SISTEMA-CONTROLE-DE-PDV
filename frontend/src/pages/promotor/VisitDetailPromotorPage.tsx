@@ -123,8 +123,8 @@ export default function VisitDetailPromotorPage() {
 
       {lightbox && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" onClick={e => e.stopPropagation()} />
-          <div onClick={e => e.stopPropagation()}>
+          <div className="flex flex-col gap-2 w-fit max-w-full" onClick={e => e.stopPropagation()}>
+            <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" />
             <PhotoCaption
               variant="lightbox"
               photo={{

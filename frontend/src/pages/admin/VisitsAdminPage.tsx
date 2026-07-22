@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit } from '../../types';
+import { Visit, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Eye, AlertTriangle } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
+import { getRequiredPhotoTotal } from '../../utils/checklist';
 
 export default function VisitsAdminPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -16,6 +17,7 @@ export default function VisitsAdminPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [pdvs, setPdvs] = useState<any[]>([]);
+  const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -26,14 +28,16 @@ export default function VisitsAdminPage() {
       if (filterPdv) params.append('pdvId', filterPdv);
       if (filterStatus) params.append('status', filterStatus);
 
-      const [visitsRes, usersRes, pdvsRes] = await Promise.all([
+      const [visitsRes, usersRes, pdvsRes, checklistRes] = await Promise.all([
         api.get(`/visits/all?${params}`),
         api.get('/users'),
         api.get('/pdvs'),
+        api.get('/checklist'),
       ]);
       setVisits(visitsRes.data.data || []);
       setUsers(usersRes.data.data || []);
       setPdvs(pdvsRes.data.data || []);
+      setRequiredPhotoTotal(getRequiredPhotoTotal((checklistRes.data.data || []) as ChecklistItem[]));
     } finally {
       setLoading(false);
     }
@@ -110,8 +114,8 @@ export default function VisitsAdminPage() {
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex gap-3 text-xs text-gray-500">
-                    <span className={v._count?.photos && v._count.photos >= 10 ? 'text-green-600 font-medium' : 'text-red-500'}>
-                      {v._count?.photos || 0}/10 fotos
+                    <span className={v._count?.photos && v._count.photos >= requiredPhotoTotal ? 'text-green-600 font-medium' : 'text-red-500'}>
+                      {v._count?.photos || 0}/{requiredPhotoTotal} fotos
                     </span>
                     <span>{v.noProductsFound ? <span className="text-orange-500">S/ produtos</span> : `${v._count?.validities || 0} validades`}</span>
                   </div>
@@ -168,8 +172,8 @@ export default function VisitsAdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500">
-                      <span className={v._count?.photos && v._count.photos >= 10 ? 'text-green-600 font-medium' : 'text-red-500'}>
-                        {v._count?.photos || 0}/10
+                      <span className={v._count?.photos && v._count.photos >= requiredPhotoTotal ? 'text-green-600 font-medium' : 'text-red-500'}>
+                        {v._count?.photos || 0}/{requiredPhotoTotal}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500">

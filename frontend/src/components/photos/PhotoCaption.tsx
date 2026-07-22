@@ -29,7 +29,7 @@ export default function PhotoCaption({ photo, variant = 'card' }: PhotoCaptionPr
 
   if (variant === 'lightbox') {
     return (
-      <div className="text-white text-xs sm:text-sm space-y-0.5 bg-black/70 rounded-lg px-3 py-2 max-w-[95vw]">
+      <div className="w-full text-white text-sm sm:text-base space-y-1 bg-black/70 rounded-lg px-4 py-3">
         {photo.itemLabel && <p className="font-bold">{photo.itemLabel}</p>}
         {location && <p>{location}</p>}
         <p>
@@ -37,7 +37,7 @@ export default function PhotoCaption({ photo, variant = 'card' }: PhotoCaptionPr
           {photo.promotorName ? ` · ${photo.promotorName}` : ''}
         </p>
         {photo.latitude != null && photo.longitude != null && (
-          <p className="font-mono text-[10px] text-gray-300">
+          <p className="font-mono text-xs text-gray-300">
             GPS: {photo.latitude.toFixed(5)}, {photo.longitude.toFixed(5)}
           </p>
         )}

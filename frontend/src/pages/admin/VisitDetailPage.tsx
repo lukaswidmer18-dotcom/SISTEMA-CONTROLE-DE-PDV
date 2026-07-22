@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit } from '../../types';
+import { Visit, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 import PhotoCaption from '../../components/photos/PhotoCaption';
 import { Photo } from '../../types';
+import { getRequiredPhotoTotal } from '../../utils/checklist';
 
 export default function VisitDetailPage() {
   const { visitId } = useParams<{ visitId: string }>();
@@ -16,12 +17,17 @@ export default function VisitDetailPage() {
   const [lightbox, setLightbox] = useState<Photo | null>(null);
   const [savingRating, setSavingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
+  const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
 
   useEffect(() => {
     async function load() {
       try {
-        const { data } = await api.get(`/visits/${visitId}`);
-        setVisit(data.data);
+        const [visitRes, checklistRes] = await Promise.all([
+          api.get(`/visits/${visitId}`),
+          api.get('/checklist'),
+        ]);
+        setVisit(visitRes.data.data);
+        setRequiredPhotoTotal(getRequiredPhotoTotal((checklistRes.data.data || []) as ChecklistItem[]));
       } finally {
         setLoading(false);
       }
@@ -122,7 +128,7 @@ export default function VisitDetailPage() {
       {/* Photos */}
       <div className="card mb-4">
         <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <Camera size={16} /> Fotos ({visit.photos?.length || 0}/10)
+          <Camera size={16} /> Fotos ({visit.photos?.length || 0}/{requiredPhotoTotal})
         </h3>
         {visit.photos && visit.photos.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -214,8 +220,8 @@ export default function VisitDetailPage() {
       {/* Lightbox */}
       {lightbox && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" onClick={e => e.stopPropagation()} />
-          <div onClick={e => e.stopPropagation()}>
+          <div className="flex flex-col gap-2 w-fit max-w-full" onClick={e => e.stopPropagation()}>
+            <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" />
             <PhotoCaption
               variant="lightbox"
               photo={{
