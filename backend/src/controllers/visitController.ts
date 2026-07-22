@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
-import path from 'path';
 import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
-import { applyWatermark } from '../utils/watermark';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 import { prisma } from '../lib/prisma';
 
@@ -189,15 +187,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
 
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
-  const ext = path.extname(req.file.originalname);
-  let photoBuffer = req.file.buffer;
-  try {
-    photoBuffer = await applyWatermark(req.file.buffer, ext);
-  } catch (err) {
-    console.error('Erro ao aplicar marca d\'água na foto:', err);
-  }
-
-  const { url, pathname } = await uploadToBlob(photoBuffer, req.file.originalname, 'photos');
+  const { url, pathname } = await uploadToBlob(req.file.buffer, req.file.originalname, 'photos');
 
   const photo = await prisma.photo.create({
     data: {
