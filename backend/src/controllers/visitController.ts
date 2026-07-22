@@ -190,19 +190,9 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
   const ext = path.extname(req.file.originalname);
-  const dateTimeFormat: Intl.DateTimeFormatOptions = { dateStyle: 'short', timeStyle: 'short' };
-  const watermarkLines = [
-    new Date().toLocaleString('pt-BR', dateTimeFormat),
-    `Promotor: ${visit.promotor?.name ?? 'N/D'}`,
-    `PDV: ${visit.pdv?.name ?? 'N/D'} · ${visit.pdv?.city ?? ''}`,
-    `Início da visita: ${visit.startedAt.toLocaleString('pt-BR', dateTimeFormat)}`,
-    coordinates.latitude != null && coordinates.longitude != null
-      ? `GPS: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
-      : 'GPS: indisponível',
-  ];
   let photoBuffer = req.file.buffer;
   try {
-    photoBuffer = await applyWatermark(req.file.buffer, ext, watermarkLines);
+    photoBuffer = await applyWatermark(req.file.buffer, ext);
   } catch (err) {
     console.error('Erro ao aplicar marca d\'água na foto:', err);
   }
