@@ -631,6 +631,10 @@ export async function getMapData(req: Request, res: Response): Promise<void> {
     orderBy: { timestamp: 'asc' },
   });
 
+  // Última posição enviada pelo ping em tempo real (enquanto promotor está em visita)
+  const liveLocations = await prisma.promotorLocation.findMany();
+  const liveLocationByUser = new Map(liveLocations.map((l) => [l.userId, l]));
+
   // Coordenada (0,0) é o valor de contingência enviado quando o GPS falha — não é localização real
   const hasRealLocation = (lat: number | null | undefined, lng: number | null | undefined) =>
     lat !== null && lat !== undefined && lng !== null && lng !== undefined && (lat !== 0 || lng !== 0);
@@ -663,6 +667,12 @@ export async function getMapData(req: Request, res: Response): Promise<void> {
       status = 'LOGADO';
       const lastPonto = userPontos[userPontos.length - 1];
       lastLocation = { lat: lastPonto.latitude, lng: lastPonto.longitude, time: lastPonto.timestamp };
+    }
+
+    // Ping de posição em tempo real prevalece se for mais recente que o que já foi calculado
+    const live = liveLocationByUser.get(user.id);
+    if (live && (!lastLocation || live.updatedAt > lastLocation.time!)) {
+      lastLocation = { lat: live.latitude, lng: live.longitude, time: live.updatedAt };
     }
 
     // Gerar o rastro (sequência de pontos temporais) — ignora pontos sem localização real

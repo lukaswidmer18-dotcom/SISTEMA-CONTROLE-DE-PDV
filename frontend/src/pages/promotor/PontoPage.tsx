@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Ponto, PontoType, Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
 import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
+import { useLocationPing } from '../../hooks/useLocationPing';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
@@ -376,6 +377,7 @@ export default function PontoPage() {
 
   const { refreshCount, lastSyncTime } = useOfflineSyncContext();
   const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
+  useLocationPing(!!visit && visit.status === 'IN_PROGRESS');
 
   async function load() {
     setLoading(true);

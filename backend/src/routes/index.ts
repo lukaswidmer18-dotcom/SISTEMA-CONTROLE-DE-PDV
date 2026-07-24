@@ -15,6 +15,7 @@ import { getRupturaAlertas } from '../controllers/rupturaController';
 import { listPriceChecks, deletePriceCheckAdmin } from '../controllers/priceCheckController';
 import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus, updateDegustacaoSolicitacao, deleteDegustacaoSolicitacao } from '../controllers/degustacaoController';
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
+import { pingLocation } from '../controllers/locationController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
   addRuptura, deleteRuptura, addPriceCheck, deletePriceCheck, finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
@@ -69,6 +70,9 @@ router.put('/checklist/:id', authenticate, requireAdmin, updateChecklistItem);
 router.patch('/checklist/:id/toggle', authenticate, requireAdmin, toggleChecklistItemActive);
 router.patch('/checklist/reorder', authenticate, requireAdmin, reorderChecklistItems);
 router.delete('/checklist/:id', authenticate, requireAdmin, deleteChecklistItem);
+
+// Localização em tempo real do promotor (ping periódico enquanto em visita)
+router.post('/promotores/location', authenticate, pingLocation);
 
 // Ponto
 router.get('/ponto/today', authenticate, getTodayPonto);

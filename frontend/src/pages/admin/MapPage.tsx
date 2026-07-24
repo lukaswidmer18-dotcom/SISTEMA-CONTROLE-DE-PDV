@@ -99,7 +99,7 @@ export default function MapPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(fetchData, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -228,7 +228,7 @@ export default function MapPage() {
                       <div className="space-y-2">
                         <div className="flex items-start gap-2"><Store size={14} className="text-gray-400 mt-0.5" /><div><p className="text-[10px] text-gray-400 uppercase font-bold leading-none mb-0.5">Local Atual</p><p className="text-[11px] font-semibold text-gray-700 leading-tight">{p.currentPDV || 'Fora de Visita'}</p></div></div>
                         <div className="flex items-start gap-2"><Clock size={14} className="text-gray-400 mt-0.5" /><div><p className="text-[10px] text-gray-400 uppercase font-bold leading-none mb-0.5">Última Atualização</p><p className="text-[11px] font-semibold text-gray-700 leading-tight">{format(new Date(p.lastLocation!.time), "HH:mm 'de' dd/MM", { locale: ptBR })}</p></div></div>
-                        <div className="flex items-start gap-2"><Navigation size={14} className="text-gray-400 mt-0.5" /><div><p className="text-[10px] text-gray-400 uppercase font-bold leading-none mb-0.5">Conexão</p><p className={`text-[11px] font-bold leading-tight ${new Date().getTime() - new Date(p.lastLocation!.time).getTime() < 600000 ? 'text-green-600' : 'text-orange-500'}`}>{new Date().getTime() - new Date(p.lastLocation!.time).getTime() < 600000 ? 'Online (Ativo)' : 'Inativo há +10min'}</p></div></div>
+                        <div className="flex items-start gap-2"><Navigation size={14} className="text-gray-400 mt-0.5" /><div><p className="text-[10px] text-gray-400 uppercase font-bold leading-none mb-0.5">Conexão</p><p className={`text-[11px] font-bold leading-tight ${new Date().getTime() - new Date(p.lastLocation!.time).getTime() < 90000 ? 'text-green-600' : 'text-orange-500'}`}>{new Date().getTime() - new Date(p.lastLocation!.time).getTime() < 90000 ? 'Online (Ativo)' : 'Sem sinal recente'}</p></div></div>
                       </div>
                       <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${p.lastLocation!.lat},${p.lastLocation!.lng}`, '_blank')} className="w-full mt-3 py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-lg hover:bg-black transition-colors flex items-center justify-center gap-1.5"><MapPin size={12} />Abrir no Google Maps</button>
                     </div>

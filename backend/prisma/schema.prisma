@@ -22,9 +22,21 @@ model User {
   visits       Visit[]
   rotas        RotaVisita[]
   ratingsGiven VisitRating[] @relation("RatedBy")
+  location     PromotorLocation?
 
   @@index([role, active])
   @@map("users")
+}
+
+model PromotorLocation {
+  userId    String   @id
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("promotor_locations")
 }
 
 model PDV {
