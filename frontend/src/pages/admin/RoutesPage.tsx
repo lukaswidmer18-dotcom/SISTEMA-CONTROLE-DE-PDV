@@ -63,7 +63,9 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
     function updateRect() {
       if (!containerRef.current) return;
       const r = containerRef.current.getBoundingClientRect();
-      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      const width = Math.max(r.width, 280);
+      const left = Math.min(r.left, window.innerWidth - width - 8);
+      setRect({ top: r.bottom + 4, left: Math.max(left, 8), width });
     }
     updateRect();
     document.addEventListener('mousedown', handleClickOutside);
@@ -101,18 +103,18 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
       </div>
       {open && options.length > 0 && rect && createPortal(
         <div
-          className="fixed z-[200] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+          className="fixed z-[200] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
           style={{ top: rect.top, left: rect.left, width: rect.width }}
         >
           {filtered.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-gray-400 italic">Nenhum PDV encontrado.</p>
+            <p className="px-3 py-2 text-sm text-gray-400 italic">Nenhum PDV encontrado.</p>
           ) : (
             filtered.map(p => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => handleSelect(p)}
-                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-pluma-50 hover:text-pluma-800 truncate"
+                className="w-full text-left px-3 py-2 text-sm leading-snug text-gray-700 hover:bg-pluma-50 hover:text-pluma-800"
               >
                 {p.name}{p.city ? ` — ${p.city}` : ''}
               </button>
