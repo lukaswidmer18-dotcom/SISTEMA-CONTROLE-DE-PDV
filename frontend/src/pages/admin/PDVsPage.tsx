@@ -236,7 +236,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold text-gray-800">{isEdit ? 'Editar PDV' : 'Novo PDV'}</h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>

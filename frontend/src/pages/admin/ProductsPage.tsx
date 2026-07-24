@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import { PDV, Product } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle, Download, Upload, Search } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
@@ -47,8 +47,13 @@ function ProductModal({ product, pdvs, onClose, onSaved }: {
   const isEdit = Boolean(product);
   const [form, setForm] = useState({ name: product?.name || '', brand: product?.brand || '', sku: product?.sku || '' });
   const [pdvIds, setPdvIds] = useState<string[]>(product?.pdvs?.map(p => p.id) || []);
+  const [pdvSearch, setPdvSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const filteredPdvs = pdvSearch.trim()
+    ? pdvs.filter(pdv => `${pdv.name} ${pdv.city}`.toLowerCase().includes(pdvSearch.trim().toLowerCase()))
+    : pdvs;
 
   function togglePdv(id: string) {
     setPdvIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
@@ -100,19 +105,34 @@ function ProductModal({ product, pdvs, onClose, onSaved }: {
             {pdvs.length === 0 ? (
               <p className="text-xs text-gray-400 italic">Nenhum PDV cadastrado.</p>
             ) : (
-              <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
-                {pdvs.map(pdv => (
-                  <label key={pdv.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-pluma-800 rounded border-gray-300"
-                      checked={pdvIds.includes(pdv.id)}
-                      onChange={() => togglePdv(pdv.id)}
-                    />
-                    <span className="text-gray-700">{pdv.name}{pdv.city ? ` — ${pdv.city}` : ''}</span>
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    className="input-field pl-8 text-sm"
+                    placeholder="Buscar PDV por nome ou cidade..."
+                    value={pdvSearch}
+                    onChange={e => setPdvSearch(e.target.value)}
+                  />
+                </div>
+                <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
+                  {filteredPdvs.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-400 italic">Nenhum PDV encontrado.</p>
+                  ) : (
+                    filteredPdvs.map(pdv => (
+                      <label key={pdv.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-pluma-800 rounded border-gray-300"
+                          checked={pdvIds.includes(pdv.id)}
+                          onChange={() => togglePdv(pdv.id)}
+                        />
+                        <span className="text-gray-700">{pdv.name}{pdv.city ? ` — ${pdv.city}` : ''}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </>
             )}
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
