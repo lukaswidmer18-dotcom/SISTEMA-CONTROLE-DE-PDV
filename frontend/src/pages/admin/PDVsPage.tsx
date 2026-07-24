@@ -69,6 +69,27 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
     'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
   ];
+  const [cities, setCities] = useState<string[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+
+  useEffect(() => {
+    if (!form.state) {
+      setCities([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCities(true);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${form.state}/municipios`)
+      .then(res => res.json())
+      .then((data: { nome: string }[]) => {
+        if (cancelled) return;
+        setCities(data.map(m => m.nome));
+      })
+      .catch(() => { if (!cancelled) setCities([]); })
+      .finally(() => { if (!cancelled) setLoadingCities(false); });
+    return () => { cancelled = true; };
+  }, [form.state]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [warning, setWarning] = useState('');
@@ -195,18 +216,27 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
             <input className="input-field" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-            <input className="input-field" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado (UF)</label>
-            <select 
-              className="input-field" 
-              value={form.state} 
-              onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+            <select
+              className="input-field"
+              value={form.state}
+              onChange={e => setForm(f => ({ ...f, state: e.target.value, city: '' }))}
             >
               <option value="">Selecione...</option>
               {UFS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+            <select
+              className="input-field"
+              value={form.city}
+              disabled={!form.state || loadingCities}
+              onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+            >
+              <option value="">{!form.state ? 'Selecione o estado primeiro' : loadingCities ? 'Carregando...' : 'Selecione...'}</option>
+              {form.city && !cities.includes(form.city) && <option value={form.city}>{form.city}</option>}
+              {cities.map(city => <option key={city} value={city}>{city}</option>)}
             </select>
           </div>
           <div>
