@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
-import { Plus, X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, MessageSquareWarning, GripVertical } from 'lucide-react';
+import { X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, MessageSquareWarning, GripVertical, Search } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -48,6 +48,65 @@ function getWeekStart(weekOffset: number): Date {
   return addDays(todayMidnight, -todayMidnight.getDay() + weekOffset * 7);
 }
 
+function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: string) => void }) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const filtered = search.trim()
+    ? options.filter(p => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : options;
+
+  function handleSelect(pdv: PDV) {
+    onAdd(pdv.id);
+    setSearch('');
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative flex-1">
+      <div className="relative">
+        <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="input-field text-xs py-2 pl-6 w-full"
+          placeholder={options.length === 0 ? 'Sem PDVs disponíveis' : 'Buscar PDV...'}
+          value={search}
+          disabled={options.length === 0}
+          onFocus={() => setOpen(true)}
+          onChange={e => { setSearch(e.target.value); setOpen(true); }}
+        />
+      </div>
+      {open && options.length > 0 && (
+        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-gray-400 italic">Nenhum PDV encontrado.</p>
+          ) : (
+            filtered.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handleSelect(p)}
+                className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-pluma-50 hover:text-pluma-800 truncate"
+              >
+                {p.name}{p.city ? ` — ${p.city}` : ''}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onRemove, onReorder }: {
   dayOfWeek: number;
   date: Date;
@@ -59,7 +118,6 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   onReorder: (orderedIds: string[]) => void;
 }) {
   const dayColor = DAY_COLORS[dayOfWeek];
-  const [selectedPdv, setSelectedPdv] = useState('');
   const [orderedRoutes, setOrderedRoutes] = useState(routes);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -67,12 +125,6 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   const options = availablePdvs.filter(p => !assignedIds.has(p.id));
 
   useEffect(() => { setOrderedRoutes(routes); }, [routes]);
-
-  function handleAdd() {
-    if (!selectedPdv) return;
-    onAdd(selectedPdv);
-    setSelectedPdv('');
-  }
 
   function handleDrop(targetIndex: number) {
     if (dragIndex === null || dragIndex === targetIndex) {
@@ -148,18 +200,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
       </div>
 
       <div className="flex gap-1.5 mt-3 pt-3 border-t border-gray-100">
-        <select
-          className="input-field text-xs py-2 flex-1"
-          value={selectedPdv}
-          onChange={e => setSelectedPdv(e.target.value)}
-          disabled={options.length === 0}
-        >
-          <option value="">{options.length === 0 ? 'Sem PDVs disponíveis' : 'Adicionar PDV...'}</option>
-          {options.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <button onClick={handleAdd} disabled={!selectedPdv} className="p-2 bg-pluma-800 text-white rounded-lg hover:bg-pluma-700 disabled:opacity-30 shrink-0 transition-colors">
-          <Plus size={15} />
-        </button>
+        <PdvSearchAdd options={options} onAdd={onAdd} />
       </div>
     </div>
   );
