@@ -33,6 +33,8 @@ model PDV {
   address      String   @default("")
   city         String   @default("")
   state        String   @default("")
+  channel      String   @default("")
+  network      String   @default("")
   latitude     Float?
   longitude    Float?
   radiusMeters Int?

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../services/api';
 import { PDV } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed, Download, Upload } from 'lucide-react';
+import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
 
 // Fix for default marker icons in Leaflet with React (bundler não resolve os assets sem isso)
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -62,6 +63,8 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     address: pdv?.address || '',
     city: pdv?.city || '',
     state: pdv?.state || '',
+    channel: pdv?.channel || '',
+    network: pdv?.network || '',
     radiusMeters: pdv?.radiusMeters ? String(pdv.radiusMeters) : '',
     manualCoord: ''
   });
@@ -170,7 +173,10 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
 
     setLoading(true);
     try {
-      const payload: any = { name: form.name, address: form.address, city: form.city, state: form.state, radiusMeters: form.radiusMeters };
+      const payload: any = {
+        name: form.name, address: form.address, city: form.city, state: form.state,
+        channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
+      };
       if (clearCoord) {
         payload.clearCoordinates = true;
       } else if (!Number.isNaN(manual.latitude)) {
@@ -194,6 +200,31 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao salvar PDV.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGeocodeNow() {
+    if (!savedId) return;
+    setError('');
+    setWarning('');
+    setLoading(true);
+    try {
+      const payload = {
+        name: form.name, address: form.address, city: form.city, state: form.state,
+        channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
+        forceGeocode: true,
+      };
+      const { data } = await api.put(`/pdvs/${savedId}`, payload);
+      onSaved();
+      if (data.warning) {
+        setWarning(data.warning);
+      } else {
+        onClose();
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao buscar coordenada.');
     } finally {
       setLoading(false);
     }
@@ -238,6 +269,16 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               {form.city && !cities.includes(form.city) && <option value={form.city}>{form.city}</option>}
               {cities.map(city => <option key={city} value={city}>{city}</option>)}
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Canal</label>
+              <input className="input-field" value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rede</label>
+              <input className="input-field" value={form.network} onChange={e => setForm(f => ({ ...f, network: e.target.value }))} />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Raio de tolerância (metros) *</label>
@@ -307,6 +348,16 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
                     ? 'Deixe em branco e salve pra manter a coordenada atual sem alteração.'
                     : 'Use só se o endereço não for encontrado no mapa. No Google Maps, clique com o botão direito no local exato e copie as coordenadas (formato "lat, lng"). Se preenchido, tem prioridade sobre o endereço e ignora o geocoding automático.'}
                 </p>
+                {savedId && !hasSavedCoord && (
+                  <button
+                    type="button"
+                    onClick={handleGeocodeNow}
+                    disabled={loading}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-pluma-700 hover:text-pluma-900 mt-2 disabled:opacity-40"
+                  >
+                    <MapPin size={13} /> Buscar coordenada a partir do endereço
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -401,6 +452,10 @@ export default function PDVsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; pdv?: PDV | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<PDV | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
@@ -419,13 +474,58 @@ export default function PDVsPage() {
     load();
   }
 
+  async function handleDownloadTemplate() {
+    setDownloadingTemplate(true);
+    try {
+      const response = await api.get('/pdvs/import-template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'modelo-importacao-pdvs.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/pdvs/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImportResult(data.data);
+      load();
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-2xl font-bold text-gray-800">PDVs</h2>
-        <button onClick={() => setModal({ open: true })} className="btn-primary">
-          <Plus size={16} /> Novo PDV
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="btn-secondary">
+            <Download size={16} /> {downloadingTemplate ? 'Baixando...' : 'Baixar modelo'}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing} className="btn-secondary">
+            <Upload size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
+          <button onClick={() => setModal({ open: true })} className="btn-primary">
+            <Plus size={16} /> Novo PDV
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -529,6 +629,10 @@ export default function PDVsPage() {
 
       {deleteTarget && (
         <DeletePDVModal pdv={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={load} />
+      )}
+
+      {importResult && (
+        <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
       )}
     </div>
   );

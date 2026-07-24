@@ -2,7 +2,10 @@ import { Request, Response } from 'express';
 import { geocodeAddress } from '../utils/geocoding';
 import { todayDateOnly } from '../utils/date';
 import { parseCoordinate, distanceInMeters, median } from '../utils/location';
+import { buildPdvImportTemplate, parsePdvImportWorkbook } from '../utils/pdvImport';
 import { prisma } from '../lib/prisma';
+
+const IMPORT_DEFAULT_RADIUS_METERS = 150;
 
 const GEOCODE_FAILED_MESSAGE =
   'Não foi possível localizar este endereço no mapa. Verifique o endereço, cidade e UF e tente novamente, ou informe a coordenada manual.';
@@ -44,7 +47,7 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
 }
 
 export async function createPDV(req: Request, res: Response): Promise<void> {
-  const { name, address, city, state, radiusMeters, latitude, longitude } = req.body;
+  const { name, address, city, state, channel, network, radiusMeters, latitude, longitude } = req.body;
   if (!name) {
     res.status(400).json({ success: false, error: 'Nome é obrigatório.' });
     return;
@@ -64,6 +67,8 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
       address: trimmedAddress,
       city: trimmedCity,
       state: trimmedState,
+      channel: channel?.trim() || '',
+      network: network?.trim() || '',
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
       radiusMeters: parseRadiusMeters(radiusMeters) ?? null,
@@ -80,7 +85,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
 
 export async function updatePDV(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, city, state, active, radiusMeters, latitude, longitude, clearCoordinates } = req.body;
+  const { name, address, city, state, channel, network, active, radiusMeters, latitude, longitude, clearCoordinates, forceGeocode } = req.body;
 
   const pdv = await prisma.pDV.findUnique({ where: { id } });
   if (!pdv) {
@@ -93,6 +98,8 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
   if (address !== undefined) updateData.address = address.trim();
   if (city !== undefined) updateData.city = city.trim();
   if (state !== undefined) updateData.state = state.trim().toUpperCase();
+  if (channel !== undefined) updateData.channel = channel.trim();
+  if (network !== undefined) updateData.network = network.trim();
   if (active !== undefined) updateData.active = Boolean(active);
   if (radiusMeters !== undefined) updateData.radiusMeters = parseRadiusMeters(radiusMeters);
 
@@ -123,7 +130,7 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
   } else if (manual) {
     updateData.latitude = manual.latitude;
     updateData.longitude = manual.longitude;
-  } else if (addressChanged) {
+  } else if (addressChanged || forceGeocode === true || forceGeocode === 'true') {
     const geocoded = await geocodeAddress(nextAddress, nextCity, nextState);
     if (geocoded) {
       updateData.latitude = geocoded.latitude;
@@ -167,6 +174,84 @@ export async function deletePDV(req: Request, res: Response): Promise<void> {
 
   await prisma.pDV.delete({ where: { id } });
   res.json({ success: true, data: null });
+}
+
+export async function downloadPdvImportTemplate(req: Request, res: Response): Promise<void> {
+  const buffer = await buildPdvImportTemplate();
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="modelo-importacao-pdvs.xlsx"');
+  res.send(buffer);
+}
+
+export async function importPdvs(req: Request, res: Response): Promise<void> {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'Selecione um arquivo .xlsx para importar.' });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = await parsePdvImportWorkbook(req.file.buffer);
+  } catch (err) {
+    res.status(400).json({ success: false, error: 'Não foi possível ler o arquivo. Confirme que é um .xlsx válido.' });
+    return;
+  }
+
+  const messages = [...parsed.messages];
+  let created = 0;
+  let updated = 0;
+
+  for (const row of parsed.rows) {
+    try {
+      const existing = await prisma.pDV.findFirst({
+        where: {
+          name: { equals: row.name, mode: 'insensitive' },
+          address: { equals: row.address, mode: 'insensitive' },
+        },
+      });
+
+      if (existing) {
+        await prisma.pDV.update({
+          where: { id: existing.id },
+          data: {
+            city: row.city,
+            state: row.state,
+            channel: row.channel,
+            network: row.network,
+            active: row.active,
+          },
+        });
+        updated++;
+      } else {
+        await prisma.pDV.create({
+          data: {
+            name: row.name,
+            address: row.address,
+            city: row.city,
+            state: row.state,
+            channel: row.channel,
+            network: row.network,
+            active: row.active,
+            radiusMeters: IMPORT_DEFAULT_RADIUS_METERS,
+          },
+        });
+        created++;
+      }
+    } catch (err) {
+      messages.push({ row: row.rowNumber, type: 'error', text: 'Erro ao salvar essa linha. Tente novamente.' });
+    }
+  }
+
+  res.json({
+    success: true,
+    data: {
+      totalRows: parsed.rows.length,
+      created,
+      updated,
+      messages,
+      note: 'Coordenadas não são calculadas no import em massa (evita estourar o tempo do servidor). PDVs novos entram com raio de 150m mas aparecem "Sem área" até você configurar a coordenada em cada um.',
+    },
+  });
 }
 
 const GPS_SUGGESTION_SAMPLE_LIMIT = 20;

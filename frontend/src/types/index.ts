@@ -38,6 +38,8 @@ export interface PDV {
   address: string;
   city: string;
   state: string;
+  channel: string;
+  network: string;
   latitude?: number | null;
   longitude?: number | null;
   radiusMeters?: number | null;
