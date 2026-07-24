@@ -33,3 +33,18 @@ export const uploadPdf = multer({
   fileFilter: pdfFileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+
+const excelFileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext === '.xlsx') {
+    cb(null, true);
+  } else {
+    cb(new Error('Apenas arquivos .xlsx são permitidos.'));
+  }
+};
+
+export const uploadExcel = multer({
+  storage,
+  fileFilter: excelFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});

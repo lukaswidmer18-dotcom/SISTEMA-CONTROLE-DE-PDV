@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
 import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, getPdvGpsSuggestion } from '../controllers/pdvController';
-import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct } from '../controllers/productController';
+import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct, downloadProductImportTemplate, importProducts } from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry, reorderRouteEntries } from '../controllers/routeController';
 import {
   listChecklistItems, createChecklistItem, updateChecklistItem, toggleChecklistItemActive, deleteChecklistItem, reorderChecklistItems,
@@ -20,7 +20,7 @@ import {
   addRuptura, deleteRuptura, addPriceCheck, deletePriceCheck, finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
 } from '../controllers/visitController';
 import { authenticate, requireAdmin } from '../middleware/auth';
-import { upload, uploadPdf } from '../middleware/upload';
+import { upload, uploadPdf, uploadExcel } from '../middleware/upload';
 import { publicDegustacaoRateLimit } from '../middleware/publicRateLimit';
 
 const router = Router();
@@ -46,6 +46,8 @@ router.get('/pdvs/:id/gps-sugestao', authenticate, requireAdmin, getPdvGpsSugges
 
 // Products
 router.get('/products', authenticate, listProducts);
+router.get('/products/import-template', authenticate, requireAdmin, downloadProductImportTemplate);
+router.post('/products/import', authenticate, requireAdmin, uploadExcel.single('file'), importProducts);
 router.post('/products', authenticate, requireAdmin, createProduct);
 router.put('/products/:id', authenticate, requireAdmin, updateProduct);
 router.patch('/products/:id/toggle', authenticate, requireAdmin, toggleProductActive);

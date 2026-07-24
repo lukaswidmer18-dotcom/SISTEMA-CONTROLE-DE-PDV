@@ -1,7 +1,74 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 import { PDV, Product } from '../../types';
-import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle, Download, Upload, CheckCircle2 } from 'lucide-react';
+
+interface ImportMessage {
+  row: number;
+  type: 'error' | 'warning';
+  text: string;
+}
+
+interface ImportResult {
+  totalRows: number;
+  created: number;
+  updated: number;
+  messages: ImportMessage[];
+}
+
+function ImportResultModal({ result, onClose }: { result: ImportResult; onClose: () => void }) {
+  const errors = result.messages.filter(m => m.type === 'error');
+  const warnings = result.messages.filter(m => m.type === 'warning');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-green-600" /> Importação concluída
+          </h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-lg font-bold text-gray-800">{result.totalRows}</p>
+              <p className="text-xs text-gray-500">Linhas lidas</p>
+            </div>
+            <div className="bg-green-50 rounded-lg p-3">
+              <p className="text-lg font-bold text-green-700">{result.created}</p>
+              <p className="text-xs text-green-600">Criados</p>
+            </div>
+            <div className="bg-pluma-50 rounded-lg p-3">
+              <p className="text-lg font-bold text-pluma-700">{result.updated}</p>
+              <p className="text-xs text-pluma-600">Atualizados</p>
+            </div>
+          </div>
+
+          {errors.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-red-700 mb-1">Linhas não importadas ({errors.length})</p>
+              <ul className="text-xs text-red-600 bg-red-50 rounded-lg p-3 space-y-1 max-h-32 overflow-y-auto">
+                {errors.map((m, i) => <li key={i}>Linha {m.row}: {m.text}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {warnings.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-amber-700 mb-1">Avisos ({warnings.length})</p>
+              <ul className="text-xs text-amber-700 bg-amber-50 rounded-lg p-3 space-y-1 max-h-32 overflow-y-auto">
+                {warnings.map((m, i) => <li key={i}>Linha {m.row}: {m.text}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <button onClick={onClose} className="btn-primary w-full">Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ConfirmDeleteModal({ product, loading, onConfirm, onCancel }: {
   product: Product; loading: boolean; onConfirm: () => void; onCancel: () => void;
@@ -129,6 +196,10 @@ export default function ProductsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [error, setError] = useState('');
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
@@ -164,6 +235,48 @@ export default function ProductsPage() {
     }
   }
 
+  async function handleDownloadTemplate() {
+    setError('');
+    setDownloadingTemplate(true);
+    try {
+      const response = await api.get('/products/import-template', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'modelo-importacao-produtos.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Erro ao baixar o modelo.');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setError('');
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await api.post('/products/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImportResult(data.data);
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao importar a planilha.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   function pdvBadges(p: Product) {
     if (!p.pdvs || p.pdvs.length === 0) {
       return <span className="text-xs text-gray-400 italic">Nenhum PDV</span>;
@@ -181,11 +294,20 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Produtos</h2>
-        <button onClick={() => setModal({ open: true })} className="btn-primary">
-          <Plus size={16} /> Novo Produto
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="btn-secondary">
+            <Download size={16} /> {downloadingTemplate ? 'Baixando...' : 'Baixar modelo'}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing} className="btn-secondary">
+            <Upload size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
+          <button onClick={() => setModal({ open: true })} className="btn-primary">
+            <Plus size={16} /> Novo Produto
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -282,6 +404,10 @@ export default function ProductsPage() {
           onConfirm={confirmDelete}
           onCancel={() => setProductToDelete(null)}
         />
+      )}
+
+      {importResult && (
+        <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
       )}
     </div>
   );
