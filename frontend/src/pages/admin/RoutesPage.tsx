@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { PDV, RotaVisita, User } from '../../types';
 import { X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, MessageSquareWarning, GripVertical, Search } from 'lucide-react';
@@ -51,6 +52,7 @@ function getWeekStart(weekOffset: number): Date {
 function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: string) => void }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,8 +60,20 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
     }
+    function updateRect() {
+      if (!containerRef.current) return;
+      const r = containerRef.current.getBoundingClientRect();
+      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    updateRect();
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', updateRect, true);
+    window.addEventListener('resize', updateRect);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', updateRect, true);
+      window.removeEventListener('resize', updateRect);
+    };
   }, [open]);
 
   const filtered = search.trim()
@@ -85,8 +99,11 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
           onChange={e => { setSearch(e.target.value); setOpen(true); }}
         />
       </div>
-      {open && options.length > 0 && (
-        <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+      {open && options.length > 0 && rect && createPortal(
+        <div
+          className="fixed z-[200] bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+          style={{ top: rect.top, left: rect.left, width: rect.width }}
+        >
           {filtered.length === 0 ? (
             <p className="px-3 py-2 text-xs text-gray-400 italic">Nenhum PDV encontrado.</p>
           ) : (
@@ -101,7 +118,8 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
               </button>
             ))
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
