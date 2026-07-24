@@ -7,6 +7,8 @@ import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, Ch
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
+import { useColumnFilters } from '../../hooks/useColumnFilters';
+import ColumnFilter from '../../components/ui/ColumnFilter';
 
 // Fix for default marker icons in Leaflet with React (bundler não resolve os assets sem isso)
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -454,7 +456,15 @@ export default function PDVsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; pdv?: PDV | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<PDV | null>(null);
-  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(pdvs);
+  const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(pdvs, {
+    name: p => [p.name],
+    address: p => [p.address || '-'],
+    city: p => [p.city || '-'],
+    state: p => [p.state || '-'],
+    geo: p => [isGeofenceReady(p) ? 'Configurada' : 'Não configurada'],
+    status: p => [p.active ? 'Ativo' : 'Inativo'],
+  });
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(filteredItems);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -516,7 +526,14 @@ export default function PDVsPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">PDVs</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800">PDVs</h2>
+          {activeFilterCount > 0 && (
+            <button onClick={clearAllFilters} className="text-xs font-medium text-pluma-700 hover:text-pluma-900 hover:underline">
+              Limpar filtros ({activeFilterCount})
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="btn-secondary">
             <Download size={16} /> {downloadingTemplate ? 'Baixando...' : 'Baixar modelo'}
@@ -535,6 +552,11 @@ export default function PDVsPage() {
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : pdvs.length === 0 ? (
         <div className="card text-center py-8 text-gray-400">Nenhum PDV cadastrado.</div>
+      ) : filteredItems.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">
+          Nenhum resultado com os filtros aplicados.
+          <button onClick={clearAllFilters} className="block mx-auto mt-2 text-pluma-700 font-medium text-sm hover:underline">Limpar filtros</button>
+        </div>
       ) : (
         <>
           {/* Cards — mobile */}
@@ -579,12 +601,36 @@ export default function PDVsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Endereço</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cidade</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">UF</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Geolocalização</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Nome
+                      <ColumnFilter label="Nome" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Endereço
+                      <ColumnFilter label="Endereço" values={getUniqueValues('address')} selected={filters.address ?? new Set()} onChange={s => setColumnFilter('address', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Cidade
+                      <ColumnFilter label="Cidade" values={getUniqueValues('city')} selected={filters.city ?? new Set()} onChange={s => setColumnFilter('city', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">UF
+                      <ColumnFilter label="UF" values={getUniqueValues('state')} selected={filters.state ?? new Set()} onChange={s => setColumnFilter('state', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Geolocalização
+                      <ColumnFilter label="Geolocalização" values={getUniqueValues('geo')} selected={filters.geo ?? new Set()} onChange={s => setColumnFilter('geo', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Status
+                      <ColumnFilter label="Status" values={getUniqueValues('status')} selected={filters.status ?? new Set()} onChange={s => setColumnFilter('status', s)} />
+                    </div>
+                  </th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>

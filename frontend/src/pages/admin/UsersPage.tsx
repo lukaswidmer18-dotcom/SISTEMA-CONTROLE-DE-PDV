@@ -4,6 +4,8 @@ import { User, UserRole } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X } from 'lucide-react';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
+import { useColumnFilters } from '../../hooks/useColumnFilters';
+import ColumnFilter from '../../components/ui/ColumnFilter';
 
 const ROLE_LABEL: Record<UserRole, string> = { ADMIN: 'Admin', PROMOTOR: 'Promotor' };
 const ROLE_BADGE: Record<UserRole, string> = { ADMIN: 'badge-blue', PROMOTOR: 'badge-green' };
@@ -131,7 +133,13 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; user?: User | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
-  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(users);
+  const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(users, {
+    name: u => [u.name],
+    email: u => [u.email],
+    role: u => [ROLE_LABEL[u.role]],
+    status: u => [u.active ? 'Ativo' : 'Inativo'],
+  });
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(filteredItems);
 
   async function load() {
     setLoading(true);
@@ -152,8 +160,15 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Usuários</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800">Usuários</h2>
+          {activeFilterCount > 0 && (
+            <button onClick={clearAllFilters} className="text-xs font-medium text-pluma-700 hover:text-pluma-900 hover:underline">
+              Limpar filtros ({activeFilterCount})
+            </button>
+          )}
+        </div>
         <button onClick={() => setModal({ open: true })} className="btn-primary">
           <Plus size={16} /> Novo Usuário
         </button>
@@ -163,6 +178,11 @@ export default function UsersPage() {
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : users.length === 0 ? (
         <div className="card text-center py-8 text-gray-400">Nenhum usuário cadastrado.</div>
+      ) : filteredItems.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">
+          Nenhum resultado com os filtros aplicados.
+          <button onClick={clearAllFilters} className="block mx-auto mt-2 text-pluma-700 font-medium text-sm hover:underline">Limpar filtros</button>
+        </div>
       ) : (
         <>
           {/* Cards — mobile */}
@@ -203,10 +223,26 @@ export default function UsersPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">E-mail</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Perfil</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Nome
+                      <ColumnFilter label="Nome" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">E-mail
+                      <ColumnFilter label="E-mail" values={getUniqueValues('email')} selected={filters.email ?? new Set()} onChange={s => setColumnFilter('email', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Perfil
+                      <ColumnFilter label="Perfil" values={getUniqueValues('role')} selected={filters.role ?? new Set()} onChange={s => setColumnFilter('role', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Status
+                      <ColumnFilter label="Status" values={getUniqueValues('status')} selected={filters.status ?? new Set()} onChange={s => setColumnFilter('status', s)} />
+                    </div>
+                  </th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>

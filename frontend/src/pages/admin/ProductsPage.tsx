@@ -5,6 +5,8 @@ import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle,
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
+import { useColumnFilters } from '../../hooks/useColumnFilters';
+import ColumnFilter from '../../components/ui/ColumnFilter';
 
 function ConfirmDeleteModal({ product, loading, onConfirm, onCancel }: {
   product: Product; loading: boolean; onConfirm: () => void; onCancel: () => void;
@@ -136,7 +138,14 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(products);
+  const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(products, {
+    sku: p => [p.name],
+    brand: p => [p.brand || '-'],
+    code: p => [p.sku || '-'],
+    pdvs: p => (p.pdvs && p.pdvs.length ? p.pdvs.map(x => x.name) : ['Nenhum PDV']),
+    status: p => [p.active ? 'Ativo' : 'Inativo'],
+  });
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(filteredItems);
 
   async function load() {
     setLoading(true);
@@ -232,7 +241,14 @@ export default function ProductsPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Produtos</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-800">Produtos</h2>
+          {activeFilterCount > 0 && (
+            <button onClick={clearAllFilters} className="text-xs font-medium text-pluma-700 hover:text-pluma-900 hover:underline">
+              Limpar filtros ({activeFilterCount})
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={handleDownloadTemplate} disabled={downloadingTemplate} className="btn-secondary">
             <Download size={16} /> {downloadingTemplate ? 'Baixando...' : 'Baixar modelo'}
@@ -255,6 +271,11 @@ export default function ProductsPage() {
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : products.length === 0 ? (
         <div className="card text-center py-8 text-gray-400">Nenhum produto cadastrado.</div>
+      ) : filteredItems.length === 0 ? (
+        <div className="card text-center py-8 text-gray-400">
+          Nenhum resultado com os filtros aplicados.
+          <button onClick={clearAllFilters} className="block mx-auto mt-2 text-pluma-700 font-medium text-sm hover:underline">Limpar filtros</button>
+        </div>
       ) : (
         <>
           {/* Cards — mobile */}
@@ -291,11 +312,31 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">SKU</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Marca</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Código</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">PDVs</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">SKU
+                      <ColumnFilter label="SKU" values={getUniqueValues('sku')} selected={filters.sku ?? new Set()} onChange={s => setColumnFilter('sku', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Marca
+                      <ColumnFilter label="Marca" values={getUniqueValues('brand')} selected={filters.brand ?? new Set()} onChange={s => setColumnFilter('brand', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Código
+                      <ColumnFilter label="Código" values={getUniqueValues('code')} selected={filters.code ?? new Set()} onChange={s => setColumnFilter('code', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">PDVs
+                      <ColumnFilter label="PDVs" values={getUniqueValues('pdvs')} selected={filters.pdvs ?? new Set()} onChange={s => setColumnFilter('pdvs', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Status
+                      <ColumnFilter label="Status" values={getUniqueValues('status')} selected={filters.status ?? new Set()} onChange={s => setColumnFilter('status', s)} />
+                    </div>
+                  </th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
