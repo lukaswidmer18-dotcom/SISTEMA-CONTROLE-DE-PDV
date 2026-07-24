@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Home, Clock, ClipboardList, LogOut, CheckCircle } from 'lucide-react';
-import { OfflineSyncProvider } from '../../contexts/OfflineSyncContext';
+import { Home, Clock, ClipboardList, LogOut, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import { OfflineSyncProvider, useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 
 const navItems = [
   { to: '/promotor', label: 'Início', icon: Home, end: true },
@@ -18,15 +18,106 @@ function GrupoPlumaLogo() {
     </div>
   );
 }
-export default function PromotorLayout() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [syncMessage, setSyncMessage] = React.useState<string | null>(null);
 
-  function handleLogout() {
+function LogoutButton({ variant }: { variant: 'sidebar' | 'mobile' }) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const { pendingCount, syncing, triggerSync } = useOfflineSyncContext();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+
+  function doLogout() {
     logout();
     navigate('/login');
   }
+
+  function handleClick() {
+    if (pendingCount > 0) {
+      setConfirmOpen(true);
+    } else {
+      doLogout();
+    }
+  }
+
+  const className = variant === 'sidebar'
+    ? 'flex items-center gap-2 text-pluma-300 hover:text-white text-xs w-full px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors'
+    : 'flex items-center gap-1.5 text-pluma-300 hover:text-white text-xs py-1.5 px-2.5 rounded-lg hover:bg-white/10 transition-colors';
+
+  return (
+    <>
+      <button onClick={handleClick} className={className}>
+        <LogOut size={14} />
+        {variant === 'sidebar' ? 'Sair do sistema' : 'Sair'}
+      </button>
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+            {pendingCount > 0 ? (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Ainda tem trabalho não sincronizado</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {pendingCount} ação(ões) (fotos, validades, visitas) ainda não foram enviadas pro servidor.
+                      Se você sair agora e trocar de aparelho, esse trabalho fica preso neste aparelho até ele
+                      voltar a se conectar. Tente sincronizar antes de sair.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button type="button" onClick={triggerSync} disabled={syncing} className="btn-primary w-full">
+                    {syncing ? 'Sincronizando...' : 'Tentar sincronizar agora'}
+                  </button>
+                  <button type="button" onClick={doLogout} className="text-sm text-red-600 hover:text-red-800 font-medium py-1">
+                    Sair mesmo assim (risco de perder dados)
+                  </button>
+                  <button type="button" onClick={() => setConfirmOpen(false)} className="btn-secondary w-full">
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-green-50 text-green-600 rounded-lg shrink-0">
+                    <CheckCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Tudo sincronizado</h3>
+                    <p className="text-sm text-gray-500 mt-1">Pode sair com segurança.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setConfirmOpen(false)} className="btn-secondary flex-1">Cancelar</button>
+                  <button type="button" onClick={doLogout} className="btn-primary flex-1">Sair</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function OfflineStatusBanner() {
+  const { pendingCount } = useOfflineSyncContext();
+  if (pendingCount === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2.5 flex items-center gap-2">
+      <AlertCircle size={16} className="shrink-0" />
+      <p className="font-semibold">Modo offline: {pendingCount} ação(ões) aguardando sincronização.</p>
+    </div>
+  );
+}
+
+export default function PromotorLayout() {
+  const { user } = useAuth();
+  const [syncMessage, setSyncMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (syncMessage) {
@@ -38,7 +129,7 @@ export default function PromotorLayout() {
   return (
     <OfflineSyncProvider onSyncSuccess={(synced) => setSyncMessage(`${synced} ação(ões) offline sincronizada(s) com sucesso!`)}>
       <div className="min-h-screen flex flex-col lg:flex-row bg-gray-50">
-        
+
         {/* Global Sync Notification */}
         {syncMessage && (
           <div className="fixed top-4 right-4 z-[100] animate-slide-in-right">
@@ -51,7 +142,7 @@ export default function PromotorLayout() {
             </div>
           </div>
         )}
-      
+
       {/* Sidebar — Desktop Only */}
       <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 bg-gradient-to-br from-pluma-950 via-pluma-800 to-pluma-900 text-white sticky top-0 h-screen overflow-y-auto shadow-sidebar">
         <div className="flex items-center px-5 py-5 border-b border-white/10 bg-white/[0.03]">
@@ -92,16 +183,13 @@ export default function PromotorLayout() {
               <p className="text-pluma-300 text-[10px] truncate">Promotor</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-pluma-300 hover:text-white text-xs w-full px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
-            <LogOut size={14} />
-            Sair do sistema
-          </button>
+          <LogoutButton variant="sidebar" />
         </div>
       </aside>
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        
+
         {/* Mobile Header */}
         <header className="lg:hidden bg-gradient-to-br from-pluma-950 via-pluma-800 to-pluma-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-glow-pluma border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -112,11 +200,10 @@ export default function PromotorLayout() {
               <p className="text-white text-xs font-semibold leading-none mt-0.5 truncate max-w-[120px]">{user?.name}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-1.5 text-pluma-300 hover:text-white text-xs py-1.5 px-2.5 rounded-lg hover:bg-white/10 transition-colors">
-            <LogOut size={14} />
-            Sair
-          </button>
+          <LogoutButton variant="mobile" />
         </header>
+
+        <OfflineStatusBanner />
 
         {/* Content Container */}
         <main className="flex-1 overflow-auto bg-gray-50 lg:p-8">

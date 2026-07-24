@@ -52,11 +52,12 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
     setError('');
     setLoading(true);
     try {
+      if (isLocalVisit(visitId)) throw new Error('OFFLINE_VISIT');
       await api.post(`/visits/${visitId}/validities`, form);
       onAdded();
       onClose();
     } catch (err: any) {
-      if (isNetworkError(err)) {
+      if (err.message === 'OFFLINE_VISIT' || isNetworkError(err)) {
         const queued = await queueOfflineAction({
           kind: 'validity',
           ...getVisitReference(visitId),
@@ -151,11 +152,12 @@ function RupturaModal({ visitId, products, onClose, onAdded }: {
       qtySeparadoTroca: parseInt(form.qtySeparadoTroca) || 0,
     };
     try {
+      if (isLocalVisit(visitId)) throw new Error('OFFLINE_VISIT');
       const { data } = await api.post(`/visits/${visitId}/ruptura`, payload);
       onAdded(data.data);
       onClose();
     } catch (err: any) {
-      if (isNetworkError(err)) {
+      if (err.message === 'OFFLINE_VISIT' || isNetworkError(err)) {
         const queued = await queueOfflineAction({
           kind: 'ruptura',
           ...getVisitReference(visitId),
@@ -256,13 +258,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
     if (compressedFile) formData.append('photo', compressedFile, compressedFile.name);
 
     try {
+      if (isLocalVisit(visitId)) throw new Error('OFFLINE_VISIT');
       const { data } = await api.post(`/visits/${visitId}/price-checks`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       onAdded(data.data);
       onClose();
     } catch (err: any) {
-      if (isNetworkError(err)) {
+      if (err.message === 'OFFLINE_VISIT' || isNetworkError(err)) {
         const queued = await queueOfflineAction({
           kind: 'priceCheck',
           ...getVisitReference(visitId),
@@ -371,7 +374,7 @@ export default function PontoPage() {
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
-  const { pendingCount, refreshCount, lastSyncTime } = useOfflineSyncContext();
+  const { refreshCount, lastSyncTime } = useOfflineSyncContext();
   const { resolveLocation, modal: locationFallbackModal } = useManualLocationFallback();
 
   async function load() {
@@ -433,13 +436,14 @@ export default function PontoPage() {
       formData.append('longitude', String(location.longitude ?? 0));
       formData.append('locationAvailable', String(locationAvailable));
 
+      if (isLocalVisit(visit.id)) throw new Error('OFFLINE_VISIT');
       const { data } = await api.post(`/visits/${visit.id}/photos`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setVisit(prev => prev ? { ...prev, photos: [...(prev.photos || []), data.data] } : prev);
       setNotice(locationAvailable ? 'Foto enviada!' : 'Foto enviada (Modo de Contingência - Sem GPS).');
     } catch (err: any) {
-      if (isNetworkError(err)) {
+      if (err.message === 'OFFLINE_VISIT' || isNetworkError(err)) {
         const queued = await queueOfflineAction({
           kind: 'photo',
           ...getVisitReference(visit.id),
@@ -635,13 +639,6 @@ export default function PontoPage() {
         
         {/* Left Column: Records Timeline */}
         <div className="space-y-4">
-          {pendingCount > 0 && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl p-4 flex items-center gap-3 animate-pulse">
-              <AlertCircle size={20} className="shrink-0" />
-              <p className="font-semibold">Modo offline: {pendingCount} ação(ões) aguardando sincronização.</p>
-            </div>
-          )}
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 flex items-center gap-3 animate-fade-in">
               <AlertCircle size={20} className="shrink-0" />

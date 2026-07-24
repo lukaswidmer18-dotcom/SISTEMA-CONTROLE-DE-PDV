@@ -49,8 +49,15 @@ export function OfflineSyncProvider({ children, onSyncSuccess }: { children: Rea
       refreshCount();
     }
 
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        triggerSync();
+      }
+    }
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline-queue-updated', handleQueueUpdated);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     if (navigator.onLine) {
       triggerSync();
@@ -59,6 +66,7 @@ export function OfflineSyncProvider({ children, onSyncSuccess }: { children: Rea
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline-queue-updated', handleQueueUpdated);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
