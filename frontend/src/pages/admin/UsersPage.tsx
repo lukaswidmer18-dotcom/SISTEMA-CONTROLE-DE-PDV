@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { User, UserRole } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X } from 'lucide-react';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/ui/Pagination';
 
 const ROLE_LABEL: Record<UserRole, string> = { ADMIN: 'Admin', PROMOTOR: 'Promotor' };
 const ROLE_BADGE: Record<UserRole, string> = { ADMIN: 'badge-blue', PROMOTOR: 'badge-green' };
@@ -129,6 +131,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; user?: User | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(users);
 
   async function load() {
     setLoading(true);
@@ -164,7 +167,7 @@ export default function UsersPage() {
         <>
           {/* Cards — mobile */}
           <div className="space-y-3 md:hidden">
-            {users.map(u => (
+            {pageItems.map(u => (
               <div key={u.id} className="card">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
@@ -208,7 +211,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {users.map(u => (
+                {pageItems.map(u => (
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
                     <td className="px-4 py-3 text-gray-500">{u.email}</td>
@@ -240,6 +243,8 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPageChange={setPage} />
         </>
       )}
 

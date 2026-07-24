@@ -3,6 +3,8 @@ import api from '../../services/api';
 import { PDV, Product } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle, Download, Upload } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/ui/Pagination';
 
 function ConfirmDeleteModal({ product, loading, onConfirm, onCancel }: {
   product: Product; loading: boolean; onConfirm: () => void; onCancel: () => void;
@@ -134,6 +136,7 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(products);
 
   async function load() {
     setLoading(true);
@@ -256,7 +259,7 @@ export default function ProductsPage() {
         <>
           {/* Cards — mobile */}
           <div className="space-y-3 md:hidden">
-            {products.map(p => (
+            {pageItems.map(p => (
               <div key={p.id} className="card">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
@@ -297,7 +300,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {products.map(p => (
+                {pageItems.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.brand || '-'}</td>
@@ -324,6 +327,8 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPageChange={setPage} />
         </>
       )}
 

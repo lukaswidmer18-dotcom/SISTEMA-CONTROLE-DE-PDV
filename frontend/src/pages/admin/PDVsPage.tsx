@@ -5,6 +5,8 @@ import api from '../../services/api';
 import { PDV } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed, Download, Upload } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/ui/Pagination';
 
 // Fix for default marker icons in Leaflet with React (bundler não resolve os assets sem isso)
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -452,6 +454,7 @@ export default function PDVsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; pdv?: PDV | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<PDV | null>(null);
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(pdvs);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -536,7 +539,7 @@ export default function PDVsPage() {
         <>
           {/* Cards — mobile */}
           <div className="space-y-3 md:hidden">
-            {pdvs.map(p => (
+            {pageItems.map(p => (
               <div key={p.id} className="card">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
@@ -586,7 +589,7 @@ export default function PDVsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pdvs.map(p => (
+                {pageItems.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.address || '-'}</td>
@@ -620,6 +623,8 @@ export default function PDVsPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPageChange={setPage} />
         </>
       )}
 
