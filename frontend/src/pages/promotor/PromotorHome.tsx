@@ -16,17 +16,13 @@ import { ptBR } from 'date-fns/locale';
 import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium, Play } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
-  ENTRADA: 'Início',
   SAIDA_ALMOCO: 'Saída Almoço',
   RETORNO_ALMOCO: 'Retorno Almoço',
-  SAIDA: 'Encerramento',
 };
 
 const NEXT_ACTION_LABELS: Record<string, string> = {
-  ENTRADA: 'Iniciar Jornada',
   SAIDA_ALMOCO: 'Registrar Saída Almoço',
   RETORNO_ALMOCO: 'Registrar Retorno Almoço',
-  SAIDA: 'Encerrar Jornada',
 };
 
 type PdvStatus = 'EM_ANDAMENTO' | 'VISITADA' | 'PENDENTE';
@@ -247,11 +243,10 @@ export default function PromotorHome() {
     return weekRoutes.filter(r => r.date.slice(0, 10) === dateStr);
   }, [weekRoutes, selectedDate]);
 
-  const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
-  const hasSaida = pontos.some(p => p.type === 'SAIDA');
-  // Ponto é por visita: cada PDV visitado tem seu próprio ciclo Entrada/.../Encerramento,
-  // o que permite calcular quanto tempo durou a visita naquele PDV.
-  const nextPonto = activeVisit ? getNextPonto(pontos) : null;
+  // Almoço é global por dia — independente de qual visita está ativa.
+  const hasSaidaAlmoco = pontos.some(p => p.type === 'SAIDA_ALMOCO');
+  const hasRetornoAlmoco = pontos.some(p => p.type === 'RETORNO_ALMOCO');
+  const nextPonto = getNextPonto(pontos);
 
   const checklistMissing = useMemo(() => {
     const photosByItem = new Map<string, number>();
@@ -310,23 +305,8 @@ export default function PromotorHome() {
     setEncerrando(true);
     try {
       const location = await resolveLocation();
-      const battery = batteryLevel !== '' ? Number(batteryLevel) : null;
 
-      // 1) Registra o ponto de Encerramento — marca o fim da visita nesse PDV
-      try {
-        await api.post('/ponto', { type: 'SAIDA', ...location, batteryLevel: battery });
-      } catch (err: unknown) {
-        if (isNetworkError(err)) {
-          await queueOfflineAction({
-            kind: 'ponto',
-            payload: { type: 'SAIDA', latitude: location.latitude, longitude: location.longitude, locationAvailable: location.locationAvailable, batteryLevel: battery },
-          });
-        } else {
-          throw err;
-        }
-      }
-
-      // 2) Finaliza a visita
+      // Finaliza a visita — independente do estado do almoço.
       if (isLocalVisit(activeVisit.id)) {
         await queueOfflineAction({
           kind: 'finishVisit',
@@ -388,8 +368,8 @@ export default function PromotorHome() {
           <div className="hidden lg:flex items-center gap-8 border-l border-white/10 pl-8">
             <div className="text-center">
               <p className="text-[10px] uppercase tracking-widest text-pluma-300 font-bold mb-1">Status do Dia</p>
-              <span className={`px-3 py-1 rounded-full text-[10px] font-black ${hasSaida ? 'bg-red-500/20 text-red-300' : hasEntrada ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white'}`}>
-                {hasSaida ? 'FINALIZADO' : hasEntrada ? 'ATIVO' : 'AGUARDANDO'}
+              <span className={`px-3 py-1 rounded-full text-[10px] font-black ${activeVisit ? 'bg-green-500/20 text-green-300' : hasSaidaAlmoco && !hasRetornoAlmoco ? 'bg-gold-500/20 text-gold-300' : 'bg-white/10 text-white'}`}>
+                {activeVisit ? 'EM VISITA' : hasSaidaAlmoco && !hasRetornoAlmoco ? 'NO ALMOÇO' : 'LIVRE'}
               </span>
             </div>
           </div>
@@ -610,9 +590,17 @@ export default function PromotorHome() {
           </div>
 
           {activeVisit && (
-            <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma mt-auto">
-              Continuar Visita
-            </Link>
+            <div className="mt-auto space-y-2">
+              <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma block text-center">
+                Continuar Visita
+              </Link>
+              <button
+                onClick={() => { setEncerramentoError(''); setShowEncerramentoModal(true); }}
+                className="w-full py-2.5 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
+              >
+                Finalizar Visita
+              </button>
+            </div>
           )}
         </div>
 
@@ -623,7 +611,7 @@ export default function PromotorHome() {
               <div className="p-2 bg-pluma-50 text-pluma-700 rounded-lg">
                 <Clock size={20} />
               </div>
-              Jornada de Hoje
+              Almoço
             </h3>
             <Link to="/promotor/ponto" className="text-sm text-pluma-800 hover:text-pluma-600 font-bold">Gerenciar</Link>
           </div>
@@ -631,14 +619,9 @@ export default function PromotorHome() {
           <div className="flex-1">
             {loading ? (
               <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
-            ) : pontos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                <AlertCircle size={32} className="text-orange-400 mb-2" />
-                <p className="text-sm text-gray-600 font-medium">Nenhuma atividade registrada hoje.</p>
-              </div>
             ) : (
               <div className="grid grid-cols-2 gap-3 mb-4">
-                {['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'].map(type => {
+                {(['SAIDA_ALMOCO', 'RETORNO_ALMOCO'] as const).map(type => {
                   const p = pontos.find(p => p.type === type);
                   return (
                     <div key={type} className={`p-3 rounded-xl border ${p ? 'bg-white border-pluma-100 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
@@ -662,7 +645,7 @@ export default function PromotorHome() {
             <div className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl mb-3">{pontoError}</div>
           )}
 
-          {!hasSaida && nextPonto && (
+          {nextPonto ? (
             <div className="mt-auto">
               <div className="mb-3">
                 <label className="flex items-center gap-1.5 text-[10px] font-black text-pluma-600 uppercase mb-1.5">
@@ -680,35 +663,16 @@ export default function PromotorHome() {
                 />
               </div>
               <button
-                onClick={() => {
-                  if (nextPonto === 'SAIDA') {
-                    setEncerramentoError('');
-                    setShowEncerramentoModal(true);
-                  } else {
-                    handleQuickRegister(nextPonto);
-                  }
-                }}
+                onClick={() => handleQuickRegister(nextPonto)}
                 disabled={registering}
                 className="btn-primary w-full py-3 text-base shadow-glow-pluma"
               >
                 {registering ? 'Processando...' : NEXT_ACTION_LABELS[nextPonto]}
               </button>
-
-              {hasEntrada && !pontos.some(p => p.type === 'SAIDA_ALMOCO') && !hasSaida && (
-                <button
-                  onClick={() => { setEncerramentoError(''); setShowEncerramentoModal(true); }}
-                  disabled={registering}
-                  className="w-full mt-2 py-2.5 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
-                >
-                  Pular almoço e Encerrar PDV
-                </button>
-              )}
             </div>
-          )}
-
-          {!hasSaida && !activeVisit && (
+          ) : (
             <p className="text-xs text-gray-400 font-medium mt-auto text-center py-1">
-              Inicie uma visita ao lado pra começar a registrar sua jornada.
+              Almoço registrado hoje.
             </p>
           )}
         </div>

@@ -36,7 +36,7 @@ const navEntries: NavEntry[] = [
       items: [
         { to: '/admin/rotas', label: 'Criar Rota', icon: RouteIcon },
         { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
-        { to: '/admin/pontos', label: 'Registro de ponto', icon: Clock },
+        { to: '/admin/pontos', label: 'Registro de almoço', icon: Clock },
         { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
       ],
     },

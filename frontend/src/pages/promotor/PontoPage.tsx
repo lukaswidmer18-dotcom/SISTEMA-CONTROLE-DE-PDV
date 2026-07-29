@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Ponto, PontoType, Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
+import { Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
 import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
 import { useLocationPing } from '../../hooks/useLocationPing';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
 import { compressImage } from '../../utils/imageCompression';
-import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Play, Lock } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Lock } from 'lucide-react';
 import {
   getOfflineActiveVisit,
   toVisit,
@@ -22,20 +22,6 @@ import {
   readCache,
   writeCache,
 } from '../../services/visitService';
-
-const PONTO_LABELS: Record<PontoType, string> = {
-  ENTRADA: 'Início',
-  SAIDA_ALMOCO: 'Almoço',
-  RETORNO_ALMOCO: 'Retorno',
-  SAIDA: 'Encerramento',
-};
-
-const PONTO_COLORS: Record<PontoType, string> = {
-  ENTRADA: 'bg-green-100 text-green-800',
-  SAIDA_ALMOCO: 'bg-yellow-100 text-yellow-800',
-  RETORNO_ALMOCO: 'bg-pluma-100 text-pluma-800',
-  SAIDA: 'bg-red-100 text-red-800',
-};
 
 function getErrorMessage(err: any, fallback: string) {
   return err.response?.data?.error || err.message || fallback;
@@ -356,7 +342,6 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
 }
 
 export default function PontoPage() {
-  const [pontos, setPontos] = useState<Ponto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -384,14 +369,11 @@ export default function PontoPage() {
     setError('');
     setNotice('');
     try {
-      const [pontoRes, visitRes, productsRes, checklistRes] = await Promise.all([
-        api.get('/ponto/today'),
+      const [visitRes, productsRes, checklistRes] = await Promise.all([
         api.get('/visits/active'),
         api.get('/products'),
         api.get('/checklist'),
       ]);
-
-      setPontos(pontoRes.data.data || []);
 
       const loadedProducts = productsRes.data.data || [];
       const loadedChecklist = checklistRes.data.data || [];
@@ -594,9 +576,6 @@ export default function PontoPage() {
     }
   }
 
-  const hasEntrada = pontos.some(p => p.type === 'ENTRADA');
-  const hasSaida = pontos.some(p => p.type === 'SAIDA');
-
   const visitProducts = useMemo(() => {
     if (!visit) return [];
     return products.filter(p => p.pdvs?.some(pdv => pdv.id === visit.pdvId));
@@ -668,9 +647,9 @@ export default function PontoPage() {
           <div className="card h-full">
             <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
               <Clock size={18} className="text-pluma-600" />
-              Jornada no PDV
+              Detalhes da Visita
             </h3>
-            
+
             {loading ? (
               <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
             ) : !visit ? (
@@ -678,34 +657,24 @@ export default function PontoPage() {
                 <MapPin size={32} className="mx-auto text-gray-300 mb-2" />
                 <p className="text-sm text-gray-400 font-medium">Nenhuma visita ativa.<br/>Inicie uma visita na tela Início.</p>
               </div>
-            ) : pontos.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 animate-fade-in">
-                <Play size={32} className="mx-auto text-pluma-300 mb-2" />
-                <p className="text-sm text-gray-400 font-medium">Visita iniciada!<br/>Registre o <span className="text-pluma-600 font-bold uppercase">Início</span> no botão ao lado.</p>
-              </div>
             ) : (
-              <div className="relative">
-                <div className="absolute left-6 top-4 bottom-4 w-1 bg-gradient-to-b from-pluma-100 via-pluma-200 to-pluma-100 rounded-full" />
-                <div className="space-y-6">
-                  {pontos.map((p) => (
-                    <div key={p.id} className="flex items-center gap-6 pl-14 relative group">
-                      <div className="absolute left-[18px] w-4 h-4 rounded-full bg-white border-4 border-pluma-600 shadow-sm group-hover:scale-125 transition-transform" />
-                      <div className="flex-1 bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${PONTO_COLORS[p.type as PontoType]}`}>
-                            {PONTO_LABELS[p.type as PontoType]}
-                          </span>
-                          <span className="font-black text-gray-900 text-lg">
-                            {format(new Date(p.timestamp), 'HH:mm')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase">
-                          <MapPin size={12} className="text-pluma-300" />
-                          {p.locationAvailable ? 'Coordenadas Capturadas' : 'Sem Localização'}
-                        </div>
-                      </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-6 relative pl-14">
+                  <div className="absolute left-[18px] w-4 h-4 rounded-full bg-white border-4 border-pluma-600 shadow-sm" />
+                  <div className="flex-1 bg-white border border-gray-100 p-4 rounded-2xl shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider bg-green-100 text-green-800">
+                        Início da Visita
+                      </span>
+                      <span className="font-black text-gray-900 text-lg">
+                        {format(new Date(visit.startedAt), 'HH:mm')}
+                      </span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase">
+                      <Store size={12} className="text-pluma-300" />
+                      {visit.pdv?.name}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -722,7 +691,7 @@ export default function PontoPage() {
                   <div className="bg-gray-900 -mx-6 -mt-6 p-6 -mb-6">
                     <p className="text-pluma-300 text-xs font-bold uppercase tracking-widest mb-1">Status da Visita</p>
                     <h4 className="text-white text-xl font-black">
-                      {hasSaida ? 'Visita no PDV Encerrada' : hasEntrada ? 'Trabalhando no PDV' : 'Aguardando Início'}
+                      Trabalhando no PDV
                     </h4>
                   </div>
                 </div>
@@ -912,7 +881,7 @@ export default function PontoPage() {
 
                       <div className="pt-4 border-t border-gray-100 text-center">
                         <p className="text-[11px] text-gray-400 font-semibold">
-                          Pra encerrar essa visita, volte à tela Início e use o botão "Encerrar Jornada" no card Jornada de Hoje.
+                          Pra encerrar essa visita, volte à tela Início e use o botão "Finalizar Visita" no card Visita em Andamento.
                         </p>
                       </div>
                     </div>

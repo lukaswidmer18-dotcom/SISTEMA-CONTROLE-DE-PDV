@@ -1,26 +1,21 @@
 import { Request, Response } from 'express';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
+import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates } from '../utils/location';
 import { parseDateOnly, todayDateOnly } from '../utils/date';
 import { prisma } from '../lib/prisma';
 
-const PONTO_SEQUENCE = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'];
+// Ponto registra só o almoço (Saída/Retorno). É global por usuário/dia,
+// independente de qual visita (PDV) está ativa — início/fim de cada visita
+// já é rastreado no próprio Visit (startedAt/completedAt).
+const PONTO_SEQUENCE = ['SAIDA_ALMOCO', 'RETORNO_ALMOCO'];
 
 export async function getTodayPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
   const start = todayDateOnly();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-  // Ponto é por visita: cada PDV visitado tem seu próprio ciclo
-  // Entrada/Saída Almoço/Retorno/Encerramento, o que permite calcular
-  // quanto tempo durou a visita naquele PDV.
-  const activeVisit = await prisma.visit.findFirst({
-    where: { promotorId: authReq.user.userId, status: 'IN_PROGRESS' },
-  });
-
   const pontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
-      visitId: activeVisit ? activeVisit.id : null,
       timestamp: { gte: start, lte: end },
     },
     orderBy: { timestamp: 'asc' },
@@ -39,7 +34,7 @@ function parseBatteryLevel(value: unknown): number | null | typeof INVALID_BATTE
 
 export async function registerPonto(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { type, latitude, longitude, locationAvailable, batteryLevel, accuracy } = req.body;
+  const { type, latitude, longitude, locationAvailable, batteryLevel } = req.body;
 
   if (!type || !PONTO_SEQUENCE.includes(type)) {
     res.status(400).json({ success: false, error: 'Tipo de ponto inválido.' });
@@ -59,42 +54,11 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  // Get Active Visit
-  const activeVisit = await prisma.visit.findFirst({
-    where: { promotorId: authReq.user.userId, status: 'IN_PROGRESS' },
-    include: { pdv: true },
-  });
-
-  if (activeVisit) {
-    const geofence = checkGeofence(
-      activeVisit.pdv ?? { latitude: null, longitude: null, radiusMeters: null },
-      { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 },
-      parseCoordinate(accuracy)
-    );
-    if (geofence.allowed === false) {
-      if (geofence.reason === 'NOT_CONFIGURED') {
-        res.status(422).json({
-          success: false,
-          error: 'PDV sem área de geolocalização configurada. Contate o administrador.',
-        });
-        return;
-      }
-      if (gpsAvailable) {
-        res.status(422).json({
-          success: false,
-          error: `Você está a ${Math.round(geofence.distanceMeters)}m do PDV. Distância máxima permitida: ${geofence.radiusMeters}m.`,
-        });
-        return;
-      }
-    }
-  }
-
   const todayStart = todayDateOnly();
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
   const todayPontos = await prisma.ponto.findMany({
     where: {
       userId: authReq.user.userId,
-      visitId: activeVisit ? activeVisit.id : null,
       timestamp: { gte: todayStart, lte: todayEnd },
     },
     orderBy: { timestamp: 'asc' },
@@ -102,24 +66,17 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
 
   const alreadyRegistered = todayPontos.some((p) => p.type === type);
   if (alreadyRegistered) {
-    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado para esta visita.` });
+    res.status(409).json({ success: false, error: `Ponto "${type}" já registrado hoje.` });
     return;
   }
 
   const lastPonto = todayPontos[todayPontos.length - 1];
-  const lastIndex = lastPonto ? PONTO_SEQUENCE.indexOf(lastPonto.type) : -1;
-  if (type === 'ENTRADA' && todayPontos.length === 0) {
-    // ok
-  } else if (type === 'SAIDA' && (lastPonto?.type === 'ENTRADA' || lastPonto?.type === 'RETORNO_ALMOCO')) {
-    // ok — can exit after entrada or retorno
-  } else if (type === 'SAIDA_ALMOCO' && lastPonto?.type === 'ENTRADA') {
-    // ok
+  if (type === 'SAIDA_ALMOCO' && todayPontos.length === 0) {
+    // ok — primeiro registro do dia
   } else if (type === 'RETORNO_ALMOCO' && lastPonto?.type === 'SAIDA_ALMOCO') {
     // ok
   } else {
-    const nextExpected = lastPonto
-      ? PONTO_SEQUENCE[lastIndex + 1] || 'nenhum'
-      : 'ENTRADA';
+    const nextExpected = lastPonto ? 'nenhum' : 'SAIDA_ALMOCO';
     res.status(422).json({
       success: false,
       error: `Sequência de ponto inválida. Próximo esperado: ${nextExpected}.`,
@@ -130,7 +87,6 @@ export async function registerPonto(req: Request, res: Response): Promise<void> 
   const ponto = await prisma.ponto.create({
     data: {
       userId: authReq.user.userId,
-      visitId: activeVisit?.id,
       type,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,

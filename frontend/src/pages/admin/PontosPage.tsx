@@ -5,17 +5,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const PONTO_LABELS: Record<string, string> = {
-  ENTRADA: 'Entrada',
   SAIDA_ALMOCO: 'Saída Almoço',
   RETORNO_ALMOCO: 'Retorno Almoço',
-  SAIDA: 'Saída',
 };
 
 const PONTO_COLORS: Record<string, string> = {
-  ENTRADA: 'badge-green',
   SAIDA_ALMOCO: 'badge-yellow',
   RETORNO_ALMOCO: 'badge-blue',
-  SAIDA: 'badge-red',
 };
 
 export default function PontosPage() {
@@ -47,7 +43,7 @@ export default function PontosPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Registros de Ponto</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Registros de Almoço</h2>
 
       <div className="card mb-4">
         <div className="flex flex-wrap gap-3">

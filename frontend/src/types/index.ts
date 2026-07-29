@@ -58,7 +58,7 @@ export interface Product {
   pdvs?: Pick<PDV, 'id' | 'name'>[];
 }
 
-export type PontoType = 'ENTRADA' | 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO' | 'SAIDA';
+export type PontoType = 'SAIDA_ALMOCO' | 'RETORNO_ALMOCO';
 
 export interface Ponto {
   id: string;
