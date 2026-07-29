@@ -8,7 +8,7 @@ import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../.
 import { useOfflineSyncContext } from '../../contexts/OfflineSyncContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, centsInputToDisplay, centsInputToNumber } from '../../utils/format';
 import { compressImage } from '../../utils/imageCompression';
 import { CheckCircle, Clock, MapPin, AlertCircle, ClipboardList, Camera, Plus, Trash2, Store, X, Lock } from 'lucide-react';
 import {
@@ -236,12 +236,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
     setLoading(true);
 
     const compressedFile = file ? await compressImage(file) : null;
+    const ownPriceValue = centsInputToNumber(form.ownPrice);
+    const competitorPriceValue = form.competitorPrice ? centsInputToNumber(form.competitorPrice) : null;
 
     const formData = new FormData();
     formData.append('productId', form.productId);
-    formData.append('ownPrice', form.ownPrice);
+    formData.append('ownPrice', String(ownPriceValue));
     formData.append('competitorName', form.competitorName);
-    formData.append('competitorPrice', form.competitorPrice);
+    formData.append('competitorPrice', competitorPriceValue != null ? String(competitorPriceValue) : '');
     if (compressedFile) formData.append('photo', compressedFile, compressedFile.name);
 
     try {
@@ -256,15 +258,22 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
         const queued = await queueOfflineAction({
           kind: 'priceCheck',
           ...getVisitReference(visitId),
-          payload: { ...form, file: compressedFile || undefined, fileName: compressedFile?.name },
+          payload: {
+            productId: form.productId,
+            ownPrice: String(ownPriceValue),
+            competitorName: form.competitorName,
+            competitorPrice: competitorPriceValue != null ? String(competitorPriceValue) : '',
+            file: compressedFile || undefined,
+            fileName: compressedFile?.name,
+          },
         });
         onAdded({
           id: queued.id,
           visitId,
           productId: form.productId,
-          ownPrice: Number(form.ownPrice) || 0,
+          ownPrice: ownPriceValue,
           competitorName: form.competitorName || null,
-          competitorPrice: form.competitorPrice ? Number(form.competitorPrice) : null,
+          competitorPrice: competitorPriceValue,
           product: products.find(p => p.id === form.productId),
         });
         onClose();
@@ -310,7 +319,15 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
           </div>
           <div>
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Nosso preço (R$) *</label>
-            <input type="number" min="0.01" step="0.01" className="input-field py-3 text-sm font-bold" required value={form.ownPrice} onChange={e => setForm(f => ({ ...f, ownPrice: e.target.value }))} />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="R$ 0,00"
+              className="input-field py-3 text-sm font-bold"
+              required
+              value={centsInputToDisplay(form.ownPrice)}
+              onChange={e => setForm(f => ({ ...f, ownPrice: e.target.value.replace(/\D/g, '') }))}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -319,7 +336,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
             </div>
             <div>
               <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Preço concorrente (R$)</label>
-              <input type="number" min="0.01" step="0.01" className="input-field py-3 text-sm font-bold" value={form.competitorPrice} onChange={e => setForm(f => ({ ...f, competitorPrice: e.target.value }))} />
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="R$ 0,00"
+                className="input-field py-3 text-sm font-bold"
+                value={centsInputToDisplay(form.competitorPrice)}
+                onChange={e => setForm(f => ({ ...f, competitorPrice: e.target.value.replace(/\D/g, '') }))}
+              />
             </div>
           </div>
           <div>

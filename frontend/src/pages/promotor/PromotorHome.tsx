@@ -257,6 +257,13 @@ export default function PromotorHome() {
     return checklistItems.filter(item => (photosByItem.get(item.id) || 0) < item.requiredCount);
   }, [activeVisit, checklistItems]);
 
+  const todayCompletedVisits = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    return recentVisits
+      .filter(v => v.status === 'COMPLETED' && v.startedAt.slice(0, 10) === todayStr)
+      .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  }, [recentVisits]);
+
   async function handleQuickRegister(type: PontoType) {
     setPontoError('');
     try {
@@ -585,6 +592,22 @@ export default function PromotorHome() {
                 <MapPin size={32} className="text-gray-300 mb-2" />
                 <p className="text-sm text-gray-500 font-medium">Nenhuma visita em andamento.</p>
                 <p className="text-xs text-gray-400 mt-1">Selecione um PDV em "PDVs da Semana" acima pra iniciar.</p>
+              </div>
+            )}
+
+            {todayCompletedVisits.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Visitas concluídas hoje</p>
+                {todayCompletedVisits.map(v => (
+                  <div key={v.id} className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                    <p className="text-xs font-bold text-gray-700 truncate">{v.pdv?.name}</p>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 shrink-0">
+                      <Clock size={12} className="text-gray-400" />
+                      {format(new Date(v.startedAt), 'HH:mm')}
+                      {v.completedAt && <> — {format(new Date(v.completedAt), 'HH:mm')}</>}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
