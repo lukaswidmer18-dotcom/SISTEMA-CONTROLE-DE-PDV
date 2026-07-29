@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   active: boolean;
   monthlySalary?: number | null;
+  company?: string | null;
   createdAt?: string;
 }
 

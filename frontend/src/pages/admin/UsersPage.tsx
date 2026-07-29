@@ -18,6 +18,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     password: '',
     role: user?.role || 'PROMOTOR',
     monthlySalary: user?.monthlySalary != null ? String(user.monthlySalary) : '',
+    company: user?.company || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +29,7 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
     setLoading(true);
     try {
       if (isEdit && user) {
-        const payload: any = { name: form.name, email: form.email, role: form.role, monthlySalary: form.monthlySalary };
+        const payload: any = { name: form.name, email: form.email, role: form.role, monthlySalary: form.monthlySalary, company: form.company };
         if (form.password) payload.password = form.password;
         await api.put(`/users/${user.id}`, payload);
       } else {
@@ -69,6 +70,10 @@ function UserModal({ user, onClose, onSaved }: { user?: User | null; onClose: ()
               <option value="PROMOTOR">Promotor</option>
               <option value="ADMIN">Administrador</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+            <input className="input-field" placeholder="Ex: Bello Alimentos" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Salário mensal (R$)</label>
@@ -138,6 +143,7 @@ export default function UsersPage() {
     email: u => [u.email],
     role: u => [ROLE_LABEL[u.role]],
     status: u => [u.active ? 'Ativo' : 'Inativo'],
+    company: u => [u.company || 'Sem empresa'],
   });
   const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(filteredItems);
 
@@ -193,6 +199,7 @@ export default function UsersPage() {
                   <div>
                     <p className="font-semibold text-gray-800 text-sm">{u.name}</p>
                     <p className="text-xs text-gray-500">{u.email}</p>
+                    {u.company && <p className="text-xs text-gray-400">{u.company}</p>}
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className={ROLE_BADGE[u.role]}>
@@ -234,6 +241,11 @@ export default function UsersPage() {
                     </div>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Empresa
+                      <ColumnFilter label="Empresa" values={getUniqueValues('company')} selected={filters.company ?? new Set()} onChange={s => setColumnFilter('company', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
                     <div className="flex items-center gap-1">Perfil
                       <ColumnFilter label="Perfil" values={getUniqueValues('role')} selected={filters.role ?? new Set()} onChange={s => setColumnFilter('role', s)} />
                     </div>
@@ -251,6 +263,7 @@ export default function UsersPage() {
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
                     <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-4 py-3 text-gray-500">{u.company || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={ROLE_BADGE[u.role]}>
                         {ROLE_LABEL[u.role]}

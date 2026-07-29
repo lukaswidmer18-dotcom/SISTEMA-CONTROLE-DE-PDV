@@ -15,7 +15,7 @@ function parseMonthlySalary(value: unknown): number | null | typeof INVALID_MONT
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : INVALID_MONTHLY_SALARY;
 }
 
-const USER_SELECT = { id: true, name: true, email: true, role: true, active: true, monthlySalary: true, createdAt: true };
+const USER_SELECT = { id: true, name: true, email: true, role: true, active: true, monthlySalary: true, company: true, createdAt: true };
 
 export async function listUsers(_req: Request, res: Response): Promise<void> {
   const users = await prisma.user.findMany({
@@ -26,7 +26,7 @@ export async function listUsers(_req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { name, email, password, role, monthlySalary } = req.body;
+  const { name, email, password, role, monthlySalary, company } = req.body;
 
   if (!name || !email || !password) {
     res.status(400).json({ success: false, error: 'Nome, e-mail e senha são obrigatórios.' });
@@ -53,6 +53,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       passwordHash,
       role: normalizeRole(role),
       monthlySalary: parsedMonthlySalary,
+      company: typeof company === 'string' && company.trim() ? company.trim() : null,
     },
     select: USER_SELECT,
   });
@@ -62,7 +63,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 
 export async function updateUser(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, email, password, role, active, monthlySalary } = req.body;
+  const { name, email, password, role, active, monthlySalary, company } = req.body;
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
@@ -91,6 +92,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   if (role !== undefined) updateData.role = normalizeRole(role);
   if (active !== undefined) updateData.active = Boolean(active);
   if (monthlySalary !== undefined) updateData.monthlySalary = parsedMonthlySalary;
+  if (company !== undefined) updateData.company = typeof company === 'string' && company.trim() ? company.trim() : null;
 
   const updated = await prisma.user.update({
     where: { id },

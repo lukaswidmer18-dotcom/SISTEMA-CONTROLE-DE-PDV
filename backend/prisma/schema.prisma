@@ -15,6 +15,7 @@ model User {
   role          String   @default("PROMOTOR")
   active        Boolean  @default(true)
   monthlySalary Float?
+  company       String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
