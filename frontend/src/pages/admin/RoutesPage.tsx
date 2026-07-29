@@ -54,11 +54,15 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     }
     function updateRect() {
       if (!containerRef.current) return;
@@ -103,6 +107,7 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
       </div>
       {open && options.length > 0 && rect && createPortal(
         <div
+          ref={dropdownRef}
           className="fixed z-[200] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
           style={{ top: rect.top, left: rect.left, width: rect.width }}
         >
