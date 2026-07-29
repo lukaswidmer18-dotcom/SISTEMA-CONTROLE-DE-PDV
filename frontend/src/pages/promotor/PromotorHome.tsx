@@ -13,7 +13,7 @@ import { isLocalVisit, getVisitReference, clearOfflineActiveVisit } from '../../
 import { getNextPonto } from '../../utils/ponto';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium, Play } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, AlertCircle, Store, MessageSquareWarning, X, BatteryMedium, Play, ChevronRight } from 'lucide-react';
 
 const PONTO_LABELS: Record<string, string> = {
   SAIDA_ALMOCO: 'Saída Almoço',
@@ -192,7 +192,7 @@ export default function PromotorHome() {
   const [loading, setLoading] = useState(true);
   const [justifyRoute, setJustifyRoute] = useState<RotaVisita | null>(null);
   const [pontoError, setPontoError] = useState('');
-  const [batteryLevel, setBatteryLevel] = useBatteryLevel();
+  const [batteryLevel, setBatteryLevel, batteryAutoDetected] = useBatteryLevel();
   const [visitError, setVisitError] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selectedPdv, setSelectedPdv] = useState<PDV | null>(null);
@@ -563,14 +563,17 @@ export default function PromotorHome() {
             {loading ? (
               <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
             ) : activeVisit ? (
-              <div className="bg-gradient-to-br from-pluma-50 to-white border border-pluma-100 rounded-2xl p-5 mb-4 shadow-sm">
+              <Link
+                to="/promotor/ponto"
+                className="block bg-gradient-to-br from-pluma-50 to-white border border-pluma-100 rounded-2xl p-5 mb-4 shadow-sm hover:border-pluma-300 hover:shadow-md transition-all"
+              >
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-[10px] font-bold text-pluma-600 uppercase mb-1 tracking-wider">PDV Atual</p>
                     <p className="text-xl font-black text-gray-900 leading-tight">{activeVisit.pdv?.name}</p>
                   </div>
                   <div className="bg-white p-2 rounded-xl shadow-sm border border-pluma-50">
-                    <MapPin size={20} className="text-pluma-800" />
+                    <ChevronRight size={20} className="text-pluma-800" />
                   </div>
                 </div>
 
@@ -586,7 +589,7 @@ export default function PromotorHome() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 mb-4">
                 <MapPin size={32} className="text-gray-300 mb-2" />
@@ -613,10 +616,7 @@ export default function PromotorHome() {
           </div>
 
           {activeVisit && (
-            <div className="mt-auto space-y-2">
-              <Link to="/promotor/ponto" className="btn-primary w-full py-3 text-base shadow-glow-pluma block text-center">
-                Continuar Visita
-              </Link>
+            <div className="mt-auto">
               <button
                 onClick={() => { setEncerramentoError(''); setShowEncerramentoModal(true); }}
                 className="w-full py-2.5 bg-white border-2 border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 rounded-xl font-bold transition-all text-sm"
@@ -680,9 +680,10 @@ export default function PromotorHome() {
                   max="100"
                   inputMode="numeric"
                   placeholder="Ex: 80"
-                  className="input-field text-sm py-2.5"
+                  className={`input-field text-sm py-2.5 ${batteryAutoDetected ? 'bg-gray-50 text-gray-500' : ''}`}
                   value={batteryLevel}
-                  onChange={e => setBatteryLevel(e.target.value)}
+                  readOnly={batteryAutoDetected}
+                  onChange={e => { if (!batteryAutoDetected) setBatteryLevel(e.target.value); }}
                 />
               </div>
               <button
