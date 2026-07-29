@@ -106,7 +106,7 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
               <input type="date" className="input-field py-3 text-sm font-bold" required value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Quantidade</label>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Quantidade de caixas aberta</label>
               <input type="number" min="1" className="input-field py-3 text-sm font-bold" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
             </div>
           </div>
