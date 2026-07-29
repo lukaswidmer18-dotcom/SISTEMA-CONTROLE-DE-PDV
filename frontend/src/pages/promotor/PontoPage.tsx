@@ -751,65 +751,65 @@ export default function PontoPage() {
                         </div>
                       </div>
 
-                      {/* Checklist de Fotos */}
+                      {/* Checklist de Fotos — o último item (ex: foto de saída/fachada) fica
+                          depois de Produtos/Ruptura/Preço, os demais ficam aqui antes. */}
                       <div className="space-y-2 mb-6">
-                        {checklistItems.length === 0 ? (
+                        {checklistItems.length === 0 && (
                           <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhum item de checklist configurado pelo administrador.</p>
-                        ) : (
-                          checklistItems.map((item, index) => {
-                            const photos = checklistStatus.photosByItem.get(item.id) || [];
-                            const covered = checklistStatus.isCovered(item);
-                            const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
-                            return (
-                              <div key={item.id} className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
-                                <div className="flex items-center justify-between mb-2">
-                                  <p className="text-xs font-bold text-gray-800">{item.label}</p>
-                                  <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
-                                    {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {photos.map(photo => (
-                                    <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                      {photo.filePath === 'offline' ? (
-                                        <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
-                                      ) : (
-                                        <img
-                                          src={photo.filePath}
-                                          className="w-full h-full object-cover cursor-pointer"
-                                          onClick={() => setExpandedPhoto(photo.filePath)}
-                                          alt={item.label}
-                                        />
-                                      )}
-                                      <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
-                                        <Trash2 size={10} />
-                                      </button>
-                                    </div>
-                                  ))}
-                                  {uploadingPreview?.itemId === item.id && (
-                                    <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                      <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                                        <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
-                                      </div>
-                                    </div>
-                                  )}
-                                  {!covered && !locked && (
-                                    <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
-                                      <Plus size={18} className="text-gray-300" />
-                                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
-                                    </label>
-                                  )}
-                                  {locked && photos.length === 0 && (
-                                    <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                                      <Lock size={16} className="text-gray-300" />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
                         )}
+                        {checklistItems.slice(0, -1).map((item, index) => {
+                          const photos = checklistStatus.photosByItem.get(item.id) || [];
+                          const covered = checklistStatus.isCovered(item);
+                          const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
+                          return (
+                            <div key={item.id} className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold text-gray-800">{item.label}</p>
+                                <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
+                                  {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {photos.map(photo => (
+                                  <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                    {photo.filePath === 'offline' ? (
+                                      <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
+                                    ) : (
+                                      <img
+                                        src={photo.filePath}
+                                        className="w-full h-full object-cover cursor-pointer"
+                                        onClick={() => setExpandedPhoto(photo.filePath)}
+                                        alt={item.label}
+                                      />
+                                    )}
+                                    <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                                {uploadingPreview?.itemId === item.id && (
+                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                    <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                      <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                  </div>
+                                )}
+                                {!covered && !locked && (
+                                  <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
+                                    <Plus size={18} className="text-gray-300" />
+                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
+                                  </label>
+                                )}
+                                {locked && photos.length === 0 && (
+                                  <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                                    <Lock size={16} className="text-gray-300" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
                       {/* Validity Checklist */}
@@ -902,6 +902,66 @@ export default function PontoPage() {
                           <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhuma pesquisa de preço ainda.</p>
                         )}
                       </div>
+
+                      {/* Último item do checklist (ex: foto de saída/fachada) — fica depois
+                          de Produtos/Ruptura/Preço, já que só faz sentido ao fim da visita. */}
+                      {checklistItems.length > 0 && (() => {
+                        const index = checklistItems.length - 1;
+                        const item = checklistItems[index];
+                        const photos = checklistStatus.photosByItem.get(item.id) || [];
+                        const covered = checklistStatus.isCovered(item);
+                        const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
+                        return (
+                          <div className="space-y-2 mb-6">
+                            <div className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold text-gray-800">{item.label}</p>
+                                <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
+                                  {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {photos.map(photo => (
+                                  <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                    {photo.filePath === 'offline' ? (
+                                      <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
+                                    ) : (
+                                      <img
+                                        src={photo.filePath}
+                                        className="w-full h-full object-cover cursor-pointer"
+                                        onClick={() => setExpandedPhoto(photo.filePath)}
+                                        alt={item.label}
+                                      />
+                                    )}
+                                    <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                                {uploadingPreview?.itemId === item.id && (
+                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+                                    <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                      <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
+                                    </div>
+                                  </div>
+                                )}
+                                {!covered && !locked && (
+                                  <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
+                                    <Plus size={18} className="text-gray-300" />
+                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
+                                  </label>
+                                )}
+                                {locked && photos.length === 0 && (
+                                  <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                                    <Lock size={16} className="text-gray-300" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div className="pt-4 border-t border-gray-100 text-center">
                         <p className="text-[11px] text-gray-400 font-semibold">
