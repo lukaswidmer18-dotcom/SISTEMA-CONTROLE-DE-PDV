@@ -66,9 +66,9 @@ function DayCard({ dayOfWeek, date, items, isToday }: {
               <p className="text-xs text-gray-400 leading-tight ml-4">
                 {item.city} · {item.eventTime}
               </p>
-              <div className="flex items-center justify-between gap-2 ml-4 mt-1">
-                <p className="text-xs text-gray-500 leading-tight truncate">Solicitado por {item.requesterName}</p>
-                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${STATUS_BADGE[item.status]}`}>
+              <div className="ml-4 mt-1 space-y-1">
+                <p className="text-xs text-gray-500 leading-tight break-words">Solicitado por {item.requesterName}</p>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${STATUS_BADGE[item.status]}`}>
                   {STATUS_LABEL[item.status]}
                 </span>
               </div>
