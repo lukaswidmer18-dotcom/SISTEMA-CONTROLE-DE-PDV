@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { Users, MapPin, Package, ClipboardList, TrendingUp } from 'lucide-react';
+import DegustacoesWeekCard from '../../components/dashboard/DegustacoesWeekCard';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, pdvs: 0, products: 0, visits: 0, todayVisits: 0 });
@@ -91,6 +92,10 @@ export default function AdminDashboard() {
             <div>• Painel administrativo completo</div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <DegustacoesWeekCard />
       </div>
     </div>
   );
