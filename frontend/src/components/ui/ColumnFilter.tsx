@@ -97,7 +97,7 @@ export default function ColumnFilter({ label, values, selected, onChange }: Colu
                     checked={selected.has(value)}
                     onChange={() => toggleValue(value)}
                   />
-                  <span className="text-gray-700 truncate">{value || '(vazio)'}</span>
+                  <span className="text-gray-700 truncate" title={value || '(vazio)'}>{value || '(vazio)'}</span>
                 </label>
               ))
             )}
