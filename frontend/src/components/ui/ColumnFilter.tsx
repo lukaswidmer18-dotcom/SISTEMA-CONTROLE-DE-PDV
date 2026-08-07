@@ -88,7 +88,7 @@ export default function ColumnFilter({ label, values, selected, onChange }: Colu
               />
             </div>
           </div>
-          <div className="max-h-48 overflow-y-auto py-1">
+          <div className="max-h-48 overflow-y-auto overscroll-contain py-1">
             {filteredValues.length === 0 ? (
               <p className="px-3 py-2 text-xs text-gray-400 italic">Nada encontrado.</p>
             ) : (
