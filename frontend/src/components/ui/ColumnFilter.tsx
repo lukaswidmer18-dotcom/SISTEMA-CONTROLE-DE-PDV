@@ -28,7 +28,10 @@ export default function ColumnFilter({ label, values, selected, onChange }: Colu
         setOpen(false);
       }
     }
-    function handleScrollOrResize() { setOpen(false); }
+    function handleScrollOrResize(e: Event) {
+      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
+      setOpen(false);
+    }
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
