@@ -11,7 +11,7 @@ import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pont
 import { getCoverageToday, getPdvsNaoVisitados } from '../controllers/coverageController';
 import { rateVisit } from '../controllers/ratingController';
 import { getPromotorRanking } from '../controllers/rankingController';
-import { getRupturaAlertas } from '../controllers/rupturaController';
+import { getRupturaAlertas, deleteRupturaAdmin } from '../controllers/rupturaController';
 import { listPriceChecks, deletePriceCheckAdmin } from '../controllers/priceCheckController';
 import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus, updateDegustacaoSolicitacao, deleteDegustacaoSolicitacao } from '../controllers/degustacaoController';
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
@@ -108,6 +108,7 @@ router.get('/admin/ranking', authenticate, requireAdmin, getPromotorRanking);
 
 // Admin Ruptura
 router.get('/admin/ruptura/alertas', authenticate, requireAdmin, getRupturaAlertas);
+router.delete('/admin/ruptura/:id', authenticate, requireAdmin, deleteRupturaAdmin);
 
 // Admin Pesquisa de Preço
 router.get('/admin/price-checks', authenticate, requireAdmin, listPriceChecks);

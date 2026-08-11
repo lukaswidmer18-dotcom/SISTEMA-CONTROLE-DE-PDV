@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { RupturaAlerta, RupturaRiskLevel } from '../../types';
-import { PackageX, RefreshCw, AlertTriangle } from 'lucide-react';
+import { PackageX, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -11,11 +11,46 @@ const RISK_STYLE: Record<RupturaRiskLevel, { label: string; badge: string }> = {
   OK: { label: 'OK', badge: 'bg-emerald-50 text-emerald-600' },
 };
 
+function ConfirmDeleteRupturaModal({ alerta, loading, onConfirm, onCancel }: {
+  alerta: RupturaAlerta; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir registro de ruptura</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir a leitura de <span className="font-semibold text-gray-700">"{alerta.productName}"</span> em <span className="font-semibold text-gray-700">{alerta.pdvName}</span>? Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RupturaPage() {
   const [alertas, setAlertas] = useState<RupturaAlerta[]>([]);
   const [limiteEstoque, setLimiteEstoque] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<RupturaAlerta | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -31,6 +66,21 @@ export default function RupturaPage() {
   }
 
   useEffect(() => { load(); }, [limiteEstoque]);
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setError('');
+    setDeletingId(deleting.id);
+    try {
+      await api.delete(`/admin/ruptura/${deleting.id}`);
+      setAlertas(prev => prev.filter(a => a.id !== deleting.id));
+      setDeleting(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao excluir registro de ruptura.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const counts = useMemo(() => ({
     CRITICO: alertas.filter(a => a.riskLevel === 'CRITICO').length,
@@ -105,6 +155,7 @@ export default function RupturaPage() {
                 <th className="py-2 pr-4">P/ Troca</th>
                 <th className="py-2 pr-4">Promotor</th>
                 <th className="py-2 pr-4">Última leitura</th>
+                <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
@@ -122,12 +173,30 @@ export default function RupturaPage() {
                   <td className="py-2.5 pr-4 text-gray-500">{a.qtySeparadoTroca}</td>
                   <td className="py-2.5 pr-4 text-gray-500">{a.promotorName}</td>
                   <td className="py-2.5 pr-4 text-gray-400 text-xs">{format(new Date(a.checkedAt), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                  <td className="py-2.5 pr-4">
+                    <button
+                      onClick={() => setDeleting(a)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {deleting && (
+        <ConfirmDeleteRupturaModal
+          alerta={deleting}
+          loading={deletingId === deleting.id}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
 }

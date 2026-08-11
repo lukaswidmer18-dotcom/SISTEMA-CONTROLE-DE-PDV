@@ -51,3 +51,16 @@ export async function getRupturaAlertas(req: Request, res: Response): Promise<vo
 
   res.json({ success: true, data: alertas });
 }
+
+export async function deleteRupturaAdmin(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const registro = await prisma.rupturaRegistro.findUnique({ where: { id } });
+  if (!registro) {
+    res.status(404).json({ success: false, error: 'Registro de ruptura não encontrado.' });
+    return;
+  }
+
+  await prisma.rupturaRegistro.delete({ where: { id } });
+  res.json({ success: true, data: null });
+}
