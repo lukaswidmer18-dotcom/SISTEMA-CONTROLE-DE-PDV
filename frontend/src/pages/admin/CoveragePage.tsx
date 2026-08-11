@@ -6,6 +6,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import api from '../../services/api';
 import { CoverageEntry, CoverageStatus, PdvNaoVisitado } from '../../types';
+import { useColumnFilters } from '../../hooks/useColumnFilters';
+import ColumnFilter from '../../components/ui/ColumnFilter';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -95,10 +97,21 @@ export default function CoveragePage() {
 
   const missingCoords = useMemo(() => coverage.filter(c => c.latitude == null || c.longitude == null), [coverage]);
 
-  const filteredNaoVisitados = useMemo(
+  const minDaysFiltered = useMemo(
     () => naoVisitados.filter(p => p.daysSinceLastVisit === null || p.daysSinceLastVisit >= minDays),
     [naoVisitados, minDays]
   );
+
+  const {
+    setColumnFilter, getUniqueValues, filteredItems: filteredNaoVisitados, activeFilterCount, clearAllFilters, filters,
+  } = useColumnFilters(minDaysFiltered, {
+    name: p => [p.name],
+    city: p => [p.city || '-'],
+    lastVisit: p => [p.lastVisitDate ? format(new Date(p.lastVisitDate), 'dd/MM/yyyy', { locale: ptBR }) : 'Nunca visitado'],
+    daysSinceLastVisit: p => [p.daysSinceLastVisit === null ? 'Nunca' : `${p.daysSinceLastVisit} dias`],
+  });
+
+  useEffect(() => { setPage(1); }, [filters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredNaoVisitados.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -212,10 +225,17 @@ export default function CoveragePage() {
 
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <Store size={18} className="text-pluma-600" />
-            PDVs não visitados
-          </h3>
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <Store size={18} className="text-pluma-600" />
+              PDVs não visitados
+            </h3>
+            {activeFilterCount > 0 && (
+              <button onClick={clearAllFilters} className="text-xs font-bold text-pluma-700 hover:text-pluma-900 hover:underline">
+                Limpar filtros ({activeFilterCount})
+              </button>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-xs font-bold text-gray-500">
             Mín. dias sem visita
             <input
@@ -227,17 +247,38 @@ export default function CoveragePage() {
             />
           </label>
         </div>
-        {filteredNaoVisitados.length === 0 ? (
+        {minDaysFiltered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">Nenhum PDV parado há {minDays}+ dias.</p>
+        ) : filteredNaoVisitados.length === 0 ? (
+          <div className="text-sm text-gray-400 text-center py-6">
+            Nenhum resultado com os filtros aplicados.
+            <button onClick={clearAllFilters} className="block mx-auto mt-2 text-pluma-700 font-bold hover:underline">Limpar filtros</button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                  <th className="py-2 pr-4">PDV</th>
-                  <th className="py-2 pr-4">Cidade</th>
-                  <th className="py-2 pr-4">Última visita</th>
-                  <th className="py-2 pr-4">Dias sem visita</th>
+                  <th className="py-2 pr-4">
+                    <div className="flex items-center gap-1">PDV
+                      <ColumnFilter label="PDV" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
+                    </div>
+                  </th>
+                  <th className="py-2 pr-4">
+                    <div className="flex items-center gap-1">Cidade
+                      <ColumnFilter label="Cidade" values={getUniqueValues('city')} selected={filters.city ?? new Set()} onChange={s => setColumnFilter('city', s)} />
+                    </div>
+                  </th>
+                  <th className="py-2 pr-4">
+                    <div className="flex items-center gap-1">Última visita
+                      <ColumnFilter label="Última visita" values={getUniqueValues('lastVisit')} selected={filters.lastVisit ?? new Set()} onChange={s => setColumnFilter('lastVisit', s)} />
+                    </div>
+                  </th>
+                  <th className="py-2 pr-4">
+                    <div className="flex items-center gap-1">Dias sem visita
+                      <ColumnFilter label="Dias sem visita" values={getUniqueValues('daysSinceLastVisit')} selected={filters.daysSinceLastVisit ?? new Set()} onChange={s => setColumnFilter('daysSinceLastVisit', s)} />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
