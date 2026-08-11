@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { CheckCircle2, Clock, XCircle, MapPin, RefreshCw, AlertTriangle, Store } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, MapPin, RefreshCw, AlertTriangle, Store, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import api from '../../services/api';
@@ -58,6 +58,8 @@ export default function CoveragePage() {
   const [minDays, setMinDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   async function load() {
     setLoading(true);
@@ -78,6 +80,8 @@ export default function CoveragePage() {
 
   useEffect(() => { load(); }, [date]);
 
+  useEffect(() => { setPage(1); }, [minDays, date]);
+
   const counts = useMemo(() => ({
     ATENDIDO: coverage.filter(c => c.status === 'ATENDIDO').length,
     EM_ATENDIMENTO: coverage.filter(c => c.status === 'EM_ATENDIMENTO').length,
@@ -94,6 +98,13 @@ export default function CoveragePage() {
   const filteredNaoVisitados = useMemo(
     () => naoVisitados.filter(p => p.daysSinceLastVisit === null || p.daysSinceLastVisit >= minDays),
     [naoVisitados, minDays]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredNaoVisitados.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedNaoVisitados = useMemo(
+    () => filteredNaoVisitados.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredNaoVisitados, currentPage]
   );
 
   return (
@@ -230,7 +241,7 @@ export default function CoveragePage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredNaoVisitados.map(p => (
+                {paginatedNaoVisitados.map(p => (
                   <tr key={p.pdvId} className="border-b border-gray-50 last:border-b-0">
                     <td className="py-2.5 pr-4 font-bold text-gray-800">{p.name}</td>
                     <td className="py-2.5 pr-4 text-gray-500">{p.city}</td>
@@ -252,6 +263,29 @@ export default function CoveragePage() {
                 ))}
               </tbody>
             </table>
+            <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
+              <p className="text-xs text-gray-400 font-semibold">
+                Mostrando {(currentPage - 1) * PAGE_SIZE + 1}
+                –{Math.min(currentPage * PAGE_SIZE, filteredNaoVisitados.length)} de {filteredNaoVisitados.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs font-bold text-gray-600">Página {currentPage} de {totalPages}</span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
