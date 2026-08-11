@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
-import { PDV, RotaVisita, User } from '../../types';
+import { PDV, RotaVisita, User, CoverageEntry, CoverageStatus } from '../../types';
 import { X, MapPin, Route as RouteIcon, Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, MessageSquareWarning, GripVertical, Search } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +20,18 @@ const DAYS_SHORT = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 const DAY_COLORS = ['#EAB308', '#3B82F6', '#EF4444', '#10B981', '#8B5CF6', '#F59E0B', '#06B6D4'];
 const BRAZIL_CENTER: [number, number] = [-15.7801, -47.9292];
 
+const STATUS_COLOR: Record<CoverageStatus, string> = {
+  ATENDIDO: '#10B981',
+  EM_ATENDIMENTO: '#EAB308',
+  NAO_ATENDIDO: '#EF4444',
+};
+
+const STATUS_LABEL: Record<CoverageStatus, string> = {
+  ATENDIDO: 'Atendido',
+  EM_ATENDIMENTO: 'Em atendimento',
+  NAO_ATENDIDO: 'Não atendido',
+};
+
 function FitBounds({ points }: { points: [number, number][] }) {
   const map = useMap();
   useEffect(() => {
@@ -34,10 +46,10 @@ function FitBounds({ points }: { points: [number, number][] }) {
   return null;
 }
 
-function dayNumberIcon(color: string, order: number) {
+function dayNumberIcon(color: string, order: number, blink: boolean) {
   return L.divIcon({
     className: 'route-day-marker',
-    html: `<div style="background:${color};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:800;">${order}</div>`,
+    html: `<div class="${blink ? 'semaphore-blink' : ''}" style="background:${color};width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:800;">${order}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
@@ -417,6 +429,7 @@ export default function RoutesPage() {
         const points = dayRoutes
           .filter(r => r.pdv?.latitude != null && r.pdv?.longitude != null)
           .map((r, i) => ({
+            rotaId: r.id,
             position: [r.pdv!.latitude as number, r.pdv!.longitude as number] as [number, number],
             name: r.pdv!.name,
             order: i + 1,
@@ -429,6 +442,34 @@ export default function RoutesPage() {
 
   const allMapPoints = useMemo(() => mapDays.flatMap(d => d.points.map(p => p.position)), [mapDays]);
   const allMissing = useMemo(() => mapDays.flatMap(d => d.missing.map(r => ({ dayOfWeek: d.dayOfWeek, name: r.pdv?.name || '?' }))), [mapDays]);
+
+  const [coverageStatus, setCoverageStatus] = useState<Record<string, CoverageStatus>>({});
+
+  useEffect(() => {
+    if (isGeral || !selectedPromotor || activeDays.size === 0) {
+      setCoverageStatus({});
+      return;
+    }
+    const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+    const pastOrTodayDays = Array.from(activeDays).filter(d => weekDates[d] <= todayOnly);
+    if (pastOrTodayDays.length === 0) {
+      setCoverageStatus({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      pastOrTodayDays.map(d => api.get('/admin/coverage/today', { params: { date: format(weekDates[d], 'yyyy-MM-dd') } }))
+    ).then(responses => {
+      if (cancelled) return;
+      const next: Record<string, CoverageStatus> = {};
+      responses.forEach(res => {
+        (res.data.data || []).forEach((entry: CoverageEntry) => { next[entry.rotaId] = entry.status; });
+      });
+      setCoverageStatus(next);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGeral, selectedPromotor, weekOffset, activeDays, routes]);
 
   const [roadGeometry, setRoadGeometry] = useState<Record<number, [number, number][]>>({});
   const routableSignature = useMemo(
@@ -666,9 +707,24 @@ export default function RoutesPage() {
                     {DAYS_SHORT[d.dayOfWeek]}
                   </span>
                 ))}
+                {Object.keys(coverageStatus).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 border-l border-gray-200 pl-3">
+                    {(['ATENDIDO', 'EM_ATENDIMENTO', 'NAO_ATENDIDO'] as CoverageStatus[]).map(s => (
+                      <span key={s} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                        <span className={`w-2.5 h-2.5 rounded-full ${s === 'EM_ATENDIMENTO' ? 'semaphore-blink' : ''}`} style={{ backgroundColor: STATUS_COLOR[s] }} />
+                        {STATUS_LABEL[s]}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
+          {Object.keys(coverageStatus).length > 0 && (
+            <p className="text-xs text-gray-400 mb-3">
+              Paradas de hoje/dias passados mostram status real (semáforo). Dias futuros continuam na cor do dia — ainda não têm visita registrada.
+            </p>
+          )}
 
           <div className="h-[420px] rounded-2xl overflow-hidden border border-gray-100 relative z-0">
             <MapContainer center={BRAZIL_CENTER} zoom={4} className="h-full w-full" style={{ background: '#f8fafc' }}>
@@ -679,16 +735,22 @@ export default function RoutesPage() {
                   {d.points.length > 1 && (
                     <Polyline positions={roadGeometry[d.dayOfWeek] ?? d.points.map(p => p.position)} color={d.color} weight={3} opacity={0.7} />
                   )}
-                  {d.points.map((p, i) => (
-                    <Marker key={`${d.dayOfWeek}-${i}`} position={p.position} icon={dayNumberIcon(d.color, p.order)}>
-                      <Popup>
-                        <div className="text-xs">
-                          <p className="font-bold text-gray-800">{p.name}</p>
-                          <p className="text-gray-500">{DAYS[d.dayOfWeek]} · {p.order}ª parada</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
+                  {d.points.map((p, i) => {
+                    const status = coverageStatus[p.rotaId];
+                    const markerColor = status ? STATUS_COLOR[status] : d.color;
+                    const blink = status === 'EM_ATENDIMENTO';
+                    return (
+                      <Marker key={`${d.dayOfWeek}-${i}`} position={p.position} icon={dayNumberIcon(markerColor, p.order, blink)}>
+                        <Popup>
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-bold text-gray-800">{p.name}</p>
+                            <p className="text-gray-500">{DAYS[d.dayOfWeek]} · {p.order}ª parada</p>
+                            {status && <p className="font-semibold" style={{ color: markerColor }}>{STATUS_LABEL[status]}</p>}
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  })}
                 </React.Fragment>
               ))}
             </MapContainer>
