@@ -40,6 +40,19 @@
   }
 }
 
+@keyframes semaphoreBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.semaphore-blink {
+  animation: semaphoreBlink 1s ease-in-out infinite;
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;

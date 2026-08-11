@@ -19,7 +19,7 @@ const BRAZIL_CENTER: [number, number] = [-15.7801, -47.9292];
 
 const STATUS_COLOR: Record<CoverageStatus, string> = {
   ATENDIDO: '#10B981',
-  EM_ATENDIMENTO: '#3B82F6',
+  EM_ATENDIMENTO: '#EAB308',
   NAO_ATENDIDO: '#EF4444',
 };
 
@@ -30,9 +30,10 @@ const STATUS_LABEL: Record<CoverageStatus, string> = {
 };
 
 function statusIcon(status: CoverageStatus) {
+  const blinkClass = status === 'EM_ATENDIMENTO' ? ' semaphore-blink' : '';
   return L.divIcon({
     className: 'coverage-marker',
-    html: `<div style="background:${STATUS_COLOR[status]};width:18px;height:18px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
+    html: `<div class="${blinkClass.trim()}" style="background:${STATUS_COLOR[status]};width:18px;height:18px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
@@ -157,7 +158,7 @@ export default function CoveragePage() {
           <div><p className="text-2xl font-black text-gray-900">{counts.ATENDIDO}</p><p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Atendidos</p></div>
         </div>
         <div className="card flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><Clock size={20} /></div>
+          <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600"><Clock size={20} /></div>
           <div><p className="text-2xl font-black text-gray-900">{counts.EM_ATENDIMENTO}</p><p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Em atendimento</p></div>
         </div>
         <div className="card flex items-center gap-3">
@@ -175,7 +176,7 @@ export default function CoveragePage() {
           <div className="flex items-center gap-3">
             {(['ATENDIDO', 'EM_ATENDIMENTO', 'NAO_ATENDIDO'] as CoverageStatus[]).map(s => (
               <span key={s} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[s] }} />
+                <span className={`w-2.5 h-2.5 rounded-full ${s === 'EM_ATENDIMENTO' ? 'semaphore-blink' : ''}`} style={{ backgroundColor: STATUS_COLOR[s] }} />
                 {STATUS_LABEL[s]}
               </span>
             ))}
