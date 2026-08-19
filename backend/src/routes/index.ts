@@ -10,7 +10,7 @@ import {
 import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pontoController';
 import { getCoverageToday, getPdvsNaoVisitados } from '../controllers/coverageController';
 import { rateVisit } from '../controllers/ratingController';
-import { getPromotorRanking } from '../controllers/rankingController';
+import { getPromotorRanking, hidePromotorFromRanking } from '../controllers/rankingController';
 import { getRupturaAlertas, deleteRupturaAdmin } from '../controllers/rupturaController';
 import { listPriceChecks, deletePriceCheckAdmin } from '../controllers/priceCheckController';
 import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegustacaoSolicitacoes, updateDegustacaoSolicitacaoStatus, updateDegustacaoSolicitacao, deleteDegustacaoSolicitacao } from '../controllers/degustacaoController';
@@ -105,6 +105,7 @@ router.get('/admin/pdvs/nao-visitados', authenticate, requireAdmin, getPdvsNaoVi
 // Avaliação de visita e ranking de promotores
 router.put('/visits/:visitId/rating', authenticate, requireAdmin, rateVisit);
 router.get('/admin/ranking', authenticate, requireAdmin, getPromotorRanking);
+router.patch('/admin/ranking/:id/hide', authenticate, requireAdmin, hidePromotorFromRanking);
 
 // Admin Ruptura
 router.get('/admin/ruptura/alertas', authenticate, requireAdmin, getRupturaAlertas);

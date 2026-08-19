@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "hiddenFromRanking" BOOLEAN NOT NULL DEFAULT false;

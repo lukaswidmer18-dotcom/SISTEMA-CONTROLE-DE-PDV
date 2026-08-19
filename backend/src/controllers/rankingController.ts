@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
 export async function getPromotorRanking(_req: Request, res: Response): Promise<void> {
-  const promotores = await prisma.user.findMany({ where: { role: 'PROMOTOR', active: true } });
+  const promotores = await prisma.user.findMany({ where: { role: 'PROMOTOR', active: true, hiddenFromRanking: false } });
   const promotorIds = promotores.map((p) => p.id);
 
   // Uma query pra cada relação, em vez de 3 queries por promotor — evita N+1 quando o time cresce.
@@ -85,4 +85,17 @@ export async function getPromotorRanking(_req: Request, res: Response): Promise<
   result.sort((a, b) => (b.finalScore ?? -1) - (a.finalScore ?? -1));
 
   res.json({ success: true, data: result });
+}
+
+export async function hidePromotorFromRanking(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    res.status(404).json({ success: false, error: 'Promotor não encontrado.' });
+    return;
+  }
+
+  await prisma.user.update({ where: { id }, data: { hiddenFromRanking: true } });
+  res.json({ success: true, data: null });
 }

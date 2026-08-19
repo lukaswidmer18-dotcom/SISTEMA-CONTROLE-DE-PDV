@@ -8,21 +8,22 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  passwordHash  String
-  name          String
-  role          String   @default("PROMOTOR")
-  active        Boolean  @default(true)
-  monthlySalary Float?
-  company       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  name              String
+  role              String   @default("PROMOTOR")
+  active            Boolean  @default(true)
+  hiddenFromRanking Boolean  @default(false)
+  monthlySalary     Float?
+  company           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   pontos       Ponto[]
   visits       Visit[]
   rotas        RotaVisita[]
-  ratingsGiven VisitRating[] @relation("RatedBy")
+  ratingsGiven VisitRating[]     @relation("RatedBy")
   location     PromotorLocation?
 
   @@index([role, active])
@@ -100,20 +101,20 @@ model Ponto {
 }
 
 model Visit {
-  id               String    @id @default(uuid())
-  promotorId       String?
-  pdvId            String?
-  status           String    @default("IN_PROGRESS")
-  startedAt        DateTime  @default(now())
-  completedAt      DateTime?
-  noProductsFound  Boolean   @default(false)
-  latitudeStart    Float?
-  longitudeStart   Float?
-  latitudeEnd      Float?
-  longitudeEnd     Float?
-  boxesGenerated   Int?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  promotorId      String?
+  pdvId           String?
+  status          String    @default("IN_PROGRESS")
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  noProductsFound Boolean   @default(false)
+  latitudeStart   Float?
+  longitudeStart  Float?
+  latitudeEnd     Float?
+  longitudeEnd    Float?
+  boxesGenerated  Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   promotor    User?             @relation(fields: [promotorId], references: [id], onDelete: SetNull)
   pdv         PDV?              @relation(fields: [pdvId], references: [id], onDelete: SetNull)
@@ -217,25 +218,25 @@ model RupturaRegistro {
 }
 
 model DegustacaoSolicitacao {
-  id                   String   @id @default(uuid())
+  id                   String    @id @default(uuid())
   requesterName        String
   date                 DateTime
   city                 String
   address              String
   store                String
-  clifor               String   @default("")
+  clifor               String    @default("")
   productEvent         String
   eventTime            String
-  supervisor           String   @default("")
-  sellerName           String   @default("")
-  justification        String   @default("")
+  supervisor           String    @default("")
+  sellerName           String    @default("")
+  justification        String    @default("")
   documentPath         String?
   documentFileName     String?
   documentOriginalName String?
-  status               String   @default("pendente")
+  status               String    @default("pendente")
   reviewedBy           String?
   reviewedAt           DateTime?
-  createdAt            DateTime @default(now())
+  createdAt            DateTime  @default(now())
 
   @@map("degustacao_solicitacoes")
 }
