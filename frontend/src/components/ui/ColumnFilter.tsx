@@ -45,7 +45,15 @@ export default function ColumnFilter({ label, values, selected, onChange }: Colu
   function toggleOpen() {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 240) });
+      const PANEL_HEIGHT = 280;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= PANEL_HEIGHT || rect.top < PANEL_HEIGHT
+        ? rect.bottom + 4
+        : rect.top - PANEL_HEIGHT - 4;
+      setPosition({
+        top: Math.max(8, Math.min(top, window.innerHeight - PANEL_HEIGHT - 8)),
+        left: Math.min(rect.left, window.innerWidth - 240),
+      });
     }
     setSearch('');
     setOpen(o => !o);
