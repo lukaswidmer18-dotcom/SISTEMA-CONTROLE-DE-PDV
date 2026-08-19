@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { DegustacaoSolicitacao } from '../../types';
-import { UtensilsCrossed, ChevronLeft, ChevronRight, ClipboardList, ArrowUpRight } from 'lucide-react';
+import { UtensilsCrossed, ChevronLeft, ChevronRight, ClipboardList, ArrowUpRight, Trash2, AlertTriangle } from 'lucide-react';
 import { format, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -28,11 +28,45 @@ function getWeekStart(weekOffset: number): Date {
   return addDays(todayMidnight, -todayMidnight.getDay() + weekOffset * 7);
 }
 
-function DayCard({ dayOfWeek, date, items, isToday }: {
+function ConfirmDeleteDegustacaoModal({ solicitacao, loading, onConfirm, onCancel }: {
+  solicitacao: DegustacaoSolicitacao; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir solicitação</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir a solicitação de degustação da loja <span className="font-semibold text-gray-700">"{solicitacao.store}"</span>? Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayCard({ dayOfWeek, date, items, isToday, onDelete }: {
   dayOfWeek: number;
   date: Date;
   items: DegustacaoSolicitacao[];
   isToday: boolean;
+  onDelete: (item: DegustacaoSolicitacao) => void;
 }) {
   const dayColor = DAY_COLORS[dayOfWeek];
 
@@ -59,10 +93,20 @@ function DayCard({ dayOfWeek, date, items, isToday }: {
         ) : (
           items.map((item, i) => (
             <div key={item.id} className="border-b border-gray-100 last:border-b-0 py-2.5">
-              <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
-                <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
-                {item.store}
-              </p>
+              <div className="flex items-start justify-between gap-1">
+                <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
+                  <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
+                  {item.store}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onDelete(item)}
+                  title="Excluir"
+                  className="shrink-0 p-1 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
               <p className="text-xs text-gray-400 leading-tight ml-4">
                 {item.city} · {item.eventTime}
               </p>
@@ -86,6 +130,9 @@ export default function DegustacoesWeekCard() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<DegustacaoSolicitacao | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const weekStart = useMemo(() => getWeekStart(weekOffset), [weekOffset]);
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -110,6 +157,21 @@ export default function DegustacoesWeekCard() {
   }
 
   useEffect(() => { load(weekDates); }, [weekOffset, statusFilter]);
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      await api.delete(`/admin/degustacoes/${deleting.id}`);
+      setDeleting(null);
+      load(weekDates);
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.error || 'Erro ao excluir solicitação de degustação.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   const byDay = useMemo(() => {
     const grouped: Record<number, DegustacaoSolicitacao[]> = {};
@@ -197,6 +259,9 @@ export default function DegustacoesWeekCard() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold">{error}</div>
       )}
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold">{deleteError}</div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-4 border-pluma-800 border-t-transparent" /></div>
@@ -209,9 +274,19 @@ export default function DegustacoesWeekCard() {
               date={weekDates[dayOfWeek]}
               items={byDay[dayOfWeek] || []}
               isToday={isSameDay(weekDates[dayOfWeek], todayDate)}
+              onDelete={item => { setDeleteError(''); setDeleting(item); }}
             />
           ))}
         </div>
+      )}
+
+      {deleting && (
+        <ConfirmDeleteDegustacaoModal
+          solicitacao={deleting}
+          loading={deleteLoading}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
       )}
     </div>
   );
