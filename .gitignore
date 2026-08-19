@@ -43,3 +43,6 @@ desktop.ini
 
 # TypeScript cache
 *.tsbuildinfo
+
+.vercel
+.env*.local

@@ -27,8 +27,10 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-app.listen(env.port, () => {
-  console.log(`Servidor rodando na porta ${env.port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(env.port, () => {
+    console.log(`Servidor rodando na porta ${env.port}`);
+  });
+}
 
 export default app;
