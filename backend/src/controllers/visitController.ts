@@ -175,8 +175,8 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const precedingItems = activeChecklistItems.filter((item) => item.required && item.order < checklistItem.order);
-  const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < item.requiredCount);
+  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order);
+  const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < 1);
   if (pendingPreceding) {
     res.status(422).json({
       success: false,
@@ -460,16 +460,16 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   }
   const parsedBoxes: number = parsedBoxesValue;
 
-  const activeItems = await prisma.checklistItem.findMany({ where: { active: true, required: true } });
+  const activeItems = await prisma.checklistItem.findMany({ where: { active: true } });
   const photoCountByItem = new Map<string, number>();
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
-  const missingItems = activeItems.filter((item) => (photoCountByItem.get(item.id) || 0) < item.requiredCount);
+  const missingItems = activeItems.filter((item) => (photoCountByItem.get(item.id) || 0) < 1);
   if (missingItems.length > 0) {
     res.status(422).json({
       success: false,
-      error: `Faltam fotos do checklist: ${missingItems.map((i) => `${i.label} (${photoCountByItem.get(i.id) || 0}/${i.requiredCount})`).join(', ')}.`,
+      error: `Faltam fotos do checklist: ${missingItems.map((i) => i.label).join(', ')}.`,
     });
     return;
   }

@@ -612,9 +612,9 @@ export default function PontoPage() {
       const existing = photosByItem.get(photo.checklistItemId) || [];
       photosByItem.set(photo.checklistItemId, [...existing, photo]);
     }
-    const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= item.requiredCount;
+    const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= 1;
     const missing = checklistItems.filter(item => !isCovered(item));
-    const firstPendingIndex = checklistItems.findIndex(item => item.required && !isCovered(item));
+    const firstPendingIndex = checklistItems.findIndex(item => !isCovered(item));
     return { photosByItem, missing, firstPendingIndex, isCovered };
   }, [visit, checklistItems]);
 
