@@ -19,6 +19,7 @@ import { pingLocation } from '../controllers/locationController';
 import {
   startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
   addRuptura, deleteRuptura, addPriceCheck, deletePriceCheck, finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
+  deleteVisitAdmin,
 } from '../controllers/visitController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { upload, uploadPdf, uploadExcel } from '../middleware/upload';
@@ -85,6 +86,7 @@ router.get('/visits/active', authenticate, getActiveVisit);
 router.get('/visits/my', authenticate, getMyVisits);
 router.get('/visits/all', authenticate, requireAdmin, listAllVisits);
 router.get('/visits/:visitId', authenticate, getVisitDetail);
+router.delete('/visits/:visitId', authenticate, requireAdmin, deleteVisitAdmin);
 router.post('/visits/:visitId/photos', authenticate, upload.single('photo'), addPhoto);
 router.delete('/visits/:visitId/photos/:photoId', authenticate, deletePhoto);
 router.post('/visits/:visitId/validities', authenticate, addValidity);

@@ -4,9 +4,43 @@ import api from '../../services/api';
 import { Visit, ChecklistItem } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Eye, AlertTriangle } from 'lucide-react';
+import { Eye, AlertTriangle, Trash2 } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 import { getRequiredPhotoTotal } from '../../utils/checklist';
+
+function ConfirmDeleteVisitModal({ visit, loading, onConfirm, onCancel }: {
+  visit: Visit; loading: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="p-2 bg-red-50 text-red-600 rounded-lg shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">Excluir visita</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Excluir a visita de <span className="font-semibold text-gray-700">{visit.promotor?.name || '-'}</span> em{' '}
+              <span className="font-semibold text-gray-700">{visit.pdv?.name || '-'}</span>? Fotos, validades, ruptura, pesquisa de preço e avaliação dessa visita também serão apagadas. Essa ação não pode ser desfeita.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 text-white rounded-lg font-semibold text-sm py-2 hover:bg-red-700 disabled:opacity-40 transition-colors"
+          >
+            {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function VisitsAdminPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -18,6 +52,9 @@ export default function VisitsAdminPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [pdvs, setPdvs] = useState<any[]>([]);
   const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
+  const [deleting, setDeleting] = useState<Visit | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   async function load() {
     setLoading(true);
@@ -44,6 +81,21 @@ export default function VisitsAdminPage() {
   }
 
   useEffect(() => { load(); }, [filterDate, filterUser, filterPdv, filterStatus]);
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      await api.delete(`/visits/${deleting.id}`);
+      setDeleting(null);
+      load();
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.error || 'Erro ao excluir visita.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   return (
     <div>
@@ -83,6 +135,10 @@ export default function VisitsAdminPage() {
           </div>
         </div>
       </div>
+
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold mb-4">{deleteError}</div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
@@ -125,7 +181,14 @@ export default function VisitsAdminPage() {
                     <span className="text-xs text-gray-300">Sem nota</span>
                   )}
                 </div>
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteError(''); setDeleting(v); }}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                   <Link to={`/admin/visitas/${v.id}`} className="btn-secondary text-xs py-1 px-3 flex items-center gap-1">
                     <Eye size={13} /> Ver
                   </Link>
@@ -187,9 +250,18 @@ export default function VisitsAdminPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Link to={`/admin/visitas/${v.id}`} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50 inline-flex">
-                        <Eye size={15} />
-                      </Link>
+                      <div className="flex items-center gap-1 justify-end">
+                        <Link to={`/admin/visitas/${v.id}`} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50 inline-flex">
+                          <Eye size={15} />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => { setDeleteError(''); setDeleting(v); }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -197,6 +269,15 @@ export default function VisitsAdminPage() {
             </table>
           </div>
         </>
+      )}
+
+      {deleting && (
+        <ConfirmDeleteVisitModal
+          visit={deleting}
+          loading={deleteLoading}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
       )}
     </div>
   );

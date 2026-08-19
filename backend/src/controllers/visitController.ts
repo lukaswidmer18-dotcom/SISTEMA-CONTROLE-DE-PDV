@@ -597,6 +597,38 @@ export async function listAllVisits(req: Request, res: Response): Promise<void> 
   res.json({ success: true, data });
 }
 
+export async function deleteVisitAdmin(req: Request, res: Response): Promise<void> {
+  const { visitId } = req.params;
+
+  const visit = await prisma.visit.findUnique({
+    where: { id: visitId },
+    include: { photos: true, priceChecks: true },
+  });
+  if (!visit) {
+    res.status(404).json({ success: false, error: 'Visita não encontrada.' });
+    return;
+  }
+
+  for (const photo of visit.photos) {
+    if (photo.filePath) await deleteFromBlob(photo.filePath);
+  }
+  for (const priceCheck of visit.priceChecks) {
+    if (priceCheck.photoPath) await deleteFromBlob(priceCheck.photoPath);
+  }
+
+  await prisma.$transaction([
+    prisma.photo.deleteMany({ where: { visitId } }),
+    prisma.validity.deleteMany({ where: { visitId } }),
+    prisma.visitRating.deleteMany({ where: { visitId } }),
+    prisma.rupturaRegistro.deleteMany({ where: { visitId } }),
+    prisma.priceCheck.deleteMany({ where: { visitId } }),
+    prisma.ponto.updateMany({ where: { visitId }, data: { visitId: null } }),
+    prisma.visit.delete({ where: { id: visitId } }),
+  ]);
+
+  res.json({ success: true, data: null });
+}
+
 export async function getMapData(req: Request, res: Response): Promise<void> {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
