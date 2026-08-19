@@ -7,6 +7,8 @@ import { ptBR } from 'date-fns/locale';
 import { Eye, AlertTriangle, Trash2 } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 import { getRequiredPhotoTotal } from '../../utils/checklist';
+import { usePagination } from '../../hooks/usePagination';
+import Pagination from '../../components/ui/Pagination';
 
 function ConfirmDeleteVisitModal({ visit, loading, onConfirm, onCancel }: {
   visit: Visit; loading: boolean; onConfirm: () => void; onCancel: () => void;
@@ -82,6 +84,8 @@ export default function VisitsAdminPage() {
 
   useEffect(() => { load(); }, [filterDate, filterUser, filterPdv, filterStatus]);
 
+  const { page, setPage, totalPages, pageItems, pageSize, total } = usePagination(visits);
+
   async function confirmDelete() {
     if (!deleting) return;
     setDeleteLoading(true);
@@ -148,7 +152,7 @@ export default function VisitsAdminPage() {
         <>
           {/* Cards — mobile */}
           <div className="space-y-3 md:hidden">
-            {visits.map(v => (
+            {pageItems.map(v => (
               <div key={v.id} className="card">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
@@ -214,7 +218,7 @@ export default function VisitsAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {visits.map(v => (
+                {pageItems.map(v => (
                   <tr key={v.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-800">{v.promotor?.name || '-'}</td>
                     <td className="px-4 py-3 text-gray-600">
@@ -268,6 +272,8 @@ export default function VisitsAdminPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPageChange={setPage} />
         </>
       )}
 
