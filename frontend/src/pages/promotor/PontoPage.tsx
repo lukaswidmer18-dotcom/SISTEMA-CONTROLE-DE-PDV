@@ -614,7 +614,7 @@ export default function PontoPage() {
     }
     const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= item.requiredCount;
     const missing = checklistItems.filter(item => !isCovered(item));
-    const firstPendingIndex = checklistItems.findIndex(item => !isCovered(item));
+    const firstPendingIndex = checklistItems.findIndex(item => item.required && !isCovered(item));
     return { photosByItem, missing, firstPendingIndex, isCovered };
   }, [visit, checklistItems]);
 

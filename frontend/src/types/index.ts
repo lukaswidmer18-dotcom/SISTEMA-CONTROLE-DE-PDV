@@ -91,6 +91,7 @@ export interface ChecklistItem {
   label: string;
   order: number;
   requiredCount: number;
+  required: boolean;
   active: boolean;
   createdAt?: string;
 }

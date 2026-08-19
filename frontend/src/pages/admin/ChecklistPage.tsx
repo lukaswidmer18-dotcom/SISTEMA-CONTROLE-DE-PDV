@@ -7,6 +7,7 @@ function ChecklistModal({ item, onClose, onSaved }: { item?: ChecklistItem | nul
   const isEdit = Boolean(item);
   const [label, setLabel] = useState(item?.label || '');
   const [requiredCount, setRequiredCount] = useState(String(item?.requiredCount ?? 1));
+  const [required, setRequired] = useState(item?.required ?? true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,9 +17,9 @@ function ChecklistModal({ item, onClose, onSaved }: { item?: ChecklistItem | nul
     setLoading(true);
     try {
       if (isEdit && item) {
-        await api.put(`/checklist/${item.id}`, { label, requiredCount });
+        await api.put(`/checklist/${item.id}`, { label, requiredCount, required });
       } else {
-        await api.post('/checklist', { label, requiredCount });
+        await api.post('/checklist', { label, requiredCount, required });
       }
       onSaved();
       onClose();
@@ -59,6 +60,18 @@ function ChecklistModal({ item, onClose, onSaved }: { item?: ChecklistItem | nul
             />
             <p className="text-xs text-gray-400 mt-1">Quantas fotos o promotor precisa enviar pra esse item ser considerado completo.</p>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={e => setRequired(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-pluma-700 focus:ring-pluma-600"
+            />
+            <span className="text-sm font-medium text-gray-700">Item obrigatório</span>
+          </label>
+          <p className="text-xs text-gray-400 -mt-2">
+            Itens obrigatórios bloqueiam o fechamento da visita se faltar foto. Itens opcionais não bloqueiam.
+          </p>
           {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
@@ -157,6 +170,7 @@ export default function ChecklistPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600 w-20">Ordem</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Item</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 w-24">Fotos</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Obrigatoriedade</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -184,6 +198,11 @@ export default function ChecklistPage() {
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-800">{item.label}</td>
                   <td className="px-4 py-3 text-gray-600">{item.requiredCount}</td>
+                  <td className="px-4 py-3">
+                    <span className={item.required ? 'badge-green' : 'bg-gray-100 text-gray-500 px-2 py-1 rounded-full text-xs font-medium'}>
+                      {item.required ? 'Obrigatório' : 'Opcional'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span className={item.active ? 'badge-green' : 'badge-red'}>{item.active ? 'Ativo' : 'Inativo'}</span>
                   </td>

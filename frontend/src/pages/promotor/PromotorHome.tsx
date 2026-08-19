@@ -254,7 +254,7 @@ export default function PromotorHome() {
       if (!photo.checklistItemId) continue;
       photosByItem.set(photo.checklistItemId, (photosByItem.get(photo.checklistItemId) || 0) + 1);
     }
-    return checklistItems.filter(item => (photosByItem.get(item.id) || 0) < item.requiredCount);
+    return checklistItems.filter(item => item.required && (photosByItem.get(item.id) || 0) < item.requiredCount);
   }, [activeVisit, checklistItems]);
 
   const todayCompletedVisits = useMemo(() => {

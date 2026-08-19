@@ -19,7 +19,7 @@ function parseRequiredCount(value: unknown): number | null {
 }
 
 export async function createChecklistItem(req: Request, res: Response): Promise<void> {
-  const { label, requiredCount } = req.body;
+  const { label, requiredCount, required } = req.body;
   if (!label?.trim()) {
     res.status(400).json({ success: false, error: 'Descrição do item é obrigatória.' });
     return;
@@ -33,14 +33,19 @@ export async function createChecklistItem(req: Request, res: Response): Promise<
 
   const count = await prisma.checklistItem.count();
   const item = await prisma.checklistItem.create({
-    data: { label: label.trim(), order: count, requiredCount: parsedRequiredCount },
+    data: {
+      label: label.trim(),
+      order: count,
+      requiredCount: parsedRequiredCount,
+      required: required === undefined ? true : Boolean(required),
+    },
   });
   res.status(201).json({ success: true, data: item });
 }
 
 export async function updateChecklistItem(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { label, active, order, requiredCount } = req.body;
+  const { label, active, order, requiredCount, required } = req.body;
 
   const item = await prisma.checklistItem.findUnique({ where: { id } });
   if (!item) {
@@ -57,6 +62,7 @@ export async function updateChecklistItem(req: Request, res: Response): Promise<
     updateData.label = label.trim();
   }
   if (active !== undefined) updateData.active = Boolean(active);
+  if (required !== undefined) updateData.required = Boolean(required);
   if (order !== undefined) updateData.order = Number(order);
   if (requiredCount !== undefined) {
     const parsedRequiredCount = parseRequiredCount(requiredCount);

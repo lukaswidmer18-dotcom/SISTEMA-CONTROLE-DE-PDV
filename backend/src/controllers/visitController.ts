@@ -175,7 +175,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order);
+  const precedingItems = activeChecklistItems.filter((item) => item.required && item.order < checklistItem.order);
   const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < item.requiredCount);
   if (pendingPreceding) {
     res.status(422).json({
@@ -460,7 +460,7 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   }
   const parsedBoxes: number = parsedBoxesValue;
 
-  const activeItems = await prisma.checklistItem.findMany({ where: { active: true } });
+  const activeItems = await prisma.checklistItem.findMany({ where: { active: true, required: true } });
   const photoCountByItem = new Map<string, number>();
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
