@@ -393,7 +393,7 @@ export default function PromotorHome() {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-pluma-600 uppercase tracking-wider mb-0.5">PDV Selecionado</p>
-                <h2 className="text-2xl lg:text-4xl font-black text-gray-900 tracking-tight truncate">{selectedPdv.name}</h2>
+                <h2 className="text-2xl lg:text-4xl font-black text-gray-900 tracking-tight break-words">{selectedPdv.name}</h2>
                 {selectedPdv.city && <p className="text-sm text-gray-400 font-semibold">{selectedPdv.city}</p>}
               </div>
             </div>
