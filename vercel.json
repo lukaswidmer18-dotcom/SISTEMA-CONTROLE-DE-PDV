@@ -11,8 +11,7 @@
       ]
     },
     "backend": {
-      "root": "backend",
-      "entrypoint": "dist/server.js"
+      "root": "backend"
     }
   },
   "rewrites": [
