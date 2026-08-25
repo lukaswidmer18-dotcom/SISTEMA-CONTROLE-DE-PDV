@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 
 const SHEET_PRODUCTS = 'Produtos';
 const SHEET_PDVS = 'PDVs válidos';
-const HEADERS = ['SKU', 'Marca', 'Código', 'PDVs', 'Status'] as const;
+const HEADERS = ['Item', 'Marca', 'Cód. Item', 'PDVs', 'Status'] as const;
 
 export interface ImportMessage {
   row: number;
@@ -29,9 +29,9 @@ export async function buildProductImportTemplate(pdvs: { name: string; city: str
 
   const productsSheet = workbook.addWorksheet(SHEET_PRODUCTS);
   productsSheet.columns = [
-    { header: 'SKU', key: 'name', width: 38 },
+    { header: 'Item', key: 'name', width: 38 },
     { header: 'Marca', key: 'brand', width: 16 },
-    { header: 'Código', key: 'sku', width: 16 },
+    { header: 'Cód. Item', key: 'sku', width: 16 },
     { header: 'PDVs', key: 'pdvs', width: 40 },
     { header: 'Status', key: 'status', width: 12 },
   ];
@@ -95,9 +95,9 @@ export async function parseProductImportWorkbook(
   const columnIndex: Record<string, number> = {};
   headerRow.eachCell((cell, colNumber) => {
     const normalized = normalizeHeader(cell.value);
-    if (normalized === 'sku') columnIndex.name = colNumber;
+    if (normalized === 'item' || normalized === 'sku') columnIndex.name = colNumber;
     else if (normalized === 'marca') columnIndex.brand = colNumber;
-    else if (normalized === 'código' || normalized === 'codigo') columnIndex.sku = colNumber;
+    else if (normalized === 'cód. item' || normalized === 'cod. item' || normalized === 'código' || normalized === 'codigo') columnIndex.sku = colNumber;
     else if (normalized === 'pdvs') columnIndex.pdvs = colNumber;
     else if (normalized === 'status') columnIndex.status = colNumber;
   });
@@ -127,7 +127,7 @@ export async function parseProductImportWorkbook(
     if (isEmptyRow) continue;
 
     if (!name) {
-      messages.push({ row: rowNumber, type: 'error', text: 'SKU (nome do produto) é obrigatório.' });
+      messages.push({ row: rowNumber, type: 'error', text: 'Item é obrigatório.' });
       continue;
     }
 
