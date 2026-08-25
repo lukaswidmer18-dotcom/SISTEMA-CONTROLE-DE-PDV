@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { PDV } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed, Download, Upload } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
+import ConfirmBulkDeleteModal from '../../components/ui/ConfirmBulkDeleteModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import { useColumnFilters } from '../../hooks/useColumnFilters';
@@ -469,6 +470,10 @@ export default function PDVsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteAllError, setDeleteAllError] = useState('');
+  const [deleteAllMessage, setDeleteAllMessage] = useState('');
 
   async function load() {
     setLoading(true);
@@ -523,6 +528,26 @@ export default function PDVsPage() {
     }
   }
 
+  async function handleConfirmDeleteAll() {
+    setDeletingAll(true);
+    setDeleteAllError('');
+    try {
+      const { data } = await api.delete('/pdvs/delete-all');
+      const { deletedCount, affectedVisits, affectedRotas } = data.data;
+      let message = `${deletedCount} PDVs excluídos.`;
+      if (affectedVisits > 0 || affectedRotas > 0) {
+        message += ` ${affectedVisits} visita(s) e ${affectedRotas} rota(s) já registradas ficaram sem referência de PDV.`;
+      }
+      setDeleteAllMessage(message);
+      setShowDeleteAll(false);
+      load();
+    } catch (err: any) {
+      setDeleteAllError(err.response?.data?.error || 'Erro ao excluir os PDVs.');
+    } finally {
+      setDeletingAll(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -542,11 +567,23 @@ export default function PDVsPage() {
             <Upload size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
           </button>
           <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
+          {pdvs.length > 0 && (
+            <button onClick={() => setShowDeleteAll(true)} className="btn-secondary text-red-600 border-red-200 hover:bg-red-50">
+              <Trash2 size={16} /> Excluir importados
+            </button>
+          )}
           <button onClick={() => setModal({ open: true })} className="btn-primary">
             <Plus size={16} /> Novo PDV
           </button>
         </div>
       </div>
+
+      {deleteAllMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl p-4 mb-4 flex items-start justify-between gap-3">
+          <span className="font-medium">{deleteAllMessage}</span>
+          <button onClick={() => setDeleteAllMessage('')} className="text-green-700 hover:text-green-900 shrink-0"><X size={16} /></button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
@@ -684,6 +721,17 @@ export default function PDVsPage() {
 
       {importResult && (
         <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
+      )}
+
+      {showDeleteAll && (
+        <ConfirmBulkDeleteModal
+          title="Excluir todos os PDVs?"
+          description={`Isso vai excluir permanentemente os ${pdvs.length} PDVs cadastrados. Visitas e rotas já registradas ficam sem referência ao PDV, mas continuam existindo no histórico. Essa ação não pode ser desfeita.`}
+          loading={deletingAll}
+          error={deleteAllError}
+          onConfirm={handleConfirmDeleteAll}
+          onClose={() => setShowDeleteAll(false)}
+        />
       )}
     </div>
   );

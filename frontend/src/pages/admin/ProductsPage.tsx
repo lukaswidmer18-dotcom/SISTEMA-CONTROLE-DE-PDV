@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { PDV, Product } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, X, Store, Trash2, AlertTriangle, Download, Upload, Search } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
+import ConfirmBulkDeleteModal from '../../components/ui/ConfirmBulkDeleteModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import { useColumnFilters } from '../../hooks/useColumnFilters';
@@ -157,6 +158,10 @@ export default function ProductsPage() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteAllError, setDeleteAllError] = useState('');
+  const [deleteAllMessage, setDeleteAllMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(products, {
     sku: p => [p.name],
@@ -243,6 +248,26 @@ export default function ProductsPage() {
     }
   }
 
+  async function handleConfirmDeleteAll() {
+    setDeletingAll(true);
+    setDeleteAllError('');
+    try {
+      const { data } = await api.delete('/products/delete-all');
+      const { deletedCount, skippedWithHistory } = data.data;
+      let message = `${deletedCount} produtos excluídos.`;
+      if (skippedWithHistory > 0) {
+        message += ` ${skippedWithHistory} produto(s) com histórico de visita (ruptura/preço/validade) ficaram protegidos e não foram excluídos.`;
+      }
+      setDeleteAllMessage(message);
+      setShowDeleteAll(false);
+      load();
+    } catch (err: any) {
+      setDeleteAllError(err.response?.data?.error || 'Erro ao excluir os produtos.');
+    } finally {
+      setDeletingAll(false);
+    }
+  }
+
   function pdvBadges(p: Product) {
     if (!p.pdvs || p.pdvs.length === 0) {
       return <span className="text-xs text-gray-400 italic">Nenhum PDV</span>;
@@ -277,6 +302,11 @@ export default function ProductsPage() {
             <Upload size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
           </button>
           <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
+          {products.length > 0 && (
+            <button onClick={() => setShowDeleteAll(true)} className="btn-secondary text-red-600 border-red-200 hover:bg-red-50">
+              <Trash2 size={16} /> Excluir importados
+            </button>
+          )}
           <button onClick={() => setModal({ open: true })} className="btn-primary">
             <Plus size={16} /> Novo Produto
           </button>
@@ -285,6 +315,13 @@ export default function ProductsPage() {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4 font-semibold mb-4">{error}</div>
+      )}
+
+      {deleteAllMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl p-4 mb-4 flex items-start justify-between gap-3">
+          <span className="font-medium">{deleteAllMessage}</span>
+          <button onClick={() => setDeleteAllMessage('')} className="text-green-700 hover:text-green-900 shrink-0"><X size={16} /></button>
+        </div>
       )}
 
       {loading ? (
@@ -408,6 +445,17 @@ export default function ProductsPage() {
 
       {importResult && (
         <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
+      )}
+
+      {showDeleteAll && (
+        <ConfirmBulkDeleteModal
+          title="Excluir todos os produtos?"
+          description={`Isso vai excluir permanentemente os ${products.length} produtos cadastrados. Produtos com histórico de ruptura, pesquisa de preço ou validade ficam protegidos e não são excluídos. Essa ação não pode ser desfeita.`}
+          loading={deletingAll}
+          error={deleteAllError}
+          onConfirm={handleConfirmDeleteAll}
+          onClose={() => setShowDeleteAll(false)}
+        />
       )}
     </div>
   );

@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
-import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, getPdvGpsSuggestion, downloadPdvImportTemplate, importPdvs } from '../controllers/pdvController';
-import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct, downloadProductImportTemplate, importProducts } from '../controllers/productController';
+import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, deleteAllPdvs, getPdvGpsSuggestion, downloadPdvImportTemplate, importPdvs } from '../controllers/pdvController';
+import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct, deleteAllProducts, downloadProductImportTemplate, importProducts } from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry, reorderRouteEntries } from '../controllers/routeController';
 import {
   listChecklistItems, createChecklistItem, updateChecklistItem, toggleChecklistItemActive, deleteChecklistItem, reorderChecklistItems,
@@ -45,6 +45,7 @@ router.post('/pdvs/import', authenticate, requireAdmin, uploadExcel.single('file
 router.post('/pdvs', authenticate, requireAdmin, createPDV);
 router.put('/pdvs/:id', authenticate, requireAdmin, updatePDV);
 router.patch('/pdvs/:id/toggle', authenticate, requireAdmin, togglePDVActive);
+router.delete('/pdvs/delete-all', authenticate, requireAdmin, deleteAllPdvs);
 router.delete('/pdvs/:id', authenticate, requireAdmin, deletePDV);
 router.get('/pdvs/:id/gps-sugestao', authenticate, requireAdmin, getPdvGpsSuggestion);
 
@@ -55,6 +56,7 @@ router.post('/products/import', authenticate, requireAdmin, uploadExcel.single('
 router.post('/products', authenticate, requireAdmin, createProduct);
 router.put('/products/:id', authenticate, requireAdmin, updateProduct);
 router.patch('/products/:id/toggle', authenticate, requireAdmin, toggleProductActive);
+router.delete('/products/delete-all', authenticate, requireAdmin, deleteAllProducts);
 router.delete('/products/:id', authenticate, requireAdmin, deleteProduct);
 
 // Rotas de visita — leitura liberada pro promotor (só vê a própria); mutação restrita ao admin

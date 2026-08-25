@@ -114,6 +114,24 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
   res.json({ success: true, data: null });
 }
 
+export async function deleteAllProducts(req: Request, res: Response): Promise<void> {
+  // Mesma regra do delete individual: produto com histórico de ruptura/preço/validade
+  // fica protegido (RESTRICT no banco) — o excluir em massa só remove quem não tem histórico.
+  const [withRuptura, withPriceCheck, withValidity] = await Promise.all([
+    prisma.rupturaRegistro.groupBy({ by: ['productId'] }),
+    prisma.priceCheck.groupBy({ by: ['productId'] }),
+    prisma.validity.groupBy({ by: ['productId'] }),
+  ]);
+  const historyIds = new Set([...withRuptura, ...withPriceCheck, ...withValidity].map((r) => r.productId));
+
+  const all = await prisma.product.findMany({ select: { id: true } });
+  const deletableIds = all.map((p) => p.id).filter((id) => !historyIds.has(id));
+
+  const { count } = await prisma.product.deleteMany({ where: { id: { in: deletableIds } } });
+
+  res.json({ success: true, data: { deletedCount: count, skippedWithHistory: historyIds.size } });
+}
+
 export async function downloadProductImportTemplate(req: Request, res: Response): Promise<void> {
   const pdvs = await prisma.pDV.findMany({
     where: { active: true },

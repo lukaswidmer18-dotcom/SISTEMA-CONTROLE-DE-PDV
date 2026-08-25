@@ -176,6 +176,19 @@ export async function deletePDV(req: Request, res: Response): Promise<void> {
   res.json({ success: true, data: null });
 }
 
+export async function deleteAllPdvs(req: Request, res: Response): Promise<void> {
+  // Visit.pdv e RotaVisita.pdv são onDelete: SetNull — apagar o PDV não é bloqueado,
+  // só desvincula essas visitas/rotas (histórico continua existindo, sem nome de PDV).
+  const [affectedVisits, affectedRotas] = await Promise.all([
+    prisma.visit.count({ where: { pdvId: { not: null } } }),
+    prisma.rotaVisita.count({ where: { pdvId: { not: null } } }),
+  ]);
+
+  const { count } = await prisma.pDV.deleteMany({});
+
+  res.json({ success: true, data: { deletedCount: count, affectedVisits, affectedRotas } });
+}
+
 export async function downloadPdvImportTemplate(req: Request, res: Response): Promise<void> {
   const buffer = await buildPdvImportTemplate();
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
