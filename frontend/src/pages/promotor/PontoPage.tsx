@@ -615,7 +615,10 @@ export default function PontoPage() {
     const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= 1;
     const missing = checklistItems.filter(item => !isCovered(item));
     const firstPendingIndex = checklistItems.findIndex(item => !isCovered(item));
-    return { photosByItem, missing, firstPendingIndex, isCovered };
+    // Foto da fachada = primeiro item do checklist. Sem ela, o resto da visita (produtos,
+    // ruptura, preço) fica bloqueado — é o antifraude de presença no lugar do GPS.
+    const facadeCovered = checklistItems.length === 0 || isCovered(checklistItems[0]);
+    return { photosByItem, missing, firstPendingIndex, isCovered, facadeCovered };
   }, [visit, checklistItems]);
 
   return (
@@ -636,7 +639,7 @@ export default function PontoPage() {
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-pluma-50 text-pluma-800 rounded-xl text-xs font-bold border border-pluma-100">
           <MapPin size={14} />
-          Localização Obrigatória
+          Localização Monitorada
         </div>
       </div>
 
@@ -812,11 +815,18 @@ export default function PontoPage() {
                         })}
                       </div>
 
+                      {!checklistStatus.facadeCovered && (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold rounded-xl p-3 mb-4">
+                          <Lock size={14} className="shrink-0" />
+                          Tire a foto de "{checklistItems[0]?.label}" pra liberar Produtos, Ruptura e Pesquisa de Preço.
+                        </div>
+                      )}
+
                       {/* Validity Checklist */}
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Produtos & Validades</h5>
-                          <button onClick={() => setShowValidityModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
+                          <button onClick={() => setShowValidityModal(true)} disabled={!checklistStatus.facadeCovered} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors disabled:opacity-30 disabled:pointer-events-none">ADICIONAR</button>
                         </div>
 
                         {visit.validities && visit.validities.length > 0 ? (
@@ -840,7 +850,7 @@ export default function PontoPage() {
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Ruptura de Estoque</h5>
-                          <button onClick={() => setShowRupturaModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
+                          <button onClick={() => setShowRupturaModal(true)} disabled={!checklistStatus.facadeCovered} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors disabled:opacity-30 disabled:pointer-events-none">ADICIONAR</button>
                         </div>
 
                         {visit.rupturas && visit.rupturas.length > 0 ? (
@@ -866,7 +876,7 @@ export default function PontoPage() {
                       <div className="space-y-3 mb-6">
                         <div className="flex items-center justify-between">
                           <h5 className="text-[11px] font-black uppercase tracking-widest text-gray-400">Pesquisa de Preço</h5>
-                          <button onClick={() => setShowPriceCheckModal(true)} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors">ADICIONAR</button>
+                          <button onClick={() => setShowPriceCheckModal(true)} disabled={!checklistStatus.facadeCovered} className="text-[10px] font-black text-pluma-600 hover:text-pluma-800 transition-colors disabled:opacity-30 disabled:pointer-events-none">ADICIONAR</button>
                         </div>
 
                         {visit.priceChecks && visit.priceChecks.length > 0 ? (
@@ -980,7 +990,7 @@ export default function PontoPage() {
               Lembrete Importante
             </h4>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Certifique-se de estar no local de trabalho antes de registrar sua atividade. A geolocalização é validada automaticamente.
+              Tire a foto de "{checklistItems[0]?.label || 'fachada'}" logo ao chegar no PDV — ela libera o resto da visita. Sua localização continua sendo monitorada durante o trabalho.
             </p>
           </div>
         </div>

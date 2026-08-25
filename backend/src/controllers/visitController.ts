@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
-import { LOCATION_REQUIRED_MESSAGE, parseRequiredCoordinates, parseCoordinate, checkGeofence } from '../utils/location';
+import { parseRequiredCoordinates } from '../utils/location';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
 import { prisma } from '../lib/prisma';
 
@@ -15,6 +15,18 @@ type VisitWithDetails = Prisma.VisitGetPayload<{
 type VisitValidationResult =
   | { error: string; status: number; visit?: undefined }
   | { error?: undefined; status?: undefined; visit: VisitWithDetails };
+
+// Foto da fachada = primeiro item ativo do checklist, por convenção (ver seedDemo.ts).
+// Vira o antifraude de presença no lugar do geofence: sem ela, nenhuma outra ação da visita libera.
+async function findMissingFacadePhotoLabel(visit: VisitWithDetails): Promise<string | null> {
+  const facadeItem = await prisma.checklistItem.findFirst({
+    where: { active: true },
+    orderBy: { order: 'asc' },
+  });
+  if (!facadeItem) return null;
+  const hasPhoto = visit.photos.some((p) => p.checklistItemId === facadeItem.id);
+  return hasPhoto ? null : facadeItem.label;
+}
 
 async function validateVisitInProgress(visitId: string, userId: string): Promise<VisitValidationResult> {
   const visit = await prisma.visit.findUnique({
@@ -33,42 +45,21 @@ async function validateVisitInProgress(visitId: string, userId: string): Promise
 
 export async function startVisit(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
-  const { pdvId, latitude, longitude, locationAvailable, accuracy } = req.body;
+  const { pdvId, latitude, longitude } = req.body;
 
   if (!pdvId) {
     res.status(400).json({ success: false, error: 'PDV é obrigatório.' });
     return;
   }
 
+  // GPS aqui é só monitoramento (latitudeStart/longitudeStart), não bloqueia mais o início
+  // da visita — o antifraude de presença passou a ser a foto obrigatória da fachada.
   const coordinates = parseRequiredCoordinates({ latitude, longitude });
 
   const pdv = await prisma.pDV.findUnique({ where: { id: pdvId } });
   if (!pdv || !pdv.active) {
     res.status(404).json({ success: false, error: 'PDV não encontrado ou inativo.' });
     return;
-  }
-
-  const gpsAvailable = locationAvailable !== false && locationAvailable !== 'false';
-  const geofence = checkGeofence(
-    pdv,
-    { latitude: coordinates.latitude ?? 0, longitude: coordinates.longitude ?? 0 },
-    parseCoordinate(accuracy)
-  );
-  if (geofence.allowed === false) {
-    if (geofence.reason === 'NOT_CONFIGURED') {
-      res.status(422).json({
-        success: false,
-        error: 'PDV sem área de geolocalização configurada. Contate o administrador.',
-      });
-      return;
-    }
-    if (gpsAvailable) {
-      res.status(422).json({
-        success: false,
-        error: `Você está a ${Math.round(geofence.distanceMeters)}m do PDV. Distância máxima permitida: ${geofence.radiusMeters}m.`,
-      });
-      return;
-    }
   }
 
   const inProgress = await prisma.visit.findFirst({
@@ -221,6 +212,12 @@ export async function addValidity(req: Request, res: Response): Promise<void> {
   }
   const { visit } = validation;
 
+  const missingFacadeLabel = await findMissingFacadePhotoLabel(visit);
+  if (missingFacadeLabel) {
+    res.status(422).json({ success: false, error: `Tire antes a foto de "${missingFacadeLabel}" para liberar a visita.` });
+    return;
+  }
+
   const validity = await prisma.validity.create({
     data: {
       visitId,
@@ -255,6 +252,12 @@ export async function addRuptura(req: Request, res: Response): Promise<void> {
   const validation = await validateVisitInProgress(visitId, authReq.user.userId);
   if (!validation.visit) {
     res.status(validation.status).json({ success: false, error: validation.error });
+    return;
+  }
+
+  const missingFacadeLabel = await findMissingFacadePhotoLabel(validation.visit);
+  if (missingFacadeLabel) {
+    res.status(422).json({ success: false, error: `Tire antes a foto de "${missingFacadeLabel}" para liberar a visita.` });
     return;
   }
 
@@ -332,6 +335,12 @@ export async function addPriceCheck(req: Request, res: Response): Promise<void> 
   const validation = await validateVisitInProgress(visitId, authReq.user.userId);
   if (!validation.visit) {
     res.status(validation.status).json({ success: false, error: validation.error });
+    return;
+  }
+
+  const missingFacadeLabel = await findMissingFacadePhotoLabel(validation.visit);
+  if (missingFacadeLabel) {
+    res.status(422).json({ success: false, error: `Tire antes a foto de "${missingFacadeLabel}" para liberar a visita.` });
     return;
   }
 
