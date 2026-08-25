@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../services/api';
 import { PDV } from '../../types';
@@ -36,8 +36,8 @@ function isGeofenceReady(pdv: PDV): boolean {
   return pdv.latitude != null && pdv.longitude != null && pdv.radiusMeters != null;
 }
 
-function PDVLocationPicker({ latitude, longitude, radiusMeters, onChange }: {
-  latitude: number; longitude: number; radiusMeters: number | null; onChange: (lat: number, lng: number) => void;
+function PDVLocationPicker({ latitude, longitude, onChange }: {
+  latitude: number; longitude: number; onChange: (lat: number, lng: number) => void;
 }) {
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: 220 }}>
@@ -53,9 +53,6 @@ function PDVLocationPicker({ latitude, longitude, radiusMeters, onChange }: {
             },
           }}
         />
-        {radiusMeters != null && radiusMeters > 0 && (
-          <Circle center={[latitude, longitude]} radius={radiusMeters} pathOptions={{ color: '#2563eb', fillOpacity: 0.08 }} />
-        )}
       </MapContainer>
     </div>
   );
@@ -69,9 +66,6 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     neighborhood: pdv?.neighborhood || '',
     city: pdv?.city || '',
     state: pdv?.state || '',
-    channel: pdv?.channel || '',
-    network: pdv?.network || '',
-    radiusMeters: pdv?.radiusMeters ? String(pdv.radiusMeters) : '',
     manualCoord: ''
   });
   const UFS = [
@@ -181,7 +175,6 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     try {
       const payload: any = {
         name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
-        channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
       };
       if (clearCoord) {
         payload.clearCoordinates = true;
@@ -219,7 +212,6 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     try {
       const payload = {
         name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
-        channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
         forceGeocode: true,
       };
       const { data } = await api.put(`/pdvs/${savedId}`, payload);
@@ -279,31 +271,6 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
               {form.city && !cities.includes(form.city) && <option value={form.city}>{form.city}</option>}
               {cities.map(city => <option key={city} value={city}>{city}</option>)}
             </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Canal</label>
-              <input className="input-field" value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rede</label>
-              <input className="input-field" value={form.network} onChange={e => setForm(f => ({ ...f, network: e.target.value }))} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Raio de tolerância (metros) *</label>
-            <input
-              type="number"
-              min="1"
-              className="input-field"
-              required
-              placeholder="Ex: 150"
-              value={form.radiusMeters}
-              onChange={e => setForm(f => ({ ...f, radiusMeters: e.target.value }))}
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Distância máxima do endereço cadastrado para liberar ponto/visita neste PDV. Coordenada é obtida automaticamente a partir do endereço.
-            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Coordenada manual (opcional)</label>
@@ -402,7 +369,6 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
                 key={mapVersion}
                 latitude={mapCoord.latitude}
                 longitude={mapCoord.longitude}
-                radiusMeters={Number(form.radiusMeters) || null}
                 onChange={handleMapDrag}
               />
               <p className="text-xs text-gray-400 mt-1">Arraste o marcador pra ajustar a coordenada exata do PDV.</p>
