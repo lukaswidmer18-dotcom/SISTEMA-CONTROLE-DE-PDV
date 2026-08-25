@@ -243,11 +243,11 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Clifor *</label>
             <input className="input-field" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Endereço Clifor</label>
             <input className="input-field" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
           </div>
           <div>
@@ -602,13 +602,13 @@ export default function PDVsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
-                    <div className="flex items-center gap-1">Nome
-                      <ColumnFilter label="Nome" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
+                    <div className="flex items-center gap-1">Clifor
+                      <ColumnFilter label="Clifor" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
                     </div>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
-                    <div className="flex items-center gap-1">Endereço
-                      <ColumnFilter label="Endereço" values={getUniqueValues('address')} selected={filters.address ?? new Set()} onChange={s => setColumnFilter('address', s)} />
+                    <div className="flex items-center gap-1">Endereço Clifor
+                      <ColumnFilter label="Endereço Clifor" values={getUniqueValues('address')} selected={filters.address ?? new Set()} onChange={s => setColumnFilter('address', s)} />
                     </div>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
