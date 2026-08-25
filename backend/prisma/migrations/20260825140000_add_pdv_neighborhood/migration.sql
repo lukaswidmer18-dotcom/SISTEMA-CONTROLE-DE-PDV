@@ -1,0 +1,1 @@
+ALTER TABLE "pdvs" ADD COLUMN "neighborhood" TEXT NOT NULL DEFAULT '';

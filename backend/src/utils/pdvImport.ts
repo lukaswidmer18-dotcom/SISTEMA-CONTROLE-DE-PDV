@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 
 const SHEET_PDVS = 'PDVs';
-const HEADERS = ['Clifor', 'Cidade Clifor', 'Endereço Clifor', 'UF Clifor', 'Status'] as const;
+const HEADERS = ['Clifor', 'Município Clifor', 'Bairro Clifor', 'Endereço Clifor', 'UF Clifor', 'Status'] as const;
 const VALID_UFS = new Set([
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
@@ -17,6 +17,7 @@ export interface ParsedPdvRow {
   rowNumber: number;
   name: string;
   address: string;
+  neighborhood: string;
   city: string;
   state: string;
   channel: string;
@@ -35,7 +36,8 @@ export async function buildPdvImportTemplate(): Promise<Buffer> {
   const sheet = workbook.addWorksheet(SHEET_PDVS);
   sheet.columns = [
     { header: 'Clifor', key: 'name', width: 32 },
-    { header: 'Cidade Clifor', key: 'city', width: 22 },
+    { header: 'Município Clifor', key: 'city', width: 22 },
+    { header: 'Bairro Clifor', key: 'neighborhood', width: 22 },
     { header: 'Endereço Clifor', key: 'address', width: 40 },
     { header: 'UF Clifor', key: 'state', width: 10 },
     { header: 'Status', key: 'status', width: 12 },
@@ -44,13 +46,14 @@ export async function buildPdvImportTemplate(): Promise<Buffer> {
   sheet.addRow({
     name: 'SUPERMERCADO EXEMPLO LJ1',
     city: 'CASCAVEL',
+    neighborhood: 'CENTRO',
     address: 'AV BRASIL 1000',
     state: 'PR',
     status: 'Ativo',
   }).font = { italic: true, color: { argb: 'FF888888' } };
 
   for (let rowNumber = 2; rowNumber <= 500; rowNumber++) {
-    sheet.getCell(`E${rowNumber}`).dataValidation = {
+    sheet.getCell(`F${rowNumber}`).dataValidation = {
       type: 'list',
       allowBlank: true,
       formulae: ['"Ativo,Inativo"'],
@@ -90,7 +93,12 @@ export async function parsePdvImportWorkbook(buffer: Buffer): Promise<ParsedPdvI
     if (normalized === 'clifor' || normalized === 'nome pdv' || normalized === 'nome') columnIndex.name = colNumber;
     else if (normalized === 'canal e atacado' || normalized === 'canal') columnIndex.channel = colNumber;
     else if (normalized === 'pdv_red' || normalized === 'pdv red' || normalized === 'rede') columnIndex.network = colNumber;
-    else if (normalized === 'cidade clifor' || normalized === 'cidade pdv' || normalized === 'cidade') columnIndex.city = colNumber;
+    else if (
+      normalized === 'município clifor' || normalized === 'municipio clifor' ||
+      normalized === 'cidade clifor' || normalized === 'cidade pdv' ||
+      normalized === 'município' || normalized === 'municipio' || normalized === 'cidade'
+    ) columnIndex.city = colNumber;
+    else if (normalized === 'bairro clifor' || normalized === 'bairro') columnIndex.neighborhood = colNumber;
     else if (
       normalized === 'endereço clifor' || normalized === 'endereco clifor' ||
       normalized === 'endereço pdv' || normalized === 'endereco pdv' ||
@@ -117,11 +125,12 @@ export async function parsePdvImportWorkbook(buffer: Buffer): Promise<ParsedPdvI
     const channel = columnIndex.channel ? cellText(row.getCell(columnIndex.channel).value) : '';
     const network = columnIndex.network ? cellText(row.getCell(columnIndex.network).value) : '';
     const city = columnIndex.city ? cellText(row.getCell(columnIndex.city).value) : '';
+    const neighborhood = columnIndex.neighborhood ? cellText(row.getCell(columnIndex.neighborhood).value) : '';
     const address = columnIndex.address ? cellText(row.getCell(columnIndex.address).value) : '';
     const stateRaw = columnIndex.state ? cellText(row.getCell(columnIndex.state).value) : '';
     const statusCell = columnIndex.status ? cellText(row.getCell(columnIndex.status).value) : '';
 
-    const isEmptyRow = !name && !channel && !network && !city && !address && !stateRaw && !statusCell;
+    const isEmptyRow = !name && !channel && !network && !city && !neighborhood && !address && !stateRaw && !statusCell;
     if (isEmptyRow) continue;
 
     if (!name) {
@@ -141,7 +150,7 @@ export async function parsePdvImportWorkbook(buffer: Buffer): Promise<ParsedPdvI
       messages.push({ row: rowNumber, type: 'warning', text: `Status "${statusCell}" não reconhecido, considerado Ativo.` });
     }
 
-    rows.push({ rowNumber, name, address, city, state, channel, network, active });
+    rows.push({ rowNumber, name, address, neighborhood, city, state, channel, network, active });
   }
 
   return { rows, messages };

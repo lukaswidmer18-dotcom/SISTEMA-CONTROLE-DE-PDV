@@ -5,7 +5,7 @@ import api from '../../services/api';
 import { PDV } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2, X, MapPin, MapPinOff, CheckCircle2, PencilLine, Undo2, LocateFixed, Download, Upload } from 'lucide-react';
 import ImportResultModal, { ImportResult } from '../../components/ui/ImportResultModal';
-import ConfirmBulkDeleteModal from '../../components/ui/ConfirmBulkDeleteModal';
+import ImportBatchesModal from '../../components/ui/ImportBatchesModal';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import { useColumnFilters } from '../../hooks/useColumnFilters';
@@ -66,6 +66,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   const [form, setForm] = useState({
     name: pdv?.name || '',
     address: pdv?.address || '',
+    neighborhood: pdv?.neighborhood || '',
     city: pdv?.city || '',
     state: pdv?.state || '',
     channel: pdv?.channel || '',
@@ -179,7 +180,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setLoading(true);
     try {
       const payload: any = {
-        name: form.name, address: form.address, city: form.city, state: form.state,
+        name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
         channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
       };
       if (clearCoord) {
@@ -217,7 +218,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setLoading(true);
     try {
       const payload = {
-        name: form.name, address: form.address, city: form.city, state: form.state,
+        name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
         channel: form.channel, network: form.network, radiusMeters: form.radiusMeters,
         forceGeocode: true,
       };
@@ -250,6 +251,10 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Endereço Clifor</label>
             <input className="input-field" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bairro Clifor</label>
+            <input className="input-field" value={form.neighborhood} onChange={e => setForm(f => ({ ...f, neighborhood: e.target.value }))} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado (UF)</label>
@@ -470,9 +475,7 @@ export default function PDVsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showDeleteAll, setShowDeleteAll] = useState(false);
-  const [deletingAll, setDeletingAll] = useState(false);
-  const [deleteAllError, setDeleteAllError] = useState('');
+  const [showImportBatches, setShowImportBatches] = useState(false);
   const [deleteAllMessage, setDeleteAllMessage] = useState('');
 
   async function load() {
@@ -528,24 +531,12 @@ export default function PDVsPage() {
     }
   }
 
-  async function handleConfirmDeleteAll() {
-    setDeletingAll(true);
-    setDeleteAllError('');
-    try {
-      const { data } = await api.delete('/pdvs/delete-all');
-      const { deletedCount, affectedVisits, affectedRotas } = data.data;
-      let message = `${deletedCount} PDVs excluídos.`;
-      if (affectedVisits > 0 || affectedRotas > 0) {
-        message += ` ${affectedVisits} visita(s) e ${affectedRotas} rota(s) já registradas ficaram sem referência de PDV.`;
-      }
-      setDeleteAllMessage(message);
-      setShowDeleteAll(false);
-      load();
-    } catch (err: any) {
-      setDeleteAllError(err.response?.data?.error || 'Erro ao excluir os PDVs.');
-    } finally {
-      setDeletingAll(false);
+  function formatPdvBatchResult(data: { deletedCount: number; affectedVisits: number; affectedRotas: number }) {
+    let message = `${data.deletedCount} PDVs excluídos.`;
+    if (data.affectedVisits > 0 || data.affectedRotas > 0) {
+      message += ` ${data.affectedVisits} visita(s) e ${data.affectedRotas} rota(s) já registradas ficaram sem referência de PDV.`;
     }
+    return message;
   }
 
   return (
@@ -567,11 +558,9 @@ export default function PDVsPage() {
             <Upload size={16} /> {importing ? 'Importando...' : 'Importar Excel'}
           </button>
           <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleImportFile} />
-          {pdvs.length > 0 && (
-            <button onClick={() => setShowDeleteAll(true)} className="btn-secondary text-red-600 border-red-200 hover:bg-red-50">
-              <Trash2 size={16} /> Excluir importados
-            </button>
-          )}
+          <button onClick={() => setShowImportBatches(true)} className="btn-secondary text-red-600 border-red-200 hover:bg-red-50">
+            <Trash2 size={16} /> Excluir importados
+          </button>
           <button onClick={() => setModal({ open: true })} className="btn-primary">
             <Plus size={16} /> Novo PDV
           </button>
@@ -723,14 +712,15 @@ export default function PDVsPage() {
         <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
       )}
 
-      {showDeleteAll && (
-        <ConfirmBulkDeleteModal
-          title="Excluir todos os PDVs?"
-          description={`Isso vai excluir permanentemente os ${pdvs.length} PDVs cadastrados. Visitas e rotas já registradas ficam sem referência ao PDV, mas continuam existindo no histórico. Essa ação não pode ser desfeita.`}
-          loading={deletingAll}
-          error={deleteAllError}
-          onConfirm={handleConfirmDeleteAll}
-          onClose={() => setShowDeleteAll(false)}
+      {showImportBatches && (
+        <ImportBatchesModal
+          title="Excluir PDVs por importação"
+          listUrl="/pdvs/import-batches"
+          deleteUrl={(batchId) => `/pdvs/import-batches/${batchId}`}
+          formatCount={(count) => `${count} PDV${count === 1 ? '' : 's'}`}
+          formatResult={formatPdvBatchResult}
+          onClose={() => setShowImportBatches(false)}
+          onDeleted={(message) => { setDeleteAllMessage(message); load(); }}
         />
       )}
     </div>

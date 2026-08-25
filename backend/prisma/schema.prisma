@@ -42,41 +42,48 @@ model PromotorLocation {
 }
 
 model PDV {
-  id           String   @id @default(uuid())
-  name         String
-  address      String   @default("")
-  city         String   @default("")
-  state        String   @default("")
-  channel      String   @default("")
-  network      String   @default("")
-  latitude     Float?
-  longitude    Float?
-  radiusMeters Int?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  address       String    @default("")
+  neighborhood  String    @default("")
+  city          String    @default("")
+  state         String    @default("")
+  channel       String    @default("")
+  network       String    @default("")
+  latitude      Float?
+  longitude     Float?
+  radiusMeters  Int?
+  active        Boolean   @default(true)
+  importBatchId String?
+  importedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   visits   Visit[]
   rotas    RotaVisita[]
   products Product[]
 
+  @@index([importBatchId])
   @@map("pdvs")
 }
 
 model Product {
-  id        String   @id @default(uuid())
-  name      String
-  brand     String   @default("")
-  sku       String   @default("")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(uuid())
+  name          String
+  brand         String    @default("")
+  sku           String    @default("")
+  active        Boolean   @default(true)
+  importBatchId String?
+  importedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   validities  Validity[]
   pdvs        PDV[]
   rupturas    RupturaRegistro[]
   priceChecks PriceCheck[]
 
+  @@index([importBatchId])
   @@map("products")
 }
 

@@ -37,6 +37,7 @@ export interface PDV {
   id: string;
   name: string;
   address: string;
+  neighborhood: string;
   city: string;
   state: string;
   channel: string;

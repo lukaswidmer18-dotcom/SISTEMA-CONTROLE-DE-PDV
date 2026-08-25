@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { geocodeAddress } from '../utils/geocoding';
 import { todayDateOnly } from '../utils/date';
 import { parseCoordinate, distanceInMeters, median } from '../utils/location';
@@ -47,7 +48,7 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
 }
 
 export async function createPDV(req: Request, res: Response): Promise<void> {
-  const { name, address, city, state, channel, network, radiusMeters, latitude, longitude } = req.body;
+  const { name, address, neighborhood, city, state, channel, network, radiusMeters, latitude, longitude } = req.body;
   if (!name) {
     res.status(400).json({ success: false, error: 'Nome é obrigatório.' });
     return;
@@ -65,6 +66,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
     data: {
       name: name.trim(),
       address: trimmedAddress,
+      neighborhood: neighborhood?.trim() || '',
       city: trimmedCity,
       state: trimmedState,
       channel: channel?.trim() || '',
@@ -85,7 +87,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
 
 export async function updatePDV(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, city, state, channel, network, active, radiusMeters, latitude, longitude, clearCoordinates, forceGeocode } = req.body;
+  const { name, address, neighborhood, city, state, channel, network, active, radiusMeters, latitude, longitude, clearCoordinates, forceGeocode } = req.body;
 
   const pdv = await prisma.pDV.findUnique({ where: { id } });
   if (!pdv) {
@@ -96,6 +98,7 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
   const updateData: any = {};
   if (name) updateData.name = name.trim();
   if (address !== undefined) updateData.address = address.trim();
+  if (neighborhood !== undefined) updateData.neighborhood = neighborhood.trim();
   if (city !== undefined) updateData.city = city.trim();
   if (state !== undefined) updateData.state = state.trim().toUpperCase();
   if (channel !== undefined) updateData.channel = channel.trim();
@@ -176,15 +179,36 @@ export async function deletePDV(req: Request, res: Response): Promise<void> {
   res.json({ success: true, data: null });
 }
 
-export async function deleteAllPdvs(req: Request, res: Response): Promise<void> {
+export async function listPdvImportBatches(req: Request, res: Response): Promise<void> {
+  const batches = await prisma.pDV.groupBy({
+    by: ['importBatchId'],
+    where: { importBatchId: { not: null } },
+    _count: { _all: true },
+    _max: { importedAt: true },
+    orderBy: { _max: { importedAt: 'desc' } },
+  });
+
+  res.json({
+    success: true,
+    data: batches.map((b) => ({
+      batchId: b.importBatchId,
+      count: b._count._all,
+      importedAt: b._max.importedAt,
+    })),
+  });
+}
+
+export async function deletePdvImportBatch(req: Request, res: Response): Promise<void> {
+  const { batchId } = req.params;
+
   // Visit.pdv e RotaVisita.pdv são onDelete: SetNull — apagar o PDV não é bloqueado,
   // só desvincula essas visitas/rotas (histórico continua existindo, sem nome de PDV).
   const [affectedVisits, affectedRotas] = await Promise.all([
-    prisma.visit.count({ where: { pdvId: { not: null } } }),
-    prisma.rotaVisita.count({ where: { pdvId: { not: null } } }),
+    prisma.visit.count({ where: { pdv: { importBatchId: batchId } } }),
+    prisma.rotaVisita.count({ where: { pdv: { importBatchId: batchId } } }),
   ]);
 
-  const { count } = await prisma.pDV.deleteMany({});
+  const { count } = await prisma.pDV.deleteMany({ where: { importBatchId: batchId } });
 
   res.json({ success: true, data: { deletedCount: count, affectedVisits, affectedRotas } });
 }
@@ -213,6 +237,8 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
   const messages = [...parsed.messages];
   let created = 0;
   let updated = 0;
+  const importBatchId = randomUUID();
+  const importedAt = new Date();
 
   for (const row of parsed.rows) {
     try {
@@ -228,10 +254,13 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
           where: { id: existing.id },
           data: {
             city: row.city,
+            neighborhood: row.neighborhood,
             state: row.state,
             channel: row.channel,
             network: row.network,
             active: row.active,
+            importBatchId,
+            importedAt,
           },
         });
         updated++;
@@ -240,12 +269,15 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
           data: {
             name: row.name,
             address: row.address,
+            neighborhood: row.neighborhood,
             city: row.city,
             state: row.state,
             channel: row.channel,
             network: row.network,
             active: row.active,
             radiusMeters: IMPORT_DEFAULT_RADIUS_METERS,
+            importBatchId,
+            importedAt,
           },
         });
         created++;

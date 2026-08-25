@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { buildProductImportTemplate, parseProductImportWorkbook } from '../utils/productImport';
 
@@ -114,7 +115,28 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
   res.json({ success: true, data: null });
 }
 
-export async function deleteAllProducts(req: Request, res: Response): Promise<void> {
+export async function listProductImportBatches(req: Request, res: Response): Promise<void> {
+  const batches = await prisma.product.groupBy({
+    by: ['importBatchId'],
+    where: { importBatchId: { not: null } },
+    _count: { _all: true },
+    _max: { importedAt: true },
+    orderBy: { _max: { importedAt: 'desc' } },
+  });
+
+  res.json({
+    success: true,
+    data: batches.map((b) => ({
+      batchId: b.importBatchId,
+      count: b._count._all,
+      importedAt: b._max.importedAt,
+    })),
+  });
+}
+
+export async function deleteProductImportBatch(req: Request, res: Response): Promise<void> {
+  const { batchId } = req.params;
+
   // Mesma regra do delete individual: produto com histórico de ruptura/preço/validade
   // fica protegido (RESTRICT no banco) — o excluir em massa só remove quem não tem histórico.
   const [withRuptura, withPriceCheck, withValidity] = await Promise.all([
@@ -124,12 +146,13 @@ export async function deleteAllProducts(req: Request, res: Response): Promise<vo
   ]);
   const historyIds = new Set([...withRuptura, ...withPriceCheck, ...withValidity].map((r) => r.productId));
 
-  const all = await prisma.product.findMany({ select: { id: true } });
-  const deletableIds = all.map((p) => p.id).filter((id) => !historyIds.has(id));
+  const batchProducts = await prisma.product.findMany({ where: { importBatchId: batchId }, select: { id: true } });
+  const deletableIds = batchProducts.map((p) => p.id).filter((id) => !historyIds.has(id));
+  const skippedWithHistory = batchProducts.length - deletableIds.length;
 
   const { count } = await prisma.product.deleteMany({ where: { id: { in: deletableIds } } });
 
-  res.json({ success: true, data: { deletedCount: count, skippedWithHistory: historyIds.size } });
+  res.json({ success: true, data: { deletedCount: count, skippedWithHistory } });
 }
 
 export async function downloadProductImportTemplate(req: Request, res: Response): Promise<void> {
@@ -164,6 +187,8 @@ export async function importProducts(req: Request, res: Response): Promise<void>
   const messages = [...parsed.messages];
   let created = 0;
   let updated = 0;
+  const importBatchId = randomUUID();
+  const importedAt = new Date();
 
   for (const row of parsed.rows) {
     try {
@@ -181,6 +206,8 @@ export async function importProducts(req: Request, res: Response): Promise<void>
             sku: row.sku,
             active: row.active,
             pdvs: { set: row.pdvIds.map((id) => ({ id })) },
+            importBatchId,
+            importedAt,
           },
         });
         updated++;
@@ -192,6 +219,8 @@ export async function importProducts(req: Request, res: Response): Promise<void>
             sku: row.sku,
             active: row.active,
             pdvs: { connect: row.pdvIds.map((id) => ({ id })) },
+            importBatchId,
+            importedAt,
           },
         });
         created++;

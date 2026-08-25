@@ -1,8 +1,14 @@
 import { Router } from 'express';
 import { login, me } from '../controllers/authController';
 import { listUsers, createUser, updateUser, toggleUserActive, deleteUser } from '../controllers/userController';
-import { listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, deleteAllPdvs, getPdvGpsSuggestion, downloadPdvImportTemplate, importPdvs } from '../controllers/pdvController';
-import { listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct, deleteAllProducts, downloadProductImportTemplate, importProducts } from '../controllers/productController';
+import {
+  listPDVs, createPDV, updatePDV, togglePDVActive, deletePDV, getPdvGpsSuggestion,
+  downloadPdvImportTemplate, importPdvs, listPdvImportBatches, deletePdvImportBatch,
+} from '../controllers/pdvController';
+import {
+  listProducts, createProduct, updateProduct, toggleProductActive, deleteProduct,
+  downloadProductImportTemplate, importProducts, listProductImportBatches, deleteProductImportBatch,
+} from '../controllers/productController';
 import { listRoutes, createRouteEntry, deleteRouteEntry, justifyRouteEntry, reorderRouteEntries } from '../controllers/routeController';
 import {
   listChecklistItems, createChecklistItem, updateChecklistItem, toggleChecklistItemActive, deleteChecklistItem, reorderChecklistItems,
@@ -43,9 +49,10 @@ router.get('/pdvs', authenticate, listPDVs);
 router.get('/pdvs/import-template', authenticate, requireAdmin, downloadPdvImportTemplate);
 router.post('/pdvs/import', authenticate, requireAdmin, uploadExcel.single('file'), importPdvs);
 router.post('/pdvs', authenticate, requireAdmin, createPDV);
+router.get('/pdvs/import-batches', authenticate, requireAdmin, listPdvImportBatches);
+router.delete('/pdvs/import-batches/:batchId', authenticate, requireAdmin, deletePdvImportBatch);
 router.put('/pdvs/:id', authenticate, requireAdmin, updatePDV);
 router.patch('/pdvs/:id/toggle', authenticate, requireAdmin, togglePDVActive);
-router.delete('/pdvs/delete-all', authenticate, requireAdmin, deleteAllPdvs);
 router.delete('/pdvs/:id', authenticate, requireAdmin, deletePDV);
 router.get('/pdvs/:id/gps-sugestao', authenticate, requireAdmin, getPdvGpsSuggestion);
 
@@ -54,9 +61,10 @@ router.get('/products', authenticate, listProducts);
 router.get('/products/import-template', authenticate, requireAdmin, downloadProductImportTemplate);
 router.post('/products/import', authenticate, requireAdmin, uploadExcel.single('file'), importProducts);
 router.post('/products', authenticate, requireAdmin, createProduct);
+router.get('/products/import-batches', authenticate, requireAdmin, listProductImportBatches);
+router.delete('/products/import-batches/:batchId', authenticate, requireAdmin, deleteProductImportBatch);
 router.put('/products/:id', authenticate, requireAdmin, updateProduct);
 router.patch('/products/:id/toggle', authenticate, requireAdmin, toggleProductActive);
-router.delete('/products/delete-all', authenticate, requireAdmin, deleteAllProducts);
 router.delete('/products/:id', authenticate, requireAdmin, deleteProduct);
 
 // Rotas de visita — leitura liberada pro promotor (só vê a própria); mutação restrita ao admin
