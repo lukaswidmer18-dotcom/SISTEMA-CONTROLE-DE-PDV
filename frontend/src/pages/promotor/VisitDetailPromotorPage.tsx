@@ -1,23 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit, Photo } from '../../types';
+import { Visit, Photo, FormFieldConfig } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, Camera, Calendar } from 'lucide-react';
 import PhotoCaption from '../../components/photos/PhotoCaption';
+import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 
 export default function VisitDetailPromotorPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState<Photo | null>(null);
+  const [validadeLabels, setValidadeLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
       try {
-        const { data } = await api.get(`/visits/${visitId}`);
-        setVisit(data.data);
+        const [visitRes, formFieldsRes] = await Promise.all([
+          api.get(`/visits/${visitId}`),
+          api.get('/form-fields', { params: { formType: 'VALIDADE' } }),
+        ]);
+        setVisit(visitRes.data.data);
+        setValidadeLabels(extraFieldsLabelMap((formFieldsRes.data.data || []) as FormFieldConfig[]));
       } finally {
         setLoading(false);
       }
@@ -111,12 +117,26 @@ export default function VisitDetailPromotorPage() {
           </div>
         ) : visit.validities && visit.validities.length > 0 ? (
           <div className="space-y-2">
-            {visit.validities.map(v => (
-              <div key={v.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5 text-sm">
-                <span className="font-medium text-gray-800">{v.product?.name}</span>
-                <span className="text-gray-500">{v.expiryDate} • {v.quantity} un.</span>
-              </div>
-            ))}
+            {visit.validities.map(v => {
+              const extras = formatExtraFields(v.extraFields, validadeLabels);
+              return (
+                <div key={v.id} className="bg-gray-50 rounded-lg p-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-800">{v.product?.name}</span>
+                    <span className="text-gray-500">{v.expiryDate} • {v.quantity} un.</span>
+                  </div>
+                  {extras.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {extras.map(e => (
+                        <span key={e.key} className="text-[10px] font-medium text-gray-500 bg-white border border-gray-200 rounded-full px-1.5 py-0.5">
+                          {e.label}: {e.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : <p className="text-sm text-gray-400">Nenhuma validade registrada.</p>}
       </div>

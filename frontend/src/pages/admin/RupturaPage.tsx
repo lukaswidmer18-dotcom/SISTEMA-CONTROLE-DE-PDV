@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
-import { RupturaAlerta, RupturaRiskLevel } from '../../types';
+import { RupturaAlerta, RupturaRiskLevel, FormFieldConfig } from '../../types';
 import { PackageX, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 
 const RISK_STYLE: Record<RupturaRiskLevel, { label: string; badge: string }> = {
   CRITICO: { label: 'Crítico', badge: 'bg-red-50 text-red-600' },
@@ -51,13 +52,18 @@ export default function RupturaPage() {
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<RupturaAlerta | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rupturaLabels, setRupturaLabels] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/admin/ruptura/alertas', { params: { limiteEstoque } });
-      setAlertas(data.data || []);
+      const [alertasRes, formFieldsRes] = await Promise.all([
+        api.get('/admin/ruptura/alertas', { params: { limiteEstoque } }),
+        api.get('/form-fields', { params: { formType: 'RUPTURA' } }),
+      ]);
+      setAlertas(alertasRes.data.data || []);
+      setRupturaLabels(extraFieldsLabelMap((formFieldsRes.data.data || []) as FormFieldConfig[]));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao carregar alertas de ruptura.');
     } finally {
@@ -155,35 +161,52 @@ export default function RupturaPage() {
                 <th className="py-2 pr-4">P/ Troca</th>
                 <th className="py-2 pr-4">Promotor</th>
                 <th className="py-2 pr-4">Última leitura</th>
+                <th className="py-2 pr-4">Extras</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
-              {alertas.map(a => (
-                <tr key={a.id} className="border-b border-gray-50 last:border-b-0">
-                  <td className="py-2.5 pr-4">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${RISK_STYLE[a.riskLevel].badge}`}>
-                      {RISK_STYLE[a.riskLevel].label}
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-4 font-bold text-gray-800">{a.pdvName}<span className="text-gray-400 font-medium"> · {a.pdvCity}</span></td>
-                  <td className="py-2.5 pr-4 text-gray-700">{a.productName}</td>
-                  <td className={`py-2.5 pr-4 font-bold ${a.qtyGondola === 0 ? 'text-red-600' : 'text-gray-700'}`}>{a.qtyGondola}</td>
-                  <td className="py-2.5 pr-4 text-gray-500">{a.qtyDeposito}</td>
-                  <td className="py-2.5 pr-4 text-gray-500">{a.qtySeparadoTroca}</td>
-                  <td className="py-2.5 pr-4 text-gray-500">{a.promotorName}</td>
-                  <td className="py-2.5 pr-4 text-gray-400 text-xs">{format(new Date(a.checkedAt), 'dd/MM HH:mm', { locale: ptBR })}</td>
-                  <td className="py-2.5 pr-4">
-                    <button
-                      onClick={() => setDeleting(a)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {alertas.map(a => {
+                const extras = formatExtraFields(a.extraFields, rupturaLabels);
+                return (
+                  <tr key={a.id} className="border-b border-gray-50 last:border-b-0">
+                    <td className="py-2.5 pr-4">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${RISK_STYLE[a.riskLevel].badge}`}>
+                        {RISK_STYLE[a.riskLevel].label}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 font-bold text-gray-800">{a.pdvName}<span className="text-gray-400 font-medium"> · {a.pdvCity}</span></td>
+                    <td className="py-2.5 pr-4 text-gray-700">{a.productName}</td>
+                    <td className={`py-2.5 pr-4 font-bold ${a.qtyGondola === 0 ? 'text-red-600' : 'text-gray-700'}`}>{a.qtyGondola}</td>
+                    <td className="py-2.5 pr-4 text-gray-500">{a.qtyDeposito}</td>
+                    <td className="py-2.5 pr-4 text-gray-500">{a.qtySeparadoTroca}</td>
+                    <td className="py-2.5 pr-4 text-gray-500">{a.promotorName}</td>
+                    <td className="py-2.5 pr-4 text-gray-400 text-xs">{format(new Date(a.checkedAt), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                    <td className="py-2.5 pr-4">
+                      {extras.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {extras.map(e => (
+                            <span key={e.key} className="text-[10px] font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded-full px-1.5 py-0.5">
+                              {e.label}: {e.value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <button
+                        onClick={() => setDeleting(a)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

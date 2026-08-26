@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { PriceCheck, Product, PDV } from '../../types';
+import { PriceCheck, Product, PDV, FormFieldConfig } from '../../types';
 import { Tags, RefreshCw, TrendingDown, TrendingUp, Camera, Trash2, AlertTriangle, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/format';
+import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -52,6 +53,7 @@ export default function PriceCheckPage() {
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<PriceCheck | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [precoLabels, setPrecoLabels] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
@@ -60,14 +62,16 @@ export default function PriceCheckPage() {
       const params: Record<string, string> = {};
       if (filterProduct) params.productId = filterProduct;
       if (filterPdv) params.pdvId = filterPdv;
-      const [pcRes, productsRes, pdvsRes] = await Promise.all([
+      const [pcRes, productsRes, pdvsRes, formFieldsRes] = await Promise.all([
         api.get('/admin/price-checks', { params }),
         api.get('/products'),
         api.get('/pdvs'),
+        api.get('/form-fields', { params: { formType: 'PRECO' } }),
       ]);
       setPriceChecks(pcRes.data.data || []);
       setProducts(productsRes.data.data || []);
       setPdvs(pdvsRes.data.data || []);
+      setPrecoLabels(extraFieldsLabelMap((formFieldsRes.data.data || []) as FormFieldConfig[]));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao carregar pesquisa de preço.');
     } finally {
@@ -182,12 +186,14 @@ export default function PriceCheckPage() {
                 <th className="py-2 pr-4">Preço concorrente</th>
                 <th className="py-2 pr-4">Diferença</th>
                 <th className="py-2 pr-4">Promotor</th>
+                <th className="py-2 pr-4">Extras</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
               {priceChecks.map(pc => {
                 const diff = pc.competitorPrice != null ? pc.ownPrice - pc.competitorPrice : null;
+                const extras = formatExtraFields(pc.extraFields, precoLabels);
                 return (
                   <tr key={pc.id} className="border-b border-gray-50 last:border-b-0">
                     <td className="py-2.5 pr-4">
@@ -221,6 +227,19 @@ export default function PriceCheckPage() {
                       )}
                     </td>
                     <td className="py-2.5 pr-4 text-gray-500">{pc.visit?.promotor?.name}</td>
+                    <td className="py-2.5 pr-4">
+                      {extras.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {extras.map(e => (
+                            <span key={e.key} className="text-[10px] font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded-full px-1.5 py-0.5">
+                              {e.label}: {e.value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="py-2.5 pr-4">
                       <button
                         onClick={() => setDeleting(pc)}

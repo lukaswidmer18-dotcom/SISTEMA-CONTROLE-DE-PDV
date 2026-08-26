@@ -159,6 +159,7 @@ export interface RupturaAlerta {
   qtyGondola: number;
   qtyDeposito: number;
   qtySeparadoTroca: number;
+  extraFields?: Record<string, string | number> | null;
   checkedAt: string;
   riskLevel: RupturaRiskLevel;
 }

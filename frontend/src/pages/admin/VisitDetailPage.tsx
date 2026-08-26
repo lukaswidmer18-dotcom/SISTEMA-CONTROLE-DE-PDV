@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit, ChecklistItem } from '../../types';
+import { Visit, ChecklistItem, FormFieldConfig } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star } from 'lucide-react';
@@ -9,6 +9,7 @@ import StarRating from '../../components/ui/StarRating';
 import PhotoCaption from '../../components/photos/PhotoCaption';
 import { Photo } from '../../types';
 import { getRequiredPhotoTotal } from '../../utils/checklist';
+import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 
 export default function VisitDetailPage() {
   const { visitId } = useParams<{ visitId: string }>();
@@ -18,16 +19,19 @@ export default function VisitDetailPage() {
   const [savingRating, setSavingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
+  const [validadeLabels, setValidadeLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
       try {
-        const [visitRes, checklistRes] = await Promise.all([
+        const [visitRes, checklistRes, formFieldsRes] = await Promise.all([
           api.get(`/visits/${visitId}`),
           api.get('/checklist'),
+          api.get('/form-fields', { params: { formType: 'VALIDADE' } }),
         ]);
         setVisit(visitRes.data.data);
         setRequiredPhotoTotal(getRequiredPhotoTotal((checklistRes.data.data || []) as ChecklistItem[]));
+        setValidadeLabels(extraFieldsLabelMap((formFieldsRes.data.data || []) as FormFieldConfig[]));
       } finally {
         setLoading(false);
       }
@@ -198,18 +202,32 @@ export default function VisitDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {visit.validities.map(v => (
-                <tr key={v.id}>
-                  <td className="py-2">{v.product?.name || '-'}</td>
-                  <td className="py-2">
-                    <span className="flex items-center gap-1">
-                      <Calendar size={13} className="text-gray-400" />
-                      {v.expiryDate}
-                    </span>
-                  </td>
-                  <td className="py-2">{v.quantity}</td>
-                </tr>
-              ))}
+              {visit.validities.map(v => {
+                const extras = formatExtraFields(v.extraFields, validadeLabels);
+                return (
+                  <tr key={v.id}>
+                    <td className="py-2">{v.product?.name || '-'}</td>
+                    <td className="py-2">
+                      <span className="flex items-center gap-1">
+                        <Calendar size={13} className="text-gray-400" />
+                        {v.expiryDate}
+                      </span>
+                    </td>
+                    <td className="py-2">
+                      {v.quantity}
+                      {extras.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {extras.map(e => (
+                            <span key={e.key} className="text-[10px] font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded-full px-1.5 py-0.5">
+                              {e.label}: {e.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (

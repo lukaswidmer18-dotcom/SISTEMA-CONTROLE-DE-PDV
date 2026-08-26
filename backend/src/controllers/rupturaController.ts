@@ -39,6 +39,7 @@ export async function getRupturaAlertas(req: Request, res: Response): Promise<vo
     qtyGondola: r.qtyGondola,
     qtyDeposito: r.qtyDeposito,
     qtySeparadoTroca: r.qtySeparadoTroca,
+    extraFields: r.extraFields as Record<string, string | number> | null,
     checkedAt: r.createdAt.toISOString(),
     riskLevel: classifyRisk(r.qtyGondola, r.qtyDeposito, lowStockThreshold),
   }));
