@@ -798,7 +798,7 @@ export default function PontoPage() {
                                     </div>
                                   </div>
                                 )}
-                                {!covered && !locked && (
+                                {photos.length < item.requiredCount && !locked && (
                                   <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
                                     <Plus size={18} className="text-gray-300" />
                                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
@@ -956,7 +956,7 @@ export default function PontoPage() {
                                     </div>
                                   </div>
                                 )}
-                                {!covered && !locked && (
+                                {photos.length < item.requiredCount && !locked && (
                                   <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
                                     <Plus size={18} className="text-gray-300" />
                                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
