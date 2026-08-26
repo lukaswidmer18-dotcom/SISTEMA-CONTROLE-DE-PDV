@@ -155,11 +155,15 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
     setDeleting(true);
     setDeleteError('');
     try {
-      await api.delete(`/form-fields/${fieldToDelete.id}`);
+      if (fieldToDelete.core) {
+        await api.put(`/form-fields/${fieldToDelete.id}`, { active: false });
+      } else {
+        await api.delete(`/form-fields/${fieldToDelete.id}`);
+      }
       setFieldToDelete(null);
       reload();
     } catch (err: any) {
-      setDeleteError(err.response?.data?.error || 'Erro ao excluir campo.');
+      setDeleteError(err.response?.data?.error || 'Erro ao remover campo.');
     } finally {
       setDeleting(false);
     }
@@ -237,7 +241,7 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
                   <button onClick={() => setEditField(field)} className="p-1.5 text-gray-500 hover:text-pluma-600 rounded hover:bg-pluma-50">
                     <Pencil size={14} />
                   </button>
-                  {!field.core && (
+                  {(!field.core || (!field.lockedActive && field.active)) && (
                     <button onClick={() => { setDeleteError(''); setFieldToDelete(field); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
                       <Trash2 size={14} />
                     </button>
@@ -255,15 +259,17 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
       {fieldToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Excluir campo?</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{fieldToDelete.core ? 'Remover campo do formulário?' : 'Excluir campo?'}</h3>
             <p className="text-sm text-gray-500 mb-4">
-              "{fieldToDelete.label}" será removido permanentemente do formulário. Registros já salvos mantêm o valor no histórico.
+              {fieldToDelete.core
+                ? `"${fieldToDelete.label}" é campo do sistema, não dá pra excluir de vez — vai sumir do formulário do promotor (histórico já salvo continua) e pode ser reativado depois na coluna Ativo.`
+                : `"${fieldToDelete.label}" será removido permanentemente do formulário. Registros já salvos mantêm o valor no histórico.`}
             </p>
             {deleteError && <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4">{deleteError}</div>}
             <div className="flex gap-2">
               <button type="button" onClick={() => setFieldToDelete(null)} className="btn-secondary flex-1">Cancelar</button>
               <button type="button" onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors">
-                {deleting ? 'Excluindo...' : 'Excluir'}
+                {deleting ? 'Removendo...' : fieldToDelete.core ? 'Remover' : 'Excluir'}
               </button>
             </div>
           </div>
