@@ -88,6 +88,24 @@ export interface Photo {
   checklistItem?: ChecklistItem | null;
 }
 
+export type FormType = 'VALIDADE' | 'RUPTURA' | 'PRECO';
+export type FormFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CURRENCY' | 'PHOTO';
+
+export interface FormFieldConfig {
+  id: string;
+  formType: FormType;
+  fieldKey: string;
+  label: string;
+  fieldType: FormFieldType;
+  core: boolean;
+  lockedActive: boolean;
+  lockedRequired: boolean;
+  active: boolean;
+  required: boolean;
+  order: number;
+  createdAt?: string;
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;

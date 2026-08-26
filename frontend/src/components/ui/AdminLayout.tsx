@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, MapPin, Package, Clock, ClipboardList, LogOut, Map, Route as RouteIcon, ListChecks, CheckCircle2, Trophy, PackageX, Tags, UtensilsCrossed, DollarSign,
-  Activity, Compass, BarChart3, Database, ChevronDown, type LucideIcon,
+  Activity, Compass, BarChart3, Database, ChevronDown, SlidersHorizontal, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,6 +38,7 @@ const navEntries: NavEntry[] = [
         { to: '/admin/visitas', label: 'Visitas', icon: ClipboardList },
         { to: '/admin/pontos', label: 'Registro de almoço', icon: Clock },
         { to: '/admin/checklist', label: 'Checklist', icon: ListChecks },
+        { to: '/admin/campos-formularios', label: 'Campos dos Formulários', icon: SlidersHorizontal },
       ],
     },
   },

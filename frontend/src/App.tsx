@@ -12,6 +12,7 @@ const PDVsPage = lazy(() => import('./pages/admin/PDVsPage'));
 const RoutesPage = lazy(() => import('./pages/admin/RoutesPage'));
 const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'));
 const ChecklistPage = lazy(() => import('./pages/admin/ChecklistPage'));
+const FormFieldsPage = lazy(() => import('./pages/admin/FormFieldsPage'));
 const PontosPage = lazy(() => import('./pages/admin/PontosPage'));
 const VisitsAdminPage = lazy(() => import('./pages/admin/VisitsAdminPage'));
 const VisitDetailPage = lazy(() => import('./pages/admin/VisitDetailPage'));
@@ -66,6 +67,7 @@ function AppRoutes() {
           <Route path="rotas" element={<RoutesPage />} />
           <Route path="produtos" element={<ProductsPage />} />
           <Route path="checklist" element={<ChecklistPage />} />
+          <Route path="campos-formularios" element={<FormFieldsPage />} />
           <Route path="pontos" element={<PontosPage />} />
           <Route path="visitas" element={<VisitsAdminPage />} />
           <Route path="visitas/:visitId" element={<VisitDetailPage />} />
