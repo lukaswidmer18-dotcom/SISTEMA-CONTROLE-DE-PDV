@@ -71,9 +71,11 @@ function EditFieldModal({ field, onClose, onSaved }: { field: FormFieldConfig; o
   );
 }
 
+type CustomFieldType = 'TEXT' | 'NUMBER' | 'DATE' | 'CURRENCY';
+
 function NewFieldModal({ formType, onClose, onSaved }: { formType: FormType; onClose: () => void; onSaved: () => void }) {
   const [label, setLabel] = useState('');
-  const [fieldType, setFieldType] = useState<'TEXT' | 'NUMBER'>('TEXT');
+  const [fieldType, setFieldType] = useState<CustomFieldType>('TEXT');
   const [required, setRequired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -107,9 +109,11 @@ function NewFieldModal({ formType, onClose, onSaved }: { formType: FormType; onC
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select className="input-field" value={fieldType} onChange={e => setFieldType(e.target.value as 'TEXT' | 'NUMBER')}>
+            <select className="input-field" value={fieldType} onChange={e => setFieldType(e.target.value as CustomFieldType)}>
               <option value="TEXT">Texto</option>
               <option value="NUMBER">Número</option>
+              <option value="DATE">Data</option>
+              <option value="CURRENCY">Moeda</option>
             </select>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">

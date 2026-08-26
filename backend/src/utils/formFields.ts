@@ -35,12 +35,18 @@ export async function collectExtraFields(formType: FormType, rawExtraFields: unk
     }
     if (isEmpty) continue;
 
-    if (field.fieldType === 'NUMBER') {
+    if (field.fieldType === 'NUMBER' || field.fieldType === 'CURRENCY') {
       const parsed = Number(raw);
       if (!Number.isFinite(parsed)) {
         return { extraFields: null, error: `Campo "${field.label}" deve ser um número.` };
       }
       result[field.fieldKey] = parsed;
+    } else if (field.fieldType === 'DATE') {
+      const value = String(raw).trim();
+      if (Number.isNaN(Date.parse(value))) {
+        return { extraFields: null, error: `Campo "${field.label}" deve ser uma data válida.` };
+      }
+      result[field.fieldKey] = value;
     } else {
       result[field.fieldKey] = String(raw).trim();
     }

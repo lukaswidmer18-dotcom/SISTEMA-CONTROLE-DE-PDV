@@ -59,10 +59,17 @@ function buildExtraFieldsPayload(customFields: FormFieldConfig[], values: Record
   for (const field of customFields) {
     const raw = values[field.fieldKey];
     if (raw === undefined || raw === '') continue;
-    result[field.fieldKey] = field.fieldType === 'NUMBER' ? Number(raw) : raw;
+    result[field.fieldKey] = field.fieldType === 'NUMBER' || field.fieldType === 'CURRENCY' ? Number(raw) : raw;
   }
   return result;
 }
+
+const EXTRA_FIELD_INPUT_TYPE: Record<string, string> = {
+  NUMBER: 'number',
+  CURRENCY: 'number',
+  DATE: 'date',
+  TEXT: 'text',
+};
 
 function ExtraFieldsInputs({ fields, values, onChange }: {
   fields: FormFieldConfig[]; values: Record<string, string>; onChange: (key: string, value: string) => void;
@@ -76,7 +83,8 @@ function ExtraFieldsInputs({ fields, values, onChange }: {
             {field.label}{field.required ? ' *' : ''}
           </label>
           <input
-            type={field.fieldType === 'NUMBER' ? 'number' : 'text'}
+            type={EXTRA_FIELD_INPUT_TYPE[field.fieldType] || 'text'}
+            step={field.fieldType === 'CURRENCY' ? '0.01' : undefined}
             className="input-field py-3 text-sm font-bold"
             required={field.required}
             value={values[field.fieldKey] || ''}

@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 
 const VALID_FORM_TYPES = ['VALIDADE', 'RUPTURA', 'PRECO'] as const;
-const VALID_CUSTOM_FIELD_TYPES = ['TEXT', 'NUMBER'] as const;
+const VALID_CUSTOM_FIELD_TYPES = ['TEXT', 'NUMBER', 'DATE', 'CURRENCY'] as const;
 
 export async function listFormFields(req: Request, res: Response): Promise<void> {
   const authReq = req as any;
