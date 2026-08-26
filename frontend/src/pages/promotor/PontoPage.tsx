@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem } from '../../types';
+import { Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem, FormFieldConfig } from '../../types';
 import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
 import { useLocationPing } from '../../hooks/useLocationPing';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
@@ -19,6 +19,7 @@ import {
   updateOfflineActiveVisit,
   PRODUCTS_CACHE_KEY,
   CHECKLIST_CACHE_KEY,
+  FORM_FIELDS_CACHE_KEY,
   readCache,
   writeCache,
 } from '../../services/visitService';
@@ -27,20 +28,85 @@ function getErrorMessage(err: any, fallback: string) {
   return err.response?.data?.error || err.message || fallback;
 }
 
-function ValidityModal({ visitId, products, onClose, onAdded }: {
-  visitId: string; products: Product[]; onClose: () => void; onAdded: (validity?: Validity) => void;
+function getFieldConfig(fields: FormFieldConfig[], key: string): FormFieldConfig | undefined {
+  return fields.find(f => f.fieldKey === key);
+}
+
+function fieldLabel(fields: FormFieldConfig[], key: string, fallback: string, opts?: { suffix?: string; forceRequired?: boolean }): string {
+  const cfg = getFieldConfig(fields, key);
+  const label = cfg?.label || fallback;
+  const required = cfg ? cfg.required : opts?.forceRequired ?? false;
+  const suffix = opts?.suffix ? ` ${opts.suffix}` : '';
+  return `${label}${suffix}${required ? ' *' : ''}`;
+}
+
+function isFieldActive(fields: FormFieldConfig[], key: string, fallback = true): boolean {
+  const cfg = getFieldConfig(fields, key);
+  return cfg ? cfg.active : fallback;
+}
+
+function isFieldRequired(fields: FormFieldConfig[], key: string, fallback = false): boolean {
+  const cfg = getFieldConfig(fields, key);
+  return cfg ? cfg.required : fallback;
+}
+
+function customFieldsOf(fields: FormFieldConfig[], formType: 'VALIDADE' | 'RUPTURA' | 'PRECO'): FormFieldConfig[] {
+  return fields.filter(f => f.formType === formType && !f.core && f.active);
+}
+
+function buildExtraFieldsPayload(customFields: FormFieldConfig[], values: Record<string, string>): Record<string, string | number> {
+  const result: Record<string, string | number> = {};
+  for (const field of customFields) {
+    const raw = values[field.fieldKey];
+    if (raw === undefined || raw === '') continue;
+    result[field.fieldKey] = field.fieldType === 'NUMBER' ? Number(raw) : raw;
+  }
+  return result;
+}
+
+function ExtraFieldsInputs({ fields, values, onChange }: {
+  fields: FormFieldConfig[]; values: Record<string, string>; onChange: (key: string, value: string) => void;
+}) {
+  if (fields.length === 0) return null;
+  return (
+    <>
+      {fields.map(field => (
+        <div key={field.id}>
+          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
+            {field.label}{field.required ? ' *' : ''}
+          </label>
+          <input
+            type={field.fieldType === 'NUMBER' ? 'number' : 'text'}
+            className="input-field py-3 text-sm font-bold"
+            required={field.required}
+            value={values[field.fieldKey] || ''}
+            onChange={e => onChange(field.fieldKey, e.target.value)}
+          />
+        </div>
+      ))}
+    </>
+  );
+}
+
+function ValidityModal({ visitId, products, fields, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (validity?: Validity) => void;
 }) {
   const [form, setForm] = useState({ productId: '', expiryDate: '', quantity: '1' });
+  const [extraValues, setExtraValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const showQuantity = isFieldActive(fields, 'quantity');
+  const customFields = customFieldsOf(fields, 'VALIDADE');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const extraFields = buildExtraFieldsPayload(customFields, extraValues);
+    const payload = { ...form, extraFields };
     try {
       if (isLocalVisit(visitId)) throw new Error('OFFLINE_VISIT');
-      await api.post(`/visits/${visitId}/validities`, form);
+      await api.post(`/visits/${visitId}/validities`, payload);
       onAdded();
       onClose();
     } catch (err: any) {
@@ -48,7 +114,7 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
         const queued = await queueOfflineAction({
           kind: 'validity',
           ...getVisitReference(visitId),
-          payload: form,
+          payload,
         });
         onAdded({
           id: queued.id,
@@ -56,6 +122,7 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
           productId: form.productId,
           expiryDate: form.expiryDate,
           quantity: Number(form.quantity) || 1,
+          extraFields,
           product: products.find(p => p.id === form.productId),
           createdAt: queued.createdAt,
         });
@@ -94,22 +161,25 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto *</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'productId', 'Produto', { forceRequired: true })}</label>
             <select className="input-field py-3 text-sm font-bold" required value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
               <option value="">Selecione o produto...</option>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.brand ? ` (${p.brand})` : ''}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className={showQuantity ? 'grid grid-cols-2 gap-4' : ''}>
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Vencimento *</label>
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'expiryDate', 'Vencimento', { forceRequired: true })}</label>
               <input type="date" className="input-field py-3 text-sm font-bold" required value={form.expiryDate} onChange={e => setForm(f => ({ ...f, expiryDate: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Quantidade de caixas aberta</label>
-              <input type="number" min="1" className="input-field py-3 text-sm font-bold" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
-            </div>
+            {showQuantity && (
+              <div>
+                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'quantity', 'Quantidade de Caixas Aberta')}</label>
+                <input type="number" min="1" className="input-field py-3 text-sm font-bold" required={isFieldRequired(fields, 'quantity')} value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
+              </div>
+            )}
           </div>
+          <ExtraFieldsInputs fields={customFields} values={extraValues} onChange={(key, value) => setExtraValues(v => ({ ...v, [key]: value }))} />
           {error && <div className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3.5 font-bold">Cancelar</button>
@@ -121,22 +191,27 @@ function ValidityModal({ visitId, products, onClose, onAdded }: {
   );
 }
 
-function RupturaModal({ visitId, products, onClose, onAdded }: {
-  visitId: string; products: Product[]; onClose: () => void; onAdded: (ruptura?: RupturaRegistro) => void;
+function RupturaModal({ visitId, products, fields, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (ruptura?: RupturaRegistro) => void;
 }) {
   const [form, setForm] = useState({ productId: '', qtyGondola: '0', qtyDeposito: '0', qtySeparadoTroca: '0' });
+  const [extraValues, setExtraValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const showTroca = isFieldActive(fields, 'qtySeparadoTroca');
+  const customFields = customFieldsOf(fields, 'RUPTURA');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const extraFields = buildExtraFieldsPayload(customFields, extraValues);
     const payload = {
       productId: form.productId,
       qtyGondola: parseInt(form.qtyGondola) || 0,
       qtyDeposito: parseInt(form.qtyDeposito) || 0,
       qtySeparadoTroca: parseInt(form.qtySeparadoTroca) || 0,
+      extraFields,
     };
     try {
       if (isLocalVisit(visitId)) throw new Error('OFFLINE_VISIT');
@@ -191,26 +266,29 @@ function RupturaModal({ visitId, products, onClose, onAdded }: {
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto *</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'productId', 'Produto', { forceRequired: true })}</label>
             <select className="input-field py-3 text-sm font-bold" required value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
               <option value="">Selecione o produto...</option>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.brand ? ` (${p.brand})` : ''}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid gap-3 ${showTroca ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Gôndola</label>
-              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtyGondola} onChange={e => setForm(f => ({ ...f, qtyGondola: e.target.value }))} />
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'qtyGondola', 'Gôndola')}</label>
+              <input type="number" min="0" className="input-field py-3 text-sm font-bold" required={isFieldRequired(fields, 'qtyGondola')} value={form.qtyGondola} onChange={e => setForm(f => ({ ...f, qtyGondola: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Depósito</label>
-              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtyDeposito} onChange={e => setForm(f => ({ ...f, qtyDeposito: e.target.value }))} />
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'qtyDeposito', 'Depósito')}</label>
+              <input type="number" min="0" className="input-field py-3 text-sm font-bold" required={isFieldRequired(fields, 'qtyDeposito')} value={form.qtyDeposito} onChange={e => setForm(f => ({ ...f, qtyDeposito: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">P/ Troca</label>
-              <input type="number" min="0" className="input-field py-3 text-sm font-bold" value={form.qtySeparadoTroca} onChange={e => setForm(f => ({ ...f, qtySeparadoTroca: e.target.value }))} />
-            </div>
+            {showTroca && (
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'qtySeparadoTroca', 'P/ Troca')}</label>
+                <input type="number" min="0" className="input-field py-3 text-sm font-bold" required={isFieldRequired(fields, 'qtySeparadoTroca')} value={form.qtySeparadoTroca} onChange={e => setForm(f => ({ ...f, qtySeparadoTroca: e.target.value }))} />
+              </div>
+            )}
           </div>
+          <ExtraFieldsInputs fields={customFields} values={extraValues} onChange={(key, value) => setExtraValues(v => ({ ...v, [key]: value }))} />
           {error && <div className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3.5 font-bold">Cancelar</button>
@@ -222,13 +300,18 @@ function RupturaModal({ visitId, products, onClose, onAdded }: {
   );
 }
 
-function PriceCheckModal({ visitId, products, onClose, onAdded }: {
-  visitId: string; products: Product[]; onClose: () => void; onAdded: (priceCheck?: PriceCheck) => void;
+function PriceCheckModal({ visitId, products, fields, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (priceCheck?: PriceCheck) => void;
 }) {
   const [form, setForm] = useState({ productId: '', ownPrice: '', competitorName: '', competitorPrice: '' });
   const [file, setFile] = useState<File | null>(null);
+  const [extraValues, setExtraValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const showCompetitorName = isFieldActive(fields, 'competitorName');
+  const showCompetitorPrice = isFieldActive(fields, 'competitorPrice');
+  const showPhoto = isFieldActive(fields, 'photoPath');
+  const customFields = customFieldsOf(fields, 'PRECO');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -238,12 +321,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
     const compressedFile = file ? await compressImage(file) : null;
     const ownPriceValue = centsInputToNumber(form.ownPrice);
     const competitorPriceValue = form.competitorPrice ? centsInputToNumber(form.competitorPrice) : null;
+    const extraFields = buildExtraFieldsPayload(customFields, extraValues);
 
     const formData = new FormData();
     formData.append('productId', form.productId);
     formData.append('ownPrice', String(ownPriceValue));
     formData.append('competitorName', form.competitorName);
     formData.append('competitorPrice', competitorPriceValue != null ? String(competitorPriceValue) : '');
+    formData.append('extraFields', JSON.stringify(extraFields));
     if (compressedFile) formData.append('photo', compressedFile, compressedFile.name);
 
     try {
@@ -265,6 +350,7 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
             competitorPrice: competitorPriceValue != null ? String(competitorPriceValue) : '',
             file: compressedFile || undefined,
             fileName: compressedFile?.name,
+            extraFields,
           },
         });
         onAdded({
@@ -274,6 +360,7 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
           ownPrice: ownPriceValue,
           competitorName: form.competitorName || null,
           competitorPrice: competitorPriceValue,
+          extraFields,
           product: products.find(p => p.id === form.productId),
         });
         onClose();
@@ -311,14 +398,14 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Produto *</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'productId', 'Produto', { forceRequired: true })}</label>
             <select className="input-field py-3 text-sm font-bold" required value={form.productId} onChange={e => setForm(f => ({ ...f, productId: e.target.value }))}>
               <option value="">Selecione o produto...</option>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}{p.brand ? ` (${p.brand})` : ''}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Nosso preço (R$) *</label>
+            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'ownPrice', 'Nosso Preço', { suffix: '(R$)', forceRequired: true })}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -329,31 +416,41 @@ function PriceCheckModal({ visitId, products, onClose, onAdded }: {
               onChange={e => setForm(f => ({ ...f, ownPrice: e.target.value.replace(/\D/g, '') }))}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Concorrente</label>
-              <input type="text" placeholder="Nome/marca" className="input-field py-3 text-sm font-bold" value={form.competitorName} onChange={e => setForm(f => ({ ...f, competitorName: e.target.value }))} />
+          {(showCompetitorName || showCompetitorPrice) && (
+            <div className={`grid gap-4 ${showCompetitorName && showCompetitorPrice ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {showCompetitorName && (
+                <div>
+                  <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'competitorName', 'Concorrente')}</label>
+                  <input type="text" placeholder="Nome/marca" className="input-field py-3 text-sm font-bold" required={isFieldRequired(fields, 'competitorName')} value={form.competitorName} onChange={e => setForm(f => ({ ...f, competitorName: e.target.value }))} />
+                </div>
+              )}
+              {showCompetitorPrice && (
+                <div>
+                  <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'competitorPrice', 'Preço Concorrente', { suffix: '(R$)' })}</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    className="input-field py-3 text-sm font-bold"
+                    required={isFieldRequired(fields, 'competitorPrice')}
+                    value={centsInputToDisplay(form.competitorPrice)}
+                    onChange={e => setForm(f => ({ ...f, competitorPrice: e.target.value.replace(/\D/g, '') }))}
+                  />
+                </div>
+              )}
             </div>
+          )}
+          {showPhoto && (
             <div>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Preço concorrente (R$)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="R$ 0,00"
-                className="input-field py-3 text-sm font-bold"
-                value={centsInputToDisplay(form.competitorPrice)}
-                onChange={e => setForm(f => ({ ...f, competitorPrice: e.target.value.replace(/\D/g, '') }))}
-              />
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">{fieldLabel(fields, 'photoPath', 'Foto', { suffix: '(opcional)' })}</label>
+              <label className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors">
+                <Camera size={16} className="text-gray-400" />
+                <span className="text-xs font-bold text-gray-500">{file ? file.name : 'Tirar foto da etiqueta/gôndola'}</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+              </label>
             </div>
-          </div>
-          <div>
-            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Foto (opcional)</label>
-            <label className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors">
-              <Camera size={16} className="text-gray-400" />
-              <span className="text-xs font-bold text-gray-500">{file ? file.name : 'Tirar foto da etiqueta/gôndola'}</span>
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
-            </label>
-          </div>
+          )}
+          <ExtraFieldsInputs fields={customFields} values={extraValues} onChange={(key, value) => setExtraValues(v => ({ ...v, [key]: value }))} />
           {error && <div className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 py-3.5 font-bold">Cancelar</button>
@@ -374,6 +471,7 @@ export default function PontoPage() {
   const [visit, setVisit] = useState<Visit | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [formFields, setFormFields] = useState<FormFieldConfig[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadingPreview, setUploadingPreview] = useState<{ itemId: string; url: string } | null>(null);
   const [showValidityModal, setShowValidityModal] = useState(false);
@@ -393,18 +491,22 @@ export default function PontoPage() {
     setError('');
     setNotice('');
     try {
-      const [visitRes, productsRes, checklistRes] = await Promise.all([
+      const [visitRes, productsRes, checklistRes, formFieldsRes] = await Promise.all([
         api.get('/visits/active'),
         api.get('/products'),
         api.get('/checklist'),
+        api.get('/form-fields'),
       ]);
 
       const loadedProducts = productsRes.data.data || [];
       const loadedChecklist = checklistRes.data.data || [];
+      const loadedFormFields = formFieldsRes.data.data || [];
       writeCache(PRODUCTS_CACHE_KEY, loadedProducts);
       writeCache(CHECKLIST_CACHE_KEY, loadedChecklist);
+      writeCache(FORM_FIELDS_CACHE_KEY, loadedFormFields);
       setProducts(loadedProducts);
       setChecklistItems(loadedChecklist);
+      setFormFields(loadedFormFields);
 
       const activeVisit = visitRes.data.data || (getOfflineActiveVisit() ? toVisit(getOfflineActiveVisit()!) : null);
       setVisit(activeVisit);
@@ -414,6 +516,7 @@ export default function PontoPage() {
         setError('Modo offline ativo. Os registros serão sincronizados quando a internet voltar.');
         setProducts(readCache<Product[]>(PRODUCTS_CACHE_KEY, []));
         setChecklistItems(readCache<ChecklistItem[]>(CHECKLIST_CACHE_KEY, []));
+        setFormFields(readCache<FormFieldConfig[]>(FORM_FIELDS_CACHE_KEY, []));
         const offlineVisit = getOfflineActiveVisit();
         if (offlineVisit) setVisit(toVisit(offlineVisit));
       } else {
@@ -998,15 +1101,15 @@ export default function PontoPage() {
 
       {/* Modals & Overlays */}
       {showValidityModal && visit && (
-        <ValidityModal visitId={visit.id} products={visitProducts} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
+        <ValidityModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
       )}
 
       {showRupturaModal && visit && (
-        <RupturaModal visitId={visit.id} products={visitProducts} onClose={() => setShowRupturaModal(false)} onAdded={() => load()} />
+        <RupturaModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowRupturaModal(false)} onAdded={() => load()} />
       )}
 
       {showPriceCheckModal && visit && (
-        <PriceCheckModal visitId={visit.id} products={visitProducts} onClose={() => setShowPriceCheckModal(false)} onAdded={() => load()} />
+        <PriceCheckModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowPriceCheckModal(false)} onAdded={() => load()} />
       )}
 
       {photoToDelete && (

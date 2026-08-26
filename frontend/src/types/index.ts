@@ -121,6 +121,7 @@ export interface Validity {
   productId: string;
   expiryDate: string;
   quantity: number;
+  extraFields?: Record<string, string | number> | null;
   product?: Product;
   createdAt?: string;
 }
@@ -140,6 +141,7 @@ export interface RupturaRegistro {
   qtyGondola: number;
   qtyDeposito: number;
   qtySeparadoTroca: number;
+  extraFields?: Record<string, string | number> | null;
   product?: Product;
   createdAt?: string;
 }
@@ -170,6 +172,7 @@ export interface PriceCheck {
   competitorPrice?: number | null;
   photoPath?: string | null;
   photoFileName?: string | null;
+  extraFields?: Record<string, string | number> | null;
   product?: Product;
   visit?: { pdv?: PDV; promotor?: Pick<User, 'id' | 'name'> };
   createdAt?: string;

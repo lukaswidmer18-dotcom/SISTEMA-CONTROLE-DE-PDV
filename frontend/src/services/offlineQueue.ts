@@ -61,6 +61,7 @@ export interface OfflineValidityAction extends OfflineActionBase {
     productId: string;
     expiryDate: string;
     quantity: string;
+    extraFields?: Record<string, string | number>;
   };
 }
 
@@ -73,6 +74,7 @@ export interface OfflineRupturaAction extends OfflineActionBase {
     qtyGondola: number;
     qtyDeposito: number;
     qtySeparadoTroca: number;
+    extraFields?: Record<string, string | number>;
   };
 }
 
@@ -87,6 +89,7 @@ export interface OfflinePriceCheckAction extends OfflineActionBase {
     competitorPrice: string;
     file?: Blob;
     fileName?: string;
+    extraFields?: Record<string, string | number>;
   };
 }
 
@@ -266,6 +269,7 @@ async function syncAction(action: OfflineAction, visitMap: Record<string, string
     formData.append('ownPrice', action.payload.ownPrice);
     formData.append('competitorName', action.payload.competitorName);
     formData.append('competitorPrice', action.payload.competitorPrice);
+    if (action.payload.extraFields) formData.append('extraFields', JSON.stringify(action.payload.extraFields));
     if (action.payload.file) formData.append('photo', action.payload.file, action.payload.fileName || 'foto.jpg');
 
     await api.post(`/visits/${visitId}/price-checks`, formData, {
