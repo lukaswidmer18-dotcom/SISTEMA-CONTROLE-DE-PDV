@@ -9,6 +9,30 @@ import Pagination from '../../components/ui/Pagination';
 import { useColumnFilters } from '../../hooks/useColumnFilters';
 import ColumnFilter from '../../components/ui/ColumnFilter';
 
+function PdvListModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const pdvs = product.pdvs || [];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h3 className="font-semibold text-gray-800">{product.name}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{pdvs.length} PDV{pdvs.length === 1 ? '' : 's'}</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        <div className="p-4 overflow-y-auto flex flex-wrap content-start gap-1.5">
+          {pdvs.map(pdv => (
+            <span key={pdv.id} className="flex items-center gap-1 text-[11px] font-medium text-pluma-700 bg-pluma-50 border border-pluma-100 rounded-full px-2 py-0.5">
+              <Store size={10} /> {pdv.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmDeleteModal({ product, loading, onConfirm, onCancel }: {
   product: Product; loading: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
@@ -160,6 +184,7 @@ export default function ProductsPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showImportBatches, setShowImportBatches] = useState(false);
   const [deleteAllMessage, setDeleteAllMessage] = useState('');
+  const [pdvListProduct, setPdvListProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(products, {
     sku: p => [p.name],
@@ -254,17 +279,30 @@ export default function ProductsPage() {
     return message;
   }
 
+  const PDV_BADGES_VISIBLE = 5;
+
   function pdvBadges(p: Product) {
     if (!p.pdvs || p.pdvs.length === 0) {
       return <span className="text-xs text-gray-400 italic">Nenhum PDV</span>;
     }
+    const visible = p.pdvs.slice(0, PDV_BADGES_VISIBLE);
+    const remaining = p.pdvs.length - visible.length;
     return (
       <div className="flex flex-wrap gap-1">
-        {p.pdvs.map(pdv => (
+        {visible.map(pdv => (
           <span key={pdv.id} className="flex items-center gap-1 text-[11px] font-medium text-pluma-700 bg-pluma-50 border border-pluma-100 rounded-full px-2 py-0.5">
             <Store size={10} /> {pdv.name}
           </span>
         ))}
+        {remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => setPdvListProduct(p)}
+            className="text-[11px] font-semibold text-pluma-800 bg-pluma-100 border border-pluma-200 rounded-full px-2 py-0.5 hover:bg-pluma-200 transition-colors"
+          >
+            +{remaining}
+          </button>
+        )}
       </div>
     );
   }
@@ -429,6 +467,10 @@ export default function ProductsPage() {
 
       {importResult && (
         <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
+      )}
+
+      {pdvListProduct && (
+        <PdvListModal product={pdvListProduct} onClose={() => setPdvListProduct(null)} />
       )}
 
       {showImportBatches && (
