@@ -434,6 +434,7 @@ export default function PDVsPage() {
   const [modal, setModal] = useState<{ open: boolean; pdv?: PDV | null }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<PDV | null>(null);
   const { setColumnFilter, getUniqueValues, filteredItems, activeFilterCount, clearAllFilters, filters } = useColumnFilters(pdvs, {
+    cliforCode: p => [p.cliforCode || '-'],
     name: p => [p.name],
     address: p => [p.address || '-'],
     city: p => [p.city || '-'],
