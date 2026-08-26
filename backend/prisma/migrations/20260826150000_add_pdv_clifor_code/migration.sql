@@ -1,0 +1,1 @@
+ALTER TABLE "pdvs" ADD COLUMN "cliforCode" TEXT NOT NULL DEFAULT '';

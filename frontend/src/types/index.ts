@@ -36,6 +36,7 @@ export interface DegustacaoSolicitacao {
 export interface PDV {
   id: string;
   name: string;
+  cliforCode: string;
   address: string;
   neighborhood: string;
   city: string;

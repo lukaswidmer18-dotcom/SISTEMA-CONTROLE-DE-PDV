@@ -44,6 +44,7 @@ model PromotorLocation {
 model PDV {
   id            String    @id @default(uuid())
   name          String
+  cliforCode    String    @default("")
   address       String    @default("")
   neighborhood  String    @default("")
   city          String    @default("")

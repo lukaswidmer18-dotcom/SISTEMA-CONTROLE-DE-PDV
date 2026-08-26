@@ -48,7 +48,7 @@ export async function listPDVs(req: Request, res: Response): Promise<void> {
 }
 
 export async function createPDV(req: Request, res: Response): Promise<void> {
-  const { name, address, neighborhood, city, state, channel, network, radiusMeters, latitude, longitude } = req.body;
+  const { name, cliforCode, address, neighborhood, city, state, channel, network, radiusMeters, latitude, longitude } = req.body;
   if (!name) {
     res.status(400).json({ success: false, error: 'Nome é obrigatório.' });
     return;
@@ -65,6 +65,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
   const pdv = await prisma.pDV.create({
     data: {
       name: name.trim(),
+      cliforCode: cliforCode?.trim() || '',
       address: trimmedAddress,
       neighborhood: neighborhood?.trim() || '',
       city: trimmedCity,
@@ -87,7 +88,7 @@ export async function createPDV(req: Request, res: Response): Promise<void> {
 
 export async function updatePDV(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, neighborhood, city, state, channel, network, active, radiusMeters, latitude, longitude, clearCoordinates, forceGeocode } = req.body;
+  const { name, cliforCode, address, neighborhood, city, state, channel, network, active, radiusMeters, latitude, longitude, clearCoordinates, forceGeocode } = req.body;
 
   const pdv = await prisma.pDV.findUnique({ where: { id } });
   if (!pdv) {
@@ -97,6 +98,7 @@ export async function updatePDV(req: Request, res: Response): Promise<void> {
 
   const updateData: any = {};
   if (name) updateData.name = name.trim();
+  if (cliforCode !== undefined) updateData.cliforCode = cliforCode.trim();
   if (address !== undefined) updateData.address = address.trim();
   if (neighborhood !== undefined) updateData.neighborhood = neighborhood.trim();
   if (city !== undefined) updateData.city = city.trim();
@@ -253,6 +255,7 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
         await prisma.pDV.update({
           where: { id: existing.id },
           data: {
+            cliforCode: row.cliforCode,
             city: row.city,
             neighborhood: row.neighborhood,
             state: row.state,
@@ -268,6 +271,7 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
         await prisma.pDV.create({
           data: {
             name: row.name,
+            cliforCode: row.cliforCode,
             address: row.address,
             neighborhood: row.neighborhood,
             city: row.city,

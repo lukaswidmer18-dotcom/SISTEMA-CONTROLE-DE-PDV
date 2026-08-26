@@ -62,6 +62,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
   const isEdit = Boolean(pdv);
   const [form, setForm] = useState({
     name: pdv?.name || '',
+    cliforCode: pdv?.cliforCode || '',
     address: pdv?.address || '',
     neighborhood: pdv?.neighborhood || '',
     city: pdv?.city || '',
@@ -174,7 +175,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setLoading(true);
     try {
       const payload: any = {
-        name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
+        name: form.name, cliforCode: form.cliforCode, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
       };
       if (clearCoord) {
         payload.clearCoordinates = true;
@@ -211,7 +212,7 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
     setLoading(true);
     try {
       const payload = {
-        name: form.name, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
+        name: form.name, cliforCode: form.cliforCode, address: form.address, neighborhood: form.neighborhood, city: form.city, state: form.state,
         forceGeocode: true,
       };
       const { data } = await api.put(`/pdvs/${savedId}`, payload);
@@ -236,6 +237,10 @@ function PDVModal({ pdv, onClose, onSaved }: { pdv?: PDV | null; onClose: () => 
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cód. Clifor</label>
+            <input className="input-field" value={form.cliforCode} onChange={e => setForm(f => ({ ...f, cliforCode: e.target.value }))} />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Clifor *</label>
             <input className="input-field" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -557,7 +562,7 @@ export default function PDVsPage() {
               <div key={p.id} className="card">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">{p.name}</p>
+                    <p className="font-semibold text-gray-800 text-sm">{p.cliforCode ? `${p.cliforCode} — ${p.name}` : p.name}</p>
                     {(p.address || p.city || p.state) && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {[p.address, p.city, p.state].filter(Boolean).join(' — ')}
@@ -594,6 +599,11 @@ export default function PDVsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Cód. Clifor
+                      <ColumnFilter label="Cód. Clifor" values={getUniqueValues('cliforCode')} selected={filters.cliforCode ?? new Set()} onChange={s => setColumnFilter('cliforCode', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
                     <div className="flex items-center gap-1">Clifor
                       <ColumnFilter label="Clifor" values={getUniqueValues('name')} selected={filters.name ?? new Set()} onChange={s => setColumnFilter('name', s)} />
                     </div>
@@ -629,6 +639,7 @@ export default function PDVsPage() {
               <tbody className="divide-y divide-gray-100">
                 {pageItems.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-500">{p.cliforCode || '-'}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.address || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.city || '-'}</td>
