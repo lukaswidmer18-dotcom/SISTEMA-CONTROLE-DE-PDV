@@ -20,7 +20,7 @@ export async function listProducts(req: Request, res: Response): Promise<void> {
 
   const products = await prisma.product.findMany({
     where,
-    include: { pdvs: { select: { id: true, name: true } } },
+    include: { pdvs: { select: isAdmin ? { id: true, name: true } : { id: true } } },
     orderBy: { name: 'asc' },
   });
   res.json({ success: true, data: products });

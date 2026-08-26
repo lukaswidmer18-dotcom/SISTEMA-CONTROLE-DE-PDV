@@ -30,7 +30,12 @@ export function readCache<T>(key: string, fallback: T): T {
 }
 
 export function writeCache<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    // Cache offline é um extra, não pode derrubar a tela se estourar a cota do navegador.
+    console.warn(`Não foi possível salvar cache offline (${key}):`, err);
+  }
 }
 
 export function getOfflineActiveVisit(): OfflineActiveVisit | null {
