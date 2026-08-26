@@ -205,7 +205,7 @@ export async function importProducts(req: Request, res: Response): Promise<void>
           data: {
             sku: row.sku,
             active: row.active,
-            pdvs: { set: row.pdvIds.map((id) => ({ id })) },
+            pdvs: { connect: row.pdvIds.map((id) => ({ id })) },
             importBatchId,
             importedAt,
           },
