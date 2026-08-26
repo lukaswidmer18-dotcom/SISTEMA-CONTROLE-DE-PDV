@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { parseRequiredCoordinates } from '../utils/location';
 import { uploadToBlob, deleteFromBlob } from '../utils/blobStorage';
+import { collectExtraFields } from '../utils/formFields';
 import { prisma } from '../lib/prisma';
 
 type VisitWithDetails = Prisma.VisitGetPayload<{
@@ -218,12 +219,19 @@ export async function addValidity(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const extra = await collectExtraFields('VALIDADE', req.body.extraFields);
+  if (extra.error) {
+    res.status(400).json({ success: false, error: extra.error });
+    return;
+  }
+
   const validity = await prisma.validity.create({
     data: {
       visitId,
       productId,
       expiryDate,
       quantity: quantity ? parseInt(quantity) : 1,
+      extraFields: extra.extraFields ?? undefined,
     },
     include: { product: true },
   });
@@ -261,10 +269,16 @@ export async function addRuptura(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const extra = await collectExtraFields('RUPTURA', req.body.extraFields);
+  if (extra.error) {
+    res.status(400).json({ success: false, error: extra.error });
+    return;
+  }
+
   const ruptura = await prisma.rupturaRegistro.upsert({
     where: { visitId_productId: { visitId, productId } },
-    create: { visitId, productId, qtyGondola, qtyDeposito, qtySeparadoTroca },
-    update: { qtyGondola, qtyDeposito, qtySeparadoTroca },
+    create: { visitId, productId, qtyGondola, qtyDeposito, qtySeparadoTroca, extraFields: extra.extraFields ?? undefined },
+    update: { qtyGondola, qtyDeposito, qtySeparadoTroca, extraFields: extra.extraFields ?? undefined },
     include: { product: true },
   });
 
@@ -344,6 +358,12 @@ export async function addPriceCheck(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  const extra = await collectExtraFields('PRECO', req.body.extraFields);
+  if (extra.error) {
+    res.status(400).json({ success: false, error: extra.error });
+    return;
+  }
+
   const photoData = req.file
     ? await uploadToBlob(req.file.buffer, req.file.originalname, 'price-checks')
     : null;
@@ -358,11 +378,13 @@ export async function addPriceCheck(req: Request, res: Response): Promise<void> 
       competitorPrice: parsedCompetitorPrice,
       photoPath: photoData?.url,
       photoFileName: photoData?.pathname,
+      extraFields: extra.extraFields ?? undefined,
     },
     update: {
       ownPrice: parsedOwnPrice,
       competitorName: trimmedCompetitorName || null,
       competitorPrice: parsedCompetitorPrice,
+      extraFields: extra.extraFields ?? undefined,
       ...(photoData ? { photoPath: photoData.url, photoFileName: photoData.pathname } : {}),
     },
     include: { product: true },

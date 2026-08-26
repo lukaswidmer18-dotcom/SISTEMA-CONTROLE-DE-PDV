@@ -215,6 +215,7 @@ model RupturaRegistro {
   qtyGondola       Int      @default(0)
   qtyDeposito      Int      @default(0)
   qtySeparadoTroca Int      @default(0)
+  extraFields      Json?
   createdAt        DateTime @default(now())
 
   visit   Visit   @relation(fields: [visitId], references: [id])
@@ -258,6 +259,7 @@ model PriceCheck {
   competitorPrice Float?
   photoPath       String?
   photoFileName   String?
+  extraFields     Json?
   createdAt       DateTime @default(now())
 
   visit   Visit   @relation(fields: [visitId], references: [id])
@@ -269,12 +271,13 @@ model PriceCheck {
 }
 
 model Validity {
-  id         String   @id @default(uuid())
-  visitId    String
-  productId  String
-  expiryDate String
-  quantity   Int      @default(1)
-  createdAt  DateTime @default(now())
+  id          String   @id @default(uuid())
+  visitId     String
+  productId   String
+  expiryDate  String
+  quantity    Int      @default(1)
+  extraFields Json?
+  createdAt   DateTime @default(now())
 
   visit   Visit   @relation(fields: [visitId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -282,4 +285,23 @@ model Validity {
   @@index([visitId])
   @@index([productId])
   @@map("validities")
+}
+
+model FormFieldConfig {
+  id             String   @id @default(uuid())
+  formType       String
+  fieldKey       String
+  label          String
+  fieldType      String   @default("TEXT")
+  core           Boolean  @default(false)
+  lockedActive   Boolean  @default(false)
+  lockedRequired Boolean  @default(false)
+  active         Boolean  @default(true)
+  required       Boolean  @default(false)
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([formType, fieldKey])
+  @@map("form_field_configs")
 }
