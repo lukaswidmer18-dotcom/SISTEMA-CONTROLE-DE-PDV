@@ -11,6 +11,11 @@ import ColumnFilter from '../../components/ui/ColumnFilter';
 
 function PdvListModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const pdvs = product.pdvs || [];
+  const [search, setSearch] = useState('');
+  const filtered = search.trim()
+    ? pdvs.filter(pdv => pdv.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : pdvs;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
@@ -21,12 +26,27 @@ function PdvListModal({ product, onClose }: { product: Product; onClose: () => v
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
         </div>
+        <div className="p-3 border-b relative">
+          <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            autoFocus
+            type="text"
+            placeholder="Buscar PDV..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input-field pl-8"
+          />
+        </div>
         <div className="p-4 overflow-y-auto flex flex-wrap content-start gap-1.5">
-          {pdvs.map(pdv => (
-            <span key={pdv.id} className="flex items-center gap-1 text-[11px] font-medium text-pluma-700 bg-pluma-50 border border-pluma-100 rounded-full px-2 py-0.5">
-              <Store size={10} /> {pdv.name}
-            </span>
-          ))}
+          {filtered.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Nenhum PDV encontrado.</p>
+          ) : (
+            filtered.map(pdv => (
+              <span key={pdv.id} className="flex items-center gap-1 text-[11px] font-medium text-pluma-700 bg-pluma-50 border border-pluma-100 rounded-full px-2 py-0.5">
+                <Store size={10} /> {pdv.name}
+              </span>
+            ))
+          )}
         </div>
       </div>
     </div>
