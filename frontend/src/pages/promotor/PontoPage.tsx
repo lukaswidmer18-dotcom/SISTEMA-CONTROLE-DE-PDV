@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem, FormFieldConfig } from '../../types';
+import { Visit, Product, Validity, RupturaRegistro, PriceCheck, ChecklistItem, FormFieldConfig, FormTypeConfig, FormType } from '../../types';
 import { useManualLocationFallback } from '../../hooks/useManualLocationFallback';
 import { useLocationPing } from '../../hooks/useLocationPing';
 import { isNetworkError, queueOfflineAction, removeFromOfflineQueue } from '../../services/offlineQueue';
@@ -20,12 +20,23 @@ import {
   PRODUCTS_CACHE_KEY,
   CHECKLIST_CACHE_KEY,
   FORM_FIELDS_CACHE_KEY,
+  FORM_TITLES_CACHE_KEY,
   readCache,
   writeCache,
 } from '../../services/visitService';
 
 function getErrorMessage(err: any, fallback: string) {
   return err.response?.data?.error || err.message || fallback;
+}
+
+const FORM_TYPE_FALLBACK_TITLE: Record<FormType, string> = {
+  VALIDADE: 'Registrar Validade',
+  RUPTURA: 'Registrar Ruptura',
+  PRECO: 'Pesquisa de Preço',
+};
+
+function formTypeTitle(titles: FormTypeConfig[], formType: FormType): string {
+  return titles.find(t => t.formType === formType)?.title || FORM_TYPE_FALLBACK_TITLE[formType];
 }
 
 function getFieldConfig(fields: FormFieldConfig[], key: string): FormFieldConfig | undefined {
@@ -96,8 +107,8 @@ function ExtraFieldsInputs({ fields, values, onChange }: {
   );
 }
 
-function ValidityModal({ visitId, products, fields, onClose, onAdded }: {
-  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (validity?: Validity) => void;
+function ValidityModal({ visitId, products, fields, title, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; title: string; onClose: () => void; onAdded: (validity?: Validity) => void;
 }) {
   const [form, setForm] = useState({ productId: '', expiryDate: '', quantity: '1' });
   const [extraValues, setExtraValues] = useState<Record<string, string>>({});
@@ -148,7 +159,7 @@ function ValidityModal({ visitId, products, fields, onClose, onAdded }: {
       <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
         <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Validade</h3>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
           </div>
           <p className="text-sm text-gray-500 text-center py-6">
@@ -164,7 +175,7 @@ function ValidityModal({ visitId, products, fields, onClose, onAdded }: {
     <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
       <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Validade</h3>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -199,8 +210,8 @@ function ValidityModal({ visitId, products, fields, onClose, onAdded }: {
   );
 }
 
-function RupturaModal({ visitId, products, fields, onClose, onAdded }: {
-  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (ruptura?: RupturaRegistro) => void;
+function RupturaModal({ visitId, products, fields, title, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; title: string; onClose: () => void; onAdded: (ruptura?: RupturaRegistro) => void;
 }) {
   const [form, setForm] = useState({ productId: '', qtyGondola: '0', qtyDeposito: '0', qtySeparadoTroca: '0' });
   const [extraValues, setExtraValues] = useState<Record<string, string>>({});
@@ -253,7 +264,7 @@ function RupturaModal({ visitId, products, fields, onClose, onAdded }: {
       <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
         <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Ruptura</h3>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
           </div>
           <p className="text-sm text-gray-500 text-center py-6">
@@ -269,7 +280,7 @@ function RupturaModal({ visitId, products, fields, onClose, onAdded }: {
     <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
       <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-black text-gray-900 tracking-tight">Registrar Ruptura</h3>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -308,8 +319,8 @@ function RupturaModal({ visitId, products, fields, onClose, onAdded }: {
   );
 }
 
-function PriceCheckModal({ visitId, products, fields, onClose, onAdded }: {
-  visitId: string; products: Product[]; fields: FormFieldConfig[]; onClose: () => void; onAdded: (priceCheck?: PriceCheck) => void;
+function PriceCheckModal({ visitId, products, fields, title, onClose, onAdded }: {
+  visitId: string; products: Product[]; fields: FormFieldConfig[]; title: string; onClose: () => void; onAdded: (priceCheck?: PriceCheck) => void;
 }) {
   const [form, setForm] = useState({ productId: '', ownPrice: '', competitorName: '', competitorPrice: '' });
   const [file, setFile] = useState<File | null>(null);
@@ -385,7 +396,7 @@ function PriceCheckModal({ visitId, products, fields, onClose, onAdded }: {
       <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
         <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight">Pesquisa de Preço</h3>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
           </div>
           <p className="text-sm text-gray-500 text-center py-6">
@@ -401,7 +412,7 @@ function PriceCheckModal({ visitId, products, fields, onClose, onAdded }: {
     <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center bg-black/60 backdrop-blur-sm p-4 pb-24 lg:pb-4">
       <div className="bg-white rounded-2xl lg:rounded-3xl w-full max-w-lg p-6 lg:p-8 animate-slide-up shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-black text-gray-900 tracking-tight">Pesquisa de Preço</h3>
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors"><X size={24} /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -480,6 +491,7 @@ export default function PontoPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [formFields, setFormFields] = useState<FormFieldConfig[]>([]);
+  const [formTitles, setFormTitles] = useState<FormTypeConfig[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadingPreview, setUploadingPreview] = useState<{ itemId: string; url: string } | null>(null);
   const [showValidityModal, setShowValidityModal] = useState(false);
@@ -499,22 +511,26 @@ export default function PontoPage() {
     setError('');
     setNotice('');
     try {
-      const [visitRes, productsRes, checklistRes, formFieldsRes] = await Promise.all([
+      const [visitRes, productsRes, checklistRes, formFieldsRes, formTitlesRes] = await Promise.all([
         api.get('/visits/active'),
         api.get('/products'),
         api.get('/checklist'),
         api.get('/form-fields'),
+        api.get('/form-types'),
       ]);
 
       const loadedProducts = productsRes.data.data || [];
       const loadedChecklist = checklistRes.data.data || [];
       const loadedFormFields = formFieldsRes.data.data || [];
+      const loadedFormTitles = formTitlesRes.data.data || [];
       writeCache(PRODUCTS_CACHE_KEY, loadedProducts);
       writeCache(CHECKLIST_CACHE_KEY, loadedChecklist);
       writeCache(FORM_FIELDS_CACHE_KEY, loadedFormFields);
+      writeCache(FORM_TITLES_CACHE_KEY, loadedFormTitles);
       setProducts(loadedProducts);
       setChecklistItems(loadedChecklist);
       setFormFields(loadedFormFields);
+      setFormTitles(loadedFormTitles);
 
       const activeVisit = visitRes.data.data || (getOfflineActiveVisit() ? toVisit(getOfflineActiveVisit()!) : null);
       setVisit(activeVisit);
@@ -525,6 +541,7 @@ export default function PontoPage() {
         setProducts(readCache<Product[]>(PRODUCTS_CACHE_KEY, []));
         setChecklistItems(readCache<ChecklistItem[]>(CHECKLIST_CACHE_KEY, []));
         setFormFields(readCache<FormFieldConfig[]>(FORM_FIELDS_CACHE_KEY, []));
+        setFormTitles(readCache<FormTypeConfig[]>(FORM_TITLES_CACHE_KEY, []));
         const offlineVisit = getOfflineActiveVisit();
         if (offlineVisit) setVisit(toVisit(offlineVisit));
       } else {
@@ -1109,15 +1126,15 @@ export default function PontoPage() {
 
       {/* Modals & Overlays */}
       {showValidityModal && visit && (
-        <ValidityModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
+        <ValidityModal visitId={visit.id} products={visitProducts} fields={formFields} title={formTypeTitle(formTitles, 'VALIDADE')} onClose={() => setShowValidityModal(false)} onAdded={() => load()} />
       )}
 
       {showRupturaModal && visit && (
-        <RupturaModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowRupturaModal(false)} onAdded={() => load()} />
+        <RupturaModal visitId={visit.id} products={visitProducts} fields={formFields} title={formTypeTitle(formTitles, 'RUPTURA')} onClose={() => setShowRupturaModal(false)} onAdded={() => load()} />
       )}
 
       {showPriceCheckModal && visit && (
-        <PriceCheckModal visitId={visit.id} products={visitProducts} fields={formFields} onClose={() => setShowPriceCheckModal(false)} onAdded={() => load()} />
+        <PriceCheckModal visitId={visit.id} products={visitProducts} fields={formFields} title={formTypeTitle(formTitles, 'PRECO')} onClose={() => setShowPriceCheckModal(false)} onAdded={() => load()} />
       )}
 
       {photoToDelete && (

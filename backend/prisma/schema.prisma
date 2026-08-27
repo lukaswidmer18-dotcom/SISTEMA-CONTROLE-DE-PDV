@@ -305,3 +305,12 @@ model FormFieldConfig {
   @@unique([formType, fieldKey])
   @@map("form_field_configs")
 }
+
+model FormTypeConfig {
+  formType    String   @id
+  title       String
+  description String   @default("")
+  updatedAt   DateTime @updatedAt
+
+  @@map("form_type_configs")
+}

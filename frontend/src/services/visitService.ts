@@ -4,6 +4,7 @@ export const OFFLINE_ACTIVE_VISIT_KEY = 'pdv-offline-active-visit';
 export const PRODUCTS_CACHE_KEY = 'pdv-cache-products';
 export const CHECKLIST_CACHE_KEY = 'pdv-cache-checklist';
 export const FORM_FIELDS_CACHE_KEY = 'pdv-cache-form-fields';
+export const FORM_TITLES_CACHE_KEY = 'pdv-cache-form-titles';
 
 export interface OfflineActiveVisit {
   localVisitId: string;

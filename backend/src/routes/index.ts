@@ -16,6 +16,7 @@ import {
 import {
   listFormFields, createFormField, updateFormField, deleteFormField, reorderFormFields,
 } from '../controllers/formFieldConfigController';
+import { listFormTypeConfigs, updateFormTypeConfig } from '../controllers/formTypeConfigController';
 import { getTodayPonto, registerPonto, listAllPontos } from '../controllers/pontoController';
 import { getCoverageToday, getPdvsNaoVisitados } from '../controllers/coverageController';
 import { rateVisit } from '../controllers/ratingController';
@@ -90,6 +91,9 @@ router.post('/form-fields', authenticate, requireAdmin, createFormField);
 router.put('/form-fields/:id', authenticate, requireAdmin, updateFormField);
 router.patch('/form-fields/reorder', authenticate, requireAdmin, reorderFormFields);
 router.delete('/form-fields/:id', authenticate, requireAdmin, deleteFormField);
+
+router.get('/form-types', authenticate, listFormTypeConfigs);
+router.put('/form-types/:formType', authenticate, requireAdmin, updateFormTypeConfig);
 
 // Localização em tempo real do promotor (ping periódico enquanto em visita)
 router.post('/promotores/location', authenticate, pingLocation);

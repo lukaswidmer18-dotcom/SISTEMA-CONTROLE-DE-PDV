@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { FormFieldConfig, FormType } from '../../types';
+import { FormFieldConfig, FormType, FormTypeConfig } from '../../types';
 import { Plus, Pencil, ToggleLeft, ToggleRight, X, ArrowUp, ArrowDown, SlidersHorizontal, Trash2, Lock } from 'lucide-react';
 
-const FORM_TYPES: { key: FormType; title: string; description: string }[] = [
-  { key: 'VALIDADE', title: 'Registrar Validade', description: 'Campos do formulário de validade de produto.' },
-  { key: 'RUPTURA', title: 'Registrar Ruptura', description: 'Campos do formulário de ruptura de estoque.' },
-  { key: 'PRECO', title: 'Pesquisa de Preço', description: 'Campos do formulário de pesquisa de preço.' },
-];
+const FORM_TYPE_KEYS: FormType[] = ['VALIDADE', 'RUPTURA', 'PRECO'];
+
+const FORM_TYPE_FALLBACK: Record<FormType, { title: string; description: string }> = {
+  VALIDADE: { title: 'Registrar Validade', description: 'Campos do formulário de validade de produto.' },
+  RUPTURA: { title: 'Registrar Ruptura', description: 'Campos do formulário de ruptura de estoque.' },
+  PRECO: { title: 'Pesquisa de Preço', description: 'Campos do formulário de pesquisa de preço.' },
+};
 
 const FIELD_TYPE_LABEL: Record<string, string> = {
   TEXT: 'Texto',
@@ -134,10 +136,61 @@ function NewFieldModal({ formType, onClose, onSaved }: { formType: FormType; onC
   );
 }
 
+function EditTitleModal({ formType, title, description, onClose, onSaved }: {
+  formType: FormType; title: string; description: string; onClose: () => void; onSaved: () => void;
+}) {
+  const [newTitle, setNewTitle] = useState(title);
+  const [newDescription, setNewDescription] = useState(description);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await api.put(`/form-types/${formType}`, { title: newTitle, description: newDescription });
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao salvar título.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-semibold text-gray-800">Editar Título</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <input className="input-field" required value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <input className="input-field" value={newDescription} onChange={e => setNewDescription(e.target.value)} />
+          </div>
+          {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+            <button type="submit" disabled={loading} className="btn-primary flex-1">{loading ? 'Salvando...' : 'Salvar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function FormFieldsSection({ formType, title, description, fields, reload }: {
   formType: FormType; title: string; description: string; fields: FormFieldConfig[]; reload: () => void;
 }) {
   const [editField, setEditField] = useState<FormFieldConfig | null>(null);
+  const [editTitleOpen, setEditTitleOpen] = useState(false);
   const [newFieldOpen, setNewFieldOpen] = useState(false);
   const [fieldToDelete, setFieldToDelete] = useState<FormFieldConfig | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -186,9 +239,14 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
   return (
     <div className="card p-0 overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <div>
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        <div className="flex items-start gap-2">
+          <div>
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          </div>
+          <button onClick={() => setEditTitleOpen(true)} className="p-1 mt-0.5 text-gray-400 hover:text-pluma-600 rounded hover:bg-pluma-50" title="Editar título">
+            <Pencil size={13} />
+          </button>
         </div>
         <button onClick={() => setNewFieldOpen(true)} className="btn-secondary text-xs py-1.5 px-3">
           <Plus size={14} /> Novo Campo
@@ -255,6 +313,9 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
 
       {editField && <EditFieldModal field={editField} onClose={() => setEditField(null)} onSaved={reload} />}
       {newFieldOpen && <NewFieldModal formType={formType} onClose={() => setNewFieldOpen(false)} onSaved={reload} />}
+      {editTitleOpen && (
+        <EditTitleModal formType={formType} title={title} description={description} onClose={() => setEditTitleOpen(false)} onSaved={reload} />
+      )}
 
       {fieldToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -281,19 +342,31 @@ function FormFieldsSection({ formType, title, description, fields, reload }: {
 
 export default function FormFieldsPage() {
   const [fields, setFields] = useState<FormFieldConfig[]>([]);
+  const [titles, setTitles] = useState<FormTypeConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const { data } = await api.get('/form-fields');
-      setFields(data.data || []);
+      const [fieldsRes, titlesRes] = await Promise.all([
+        api.get('/form-fields'),
+        api.get('/form-types'),
+      ]);
+      setFields(fieldsRes.data.data || []);
+      setTitles(titlesRes.data.data || []);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => { load(); }, []);
+
+  function titleOf(formType: FormType): string {
+    return titles.find(t => t.formType === formType)?.title || FORM_TYPE_FALLBACK[formType].title;
+  }
+  function descriptionOf(formType: FormType): string {
+    return titles.find(t => t.formType === formType)?.description || FORM_TYPE_FALLBACK[formType].description;
+  }
 
   return (
     <div>
@@ -311,13 +384,13 @@ export default function FormFieldsPage() {
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-4 border-pluma-800 border-t-transparent" /></div>
       ) : (
         <div className="space-y-6">
-          {FORM_TYPES.map(ft => (
+          {FORM_TYPE_KEYS.map(formType => (
             <FormFieldsSection
-              key={ft.key}
-              formType={ft.key}
-              title={ft.title}
-              description={ft.description}
-              fields={fields.filter(f => f.formType === ft.key)}
+              key={formType}
+              formType={formType}
+              title={titleOf(formType)}
+              description={descriptionOf(formType)}
+              fields={fields.filter(f => f.formType === formType)}
               reload={load}
             />
           ))}

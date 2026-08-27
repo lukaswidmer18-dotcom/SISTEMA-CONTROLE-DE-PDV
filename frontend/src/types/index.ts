@@ -106,6 +106,12 @@ export interface FormFieldConfig {
   createdAt?: string;
 }
 
+export interface FormTypeConfig {
+  formType: FormType;
+  title: string;
+  description: string;
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;
