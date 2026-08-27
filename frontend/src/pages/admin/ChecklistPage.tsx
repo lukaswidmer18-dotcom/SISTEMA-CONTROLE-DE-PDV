@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { ChecklistItem, ChecklistItemType } from '../../types';
-import { Plus, ToggleLeft, ToggleRight, ArrowUp, ArrowDown, ListChecks, Trash2, Check, X } from 'lucide-react';
+import { Plus, ToggleLeft, ToggleRight, ArrowUp, ArrowDown, ListChecks, Trash2, Check, X, Camera } from 'lucide-react';
+
+const YES_NO_VALUES = ['Sim', 'Não'];
 
 interface DraftItem {
   label: string;
@@ -9,6 +11,7 @@ interface DraftItem {
   requiredCount: string;
   required: boolean;
   options: string[];
+  photoTriggerValues: string[];
 }
 
 const TYPE_LABEL: Record<ChecklistItemType, string> = {
@@ -25,7 +28,12 @@ function draftFromItem(item: ChecklistItem): DraftItem {
     requiredCount: String(item.requiredCount),
     required: item.required,
     options: item.options && item.options.length > 0 ? item.options : ['', ''],
+    photoTriggerValues: item.photoTriggerValues || [],
   };
+}
+
+function togglePhotoTrigger(current: string[], value: string, checked: boolean): string[] {
+  return checked ? [...current, value] : current.filter(v => v !== value);
 }
 
 function TypeSelector({ value, onChange }: { value: ChecklistItemType; onChange: (type: ChecklistItemType) => void }) {
@@ -42,27 +50,44 @@ function TypeSelector({ value, onChange }: { value: ChecklistItemType; onChange:
   );
 }
 
-function OptionsEditor({ options, onChange }: { options: string[]; onChange: (options: string[]) => void }) {
+function OptionsEditor({ options, photoTriggerValues, onChange, onTriggerChange }: {
+  options: string[]; photoTriggerValues: string[]; onChange: (options: string[]) => void; onTriggerChange: (values: string[]) => void;
+}) {
   return (
     <div className="space-y-2">
-      {options.map((opt, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-5 shrink-0">{String.fromCharCode(65 + i)}.</span>
-          <input
-            className="flex-1 text-sm text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent"
-            placeholder={`Opção ${i + 1}`}
-            value={opt}
-            onChange={e => onChange(options.map((o, j) => (j === i ? e.target.value : o)))}
-          />
-          <button
-            onClick={() => onChange(options.filter((_, j) => j !== i))}
-            disabled={options.length <= 2}
-            className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-20 disabled:cursor-not-allowed rounded"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ))}
+      {options.map((opt, i) => {
+        const trimmed = opt.trim();
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 w-5 shrink-0">{String.fromCharCode(65 + i)}.</span>
+            <input
+              className="flex-1 text-sm text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent"
+              placeholder={`Opção ${i + 1}`}
+              value={opt}
+              onChange={e => onChange(options.map((o, j) => (j === i ? e.target.value : o)))}
+            />
+            <label
+              className="flex items-center gap-1 text-[10px] font-bold text-gray-400 shrink-0 cursor-pointer"
+              title='Pedir foto quando o promotor escolher essa opção'
+            >
+              <input
+                type="checkbox"
+                checked={trimmed.length > 0 && photoTriggerValues.includes(trimmed)}
+                disabled={!trimmed}
+                onChange={e => trimmed && onTriggerChange(togglePhotoTrigger(photoTriggerValues, trimmed, e.target.checked))}
+              />
+              <Camera size={12} />
+            </label>
+            <button
+              onClick={() => onChange(options.filter((_, j) => j !== i))}
+              disabled={options.length <= 2}
+              className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-20 disabled:cursor-not-allowed rounded"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        );
+      })}
       <button
         onClick={() => onChange([...options, ''])}
         className="text-xs font-bold text-pluma-600 hover:text-pluma-800 ml-7"
@@ -89,10 +114,31 @@ function TypeSpecificFields({ draft, onChange }: { draft: DraftItem; onChange: (
     );
   }
   if (draft.type === 'MULTIPLA_ESCOLHA') {
-    return <OptionsEditor options={draft.options} onChange={options => onChange({ ...draft, options })} />;
+    return (
+      <OptionsEditor
+        options={draft.options}
+        photoTriggerValues={draft.photoTriggerValues}
+        onChange={options => onChange({ ...draft, options })}
+        onTriggerChange={photoTriggerValues => onChange({ ...draft, photoTriggerValues })}
+      />
+    );
   }
   if (draft.type === 'SIM_NAO') {
-    return <p className="text-xs text-gray-400">Promotor responde "Sim" ou "Não".</p>;
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs text-gray-400">Promotor responde "Sim" ou "Não".</p>
+        {YES_NO_VALUES.map(opt => (
+          <label key={opt} className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={draft.photoTriggerValues.includes(opt)}
+              onChange={e => onChange({ ...draft, photoTriggerValues: togglePhotoTrigger(draft.photoTriggerValues, opt, e.target.checked) })}
+            />
+            <Camera size={12} className="text-gray-400" /> Pedir foto se escolher "{opt}"
+          </label>
+        ))}
+      </div>
+    );
   }
   return <p className="text-xs text-gray-400">Promotor digita uma resposta livre.</p>;
 }
@@ -111,12 +157,15 @@ function validateDraft(draft: DraftItem): string | null {
 }
 
 function draftToPayload(draft: DraftItem) {
+  const trimmedOptions = draft.type === 'MULTIPLA_ESCOLHA' ? draft.options.map(o => o.trim()).filter(Boolean) : [];
+  const validTriggers = draft.type === 'MULTIPLA_ESCOLHA' ? trimmedOptions : draft.type === 'SIM_NAO' ? YES_NO_VALUES : [];
   return {
     label: draft.label.trim(),
     type: draft.type,
     requiredCount: draft.requiredCount,
     required: draft.required,
-    options: draft.type === 'MULTIPLA_ESCOLHA' ? draft.options.map(o => o.trim()).filter(Boolean) : undefined,
+    options: draft.type === 'MULTIPLA_ESCOLHA' ? trimmedOptions : undefined,
+    photoTriggerValues: draft.photoTriggerValues.filter(v => validTriggers.includes(v)),
   };
 }
 
@@ -256,7 +305,7 @@ function ChecklistItemCard({
 }
 
 function NewItemCard({ onSave, onCancel }: { onSave: (draft: DraftItem) => Promise<void>; onCancel: () => void }) {
-  const [draft, setDraft] = useState<DraftItem>({ label: '', type: 'FOTO', requiredCount: '1', required: true, options: ['', ''] });
+  const [draft, setDraft] = useState<DraftItem>({ label: '', type: 'FOTO', requiredCount: '1', required: true, options: ['', ''], photoTriggerValues: [] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 

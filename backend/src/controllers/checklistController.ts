@@ -27,6 +27,16 @@ function parseOptions(value: unknown): string[] | null {
   return options.length >= 2 ? options : null;
 }
 
+const YES_NO_VALUES = ['Sim', 'Não'];
+
+// Só mantém valores que ainda são resposta válida pro tipo/opções atuais do item —
+// evita foto-gatilho travada numa opção que o admin já renomeou ou removeu.
+function parsePhotoTriggerValues(value: unknown, allowed: string[]): string[] {
+  if (!Array.isArray(value)) return [];
+  const allowedSet = new Set(allowed);
+  return [...new Set(value.map((v) => String(v).trim()).filter((v) => allowedSet.has(v)))];
+}
+
 // O primeiro item ativo do checklist funciona como confirmação de presença no PDV
 // (ver findMissingFacadePhotoLabel em visitController.ts) — precisa continuar Foto e obrigatório,
 // senão o antifraude vira um item que ninguém é forçado a preencher.
@@ -48,7 +58,7 @@ async function findFacadeGuardViolation(item: { id: string; order: number; activ
 }
 
 export async function createChecklistItem(req: Request, res: Response): Promise<void> {
-  const { label, requiredCount, type, required, options } = req.body;
+  const { label, requiredCount, type, required, options, photoTriggerValues } = req.body;
   if (!label?.trim()) {
     res.status(400).json({ success: false, error: 'Descrição do item é obrigatória.' });
     return;
@@ -74,6 +84,12 @@ export async function createChecklistItem(req: Request, res: Response): Promise<
     }
   }
 
+  const parsedTriggerValues = resolvedType === 'SIM_NAO'
+    ? parsePhotoTriggerValues(photoTriggerValues, YES_NO_VALUES)
+    : resolvedType === 'MULTIPLA_ESCOLHA' && parsedOptions
+      ? parsePhotoTriggerValues(photoTriggerValues, parsedOptions)
+      : [];
+
   const count = await prisma.checklistItem.count();
   const item = await prisma.checklistItem.create({
     data: {
@@ -83,6 +99,7 @@ export async function createChecklistItem(req: Request, res: Response): Promise<
       requiredCount: parsedRequiredCount,
       required: required === undefined ? true : Boolean(required),
       options: parsedOptions ?? undefined,
+      photoTriggerValues: parsedTriggerValues,
     },
   });
   res.status(201).json({ success: true, data: item });
@@ -90,7 +107,7 @@ export async function createChecklistItem(req: Request, res: Response): Promise<
 
 export async function updateChecklistItem(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { label, active, order, requiredCount, type, required, options } = req.body;
+  const { label, active, order, requiredCount, type, required, options, photoTriggerValues } = req.body;
 
   const item = await prisma.checklistItem.findUnique({ where: { id } });
   if (!item) {
@@ -142,6 +159,17 @@ export async function updateChecklistItem(req: Request, res: Response): Promise<
     updateData.options = parsedOptions;
   } else if (type !== undefined && resolvedType !== 'MULTIPLA_ESCOLHA') {
     updateData.options = null;
+  }
+
+  if (type !== undefined || options !== undefined || photoTriggerValues !== undefined) {
+    if (resolvedType === 'SIM_NAO') {
+      updateData.photoTriggerValues = parsePhotoTriggerValues(photoTriggerValues, YES_NO_VALUES);
+    } else if (resolvedType === 'MULTIPLA_ESCOLHA') {
+      const effectiveOptions: string[] = updateData.options ?? (Array.isArray(item.options) ? (item.options as string[]) : []);
+      updateData.photoTriggerValues = parsePhotoTriggerValues(photoTriggerValues, effectiveOptions);
+    } else {
+      updateData.photoTriggerValues = [];
+    }
   }
 
   const updated = await prisma.checklistItem.update({ where: { id }, data: updateData });

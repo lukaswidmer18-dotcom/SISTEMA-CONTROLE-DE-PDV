@@ -31,13 +31,19 @@ async function findMissingFacadePhotoLabel(visit: VisitWithDetails): Promise<str
 }
 
 // Um item do checklist é "coberto" quando o promotor já forneceu o que ele pede:
-// foto (tipo FOTO) ou resposta salva (texto/sim-não/múltipla escolha).
+// foto (tipo FOTO), resposta salva (texto/sim-não/múltipla escolha), e se a resposta
+// escolhida exige foto anexa (photoTriggerValues), essa foto também precisa existir.
 function isChecklistItemCovered(
-  item: { id: string; type: string },
+  item: { id: string; type: string; photoTriggerValues?: unknown },
   photoCountByItem: Map<string, number>,
-  respondedItemIds: Set<string>
+  responseValueByItem: Map<string, string>
 ): boolean {
-  return item.type === 'FOTO' ? (photoCountByItem.get(item.id) || 0) >= 1 : respondedItemIds.has(item.id);
+  if (item.type === 'FOTO') return (photoCountByItem.get(item.id) || 0) >= 1;
+  const value = responseValueByItem.get(item.id);
+  if (value === undefined) return false;
+  const triggers = Array.isArray(item.photoTriggerValues) ? (item.photoTriggerValues as string[]) : [];
+  if (triggers.includes(value) && (photoCountByItem.get(item.id) || 0) < 1) return false;
+  return true;
 }
 
 async function validateVisitInProgress(visitId: string, userId: string): Promise<VisitValidationResult> {
@@ -166,16 +172,23 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const responseValueByItem = new Map(visit.checklistResponses.map((r) => [r.checklistItemId, r.value]));
+
+  // FOTO aceita foto direto. Sim/Não e Múltipla escolha só aceitam foto extra quando a
+  // resposta salva pra esse item está entre as que o admin marcou como "pede foto".
   if (checklistItem.type !== 'FOTO') {
-    res.status(400).json({ success: false, error: 'Esse item espera resposta, não foto.' });
-    return;
+    const triggers = Array.isArray(checklistItem.photoTriggerValues) ? (checklistItem.photoTriggerValues as string[]) : [];
+    const currentValue = responseValueByItem.get(checklistItemId);
+    if (!currentValue || !triggers.includes(currentValue)) {
+      res.status(400).json({ success: false, error: 'Esse item não pede foto pra resposta atual.' });
+      return;
+    }
   }
 
   const photoCountByItem = new Map<string, number>();
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
-  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
 
   const currentCount = photoCountByItem.get(checklistItemId) || 0;
   if (currentCount >= checklistItem.requiredCount) {
@@ -187,7 +200,7 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   }
 
   const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order && item.required);
-  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
+  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, responseValueByItem));
   if (pendingPreceding) {
     res.status(422).json({
       success: false,
@@ -265,10 +278,10 @@ export async function addChecklistResponse(req: Request, res: Response): Promise
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
-  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
+  const responseValueByItem = new Map(visit.checklistResponses.map((r) => [r.checklistItemId, r.value]));
 
   const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order && item.required);
-  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
+  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, responseValueByItem));
   if (pendingPreceding) {
     res.status(422).json({
       success: false,
@@ -587,8 +600,8 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
-  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
-  const missingItems = activeItems.filter((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
+  const responseValueByItem = new Map(visit.checklistResponses.map((r) => [r.checklistItemId, r.value]));
+  const missingItems = activeItems.filter((item) => !isChecklistItemCovered(item, photoCountByItem, responseValueByItem));
   if (missingItems.length > 0) {
     res.status(422).json({
       success: false,

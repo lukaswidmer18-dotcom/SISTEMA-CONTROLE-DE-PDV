@@ -183,6 +183,7 @@ model ChecklistItem {
   requiredCount Int      @default(1)
   required      Boolean  @default(true)
   options       Json?
+  photoTriggerValues Json?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

@@ -122,6 +122,7 @@ export interface ChecklistItem {
   requiredCount: number;
   required: boolean;
   options: string[] | null;
+  photoTriggerValues: string[] | null;
   active: boolean;
   createdAt?: string;
 }

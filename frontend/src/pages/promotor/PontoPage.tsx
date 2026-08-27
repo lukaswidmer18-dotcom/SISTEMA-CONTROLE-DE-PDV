@@ -228,6 +228,10 @@ function ChecklistItemRow({ item, photos, value, covered, locked, uploading, upl
   onExpandPhoto: (path: string) => void;
   onSubmitResponse: (value: string) => Promise<void>;
 }) {
+  const triggers = item.photoTriggerValues || [];
+  const showTriggeredPhoto = item.type !== 'FOTO' && value !== undefined && triggers.includes(value);
+  const missingTriggeredPhoto = showTriggeredPhoto && photos.length === 0;
+
   return (
     <div className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
       <div className="flex items-center justify-between mb-2">
@@ -235,17 +239,23 @@ function ChecklistItemRow({ item, photos, value, covered, locked, uploading, upl
           {item.label}{!item.required && <span className="text-gray-400 font-medium"> (opcional)</span>}
         </p>
         <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
-          {locked ? 'Aguardando item anterior' : item.type === 'FOTO' ? `${photos.length}/${item.requiredCount}` : covered ? 'Respondido' : 'Pendente'}
+          {locked ? 'Aguardando item anterior' : item.type === 'FOTO' ? `${photos.length}/${item.requiredCount}` : covered ? 'Respondido' : missingTriggeredPhoto ? 'Falta foto' : 'Pendente'}
         </span>
       </div>
       {item.type === 'FOTO' ? (
         <ChecklistPhotoAnswer item={item} photos={photos} locked={locked} uploading={uploading} uploadingPreview={uploadingPreview} onPhotoChange={onPhotoChange} onDeletePhoto={onDeletePhoto} onExpandPhoto={onExpandPhoto} />
-      ) : item.type === 'TEXTO' ? (
-        <ChecklistTextAnswer value={value || ''} locked={locked} onSubmit={onSubmitResponse} />
-      ) : item.type === 'SIM_NAO' ? (
-        <ChecklistYesNoAnswer value={value} locked={locked} onSubmit={onSubmitResponse} />
       ) : (
-        <ChecklistMultipleChoiceAnswer options={item.options || []} value={value} locked={locked} onSubmit={onSubmitResponse} />
+        <>
+          {item.type === 'TEXTO' && <ChecklistTextAnswer value={value || ''} locked={locked} onSubmit={onSubmitResponse} />}
+          {item.type === 'SIM_NAO' && <ChecklistYesNoAnswer value={value} locked={locked} onSubmit={onSubmitResponse} />}
+          {item.type === 'MULTIPLA_ESCOLHA' && <ChecklistMultipleChoiceAnswer options={item.options || []} value={value} locked={locked} onSubmit={onSubmitResponse} />}
+          {showTriggeredPhoto && (
+            <div className="mt-2.5 pt-2.5 border-t border-gray-200">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide mb-1.5">Foto obrigatória pra essa resposta</p>
+              <ChecklistPhotoAnswer item={item} photos={photos} locked={locked} uploading={uploading} uploadingPreview={uploadingPreview} onPhotoChange={onPhotoChange} onDeletePhoto={onDeletePhoto} onExpandPhoto={onExpandPhoto} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -925,8 +935,14 @@ export default function PontoPage() {
     for (const response of visit?.checklistResponses || []) {
       responseByItem.set(response.checklistItemId, response.value);
     }
-    const isCovered = (item: ChecklistItem) =>
-      item.type === 'FOTO' ? (photosByItem.get(item.id)?.length || 0) >= 1 : responseByItem.has(item.id);
+    const isCovered = (item: ChecklistItem) => {
+      if (item.type === 'FOTO') return (photosByItem.get(item.id)?.length || 0) >= 1;
+      const value = responseByItem.get(item.id);
+      if (value === undefined) return false;
+      const triggers = item.photoTriggerValues || [];
+      if (triggers.includes(value) && (photosByItem.get(item.id)?.length || 0) < 1) return false;
+      return true;
+    };
     // Item opcional (required=false) nunca trava o próximo nem entra na conta do que falta.
     const missing = checklistItems.filter(item => item.required && !isCovered(item));
     const firstPendingIndex = checklistItems.findIndex(item => item.required && !isCovered(item));
