@@ -107,6 +107,150 @@ function ExtraFieldsInputs({ fields, values, onChange }: {
   );
 }
 
+type PhotoT = NonNullable<Visit['photos']>[number];
+
+function ChecklistPhotoAnswer({ item, photos, locked, uploading, uploadingPreview, onPhotoChange, onDeletePhoto, onExpandPhoto }: {
+  item: ChecklistItem;
+  photos: PhotoT[];
+  locked: boolean;
+  uploading: boolean;
+  uploadingPreview: { itemId: string; url: string } | null;
+  onPhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDeletePhoto: (photoId: string) => void;
+  onExpandPhoto: (path: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {photos.map(photo => (
+        <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+          {photo.filePath === 'offline' ? (
+            <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
+          ) : (
+            <img src={photo.filePath} className="w-full h-full object-cover cursor-pointer" onClick={() => onExpandPhoto(photo.filePath)} alt={item.label} />
+          )}
+          <button onClick={() => onDeletePhoto(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
+            <Trash2 size={10} />
+          </button>
+        </div>
+      ))}
+      {uploadingPreview?.itemId === item.id && (
+        <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
+          <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+            <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      )}
+      {photos.length < item.requiredCount && !locked && (
+        <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
+          <Plus size={18} className="text-gray-300" />
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoChange} disabled={uploading} />
+        </label>
+      )}
+      {locked && photos.length === 0 && (
+        <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
+          <Lock size={16} className="text-gray-300" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChecklistTextAnswer({ value, locked, onSubmit }: { value: string; locked: boolean; onSubmit: (value: string) => Promise<void> }) {
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const dirty = draft.trim() !== value.trim();
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        className="input-field py-2 text-sm flex-1"
+        placeholder="Digite a resposta..."
+        value={draft}
+        disabled={locked}
+        onChange={e => setDraft(e.target.value)}
+      />
+      <button
+        onClick={async () => { if (!draft.trim()) return; setSaving(true); await onSubmit(draft.trim()); setSaving(false); }}
+        disabled={locked || saving || !draft.trim() || !dirty}
+        className="btn-primary text-xs py-2 px-3 shrink-0"
+      >
+        {saving ? '...' : 'Salvar'}
+      </button>
+    </div>
+  );
+}
+
+function ChecklistYesNoAnswer({ value, locked, onSubmit }: { value: string | undefined; locked: boolean; onSubmit: (value: string) => void }) {
+  return (
+    <div className="flex gap-2">
+      {['Sim', 'Não'].map(opt => (
+        <button
+          key={opt}
+          onClick={() => onSubmit(opt)}
+          disabled={locked}
+          className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${value === opt ? 'bg-pluma-600 text-white border-pluma-600' : 'bg-white text-gray-600 border-gray-200 hover:border-pluma-300'}`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChecklistMultipleChoiceAnswer({ options, value, locked, onSubmit }: { options: string[]; value: string | undefined; locked: boolean; onSubmit: (value: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      {options.map(opt => (
+        <button
+          key={opt}
+          onClick={() => onSubmit(opt)}
+          disabled={locked}
+          className={`w-full text-left py-2 px-3 rounded-lg text-sm font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${value === opt ? 'bg-pluma-600 text-white border-pluma-600' : 'bg-white text-gray-600 border-gray-200 hover:border-pluma-300'}`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChecklistItemRow({ item, photos, value, covered, locked, uploading, uploadingPreview, onPhotoChange, onDeletePhoto, onExpandPhoto, onSubmitResponse }: {
+  item: ChecklistItem;
+  photos: PhotoT[];
+  value: string | undefined;
+  covered: boolean;
+  locked: boolean;
+  uploading: boolean;
+  uploadingPreview: { itemId: string; url: string } | null;
+  onPhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDeletePhoto: (photoId: string) => void;
+  onExpandPhoto: (path: string) => void;
+  onSubmitResponse: (value: string) => Promise<void>;
+}) {
+  return (
+    <div className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-bold text-gray-800">
+          {item.label}{!item.required && <span className="text-gray-400 font-medium"> (opcional)</span>}
+        </p>
+        <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
+          {locked ? 'Aguardando item anterior' : item.type === 'FOTO' ? `${photos.length}/${item.requiredCount}` : covered ? 'Respondido' : 'Pendente'}
+        </span>
+      </div>
+      {item.type === 'FOTO' ? (
+        <ChecklistPhotoAnswer item={item} photos={photos} locked={locked} uploading={uploading} uploadingPreview={uploadingPreview} onPhotoChange={onPhotoChange} onDeletePhoto={onDeletePhoto} onExpandPhoto={onExpandPhoto} />
+      ) : item.type === 'TEXTO' ? (
+        <ChecklistTextAnswer value={value || ''} locked={locked} onSubmit={onSubmitResponse} />
+      ) : item.type === 'SIM_NAO' ? (
+        <ChecklistYesNoAnswer value={value} locked={locked} onSubmit={onSubmitResponse} />
+      ) : (
+        <ChecklistMultipleChoiceAnswer options={item.options || []} value={value} locked={locked} onSubmit={onSubmitResponse} />
+      )}
+    </div>
+  );
+}
+
 function ValidityModal({ visitId, products, fields, title, onClose, onAdded }: {
   visitId: string; products: Product[]; fields: FormFieldConfig[]; title: string; onClose: () => void; onAdded: (validity?: Validity) => void;
 }) {
@@ -635,6 +779,43 @@ export default function PontoPage() {
     e.target.value = '';
   }
 
+  async function handleChecklistResponseSubmit(checklistItemId: string, value: string) {
+    if (!visit) return;
+    setError('');
+    try {
+      if (isLocalVisit(visit.id)) throw new Error('OFFLINE_VISIT');
+      const { data } = await api.post(`/visits/${visit.id}/checklist-responses`, { checklistItemId, value });
+      setVisit(prev => {
+        if (!prev) return prev;
+        const rest = (prev.checklistResponses || []).filter(r => r.checklistItemId !== checklistItemId);
+        return { ...prev, checklistResponses: [...rest, data.data] };
+      });
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_VISIT' || isNetworkError(err)) {
+        const queued = await queueOfflineAction({
+          kind: 'checklistResponse',
+          ...getVisitReference(visit.id),
+          payload: { checklistItemId, value },
+        });
+        const response = { id: queued.id, visitId: visit.id, checklistItemId, value, createdAt: queued.createdAt };
+        setVisit(prev => {
+          if (!prev) return prev;
+          const rest = (prev.checklistResponses || []).filter(r => r.checklistItemId !== checklistItemId);
+          return { ...prev, checklistResponses: [...rest, response] };
+        });
+        if (isLocalVisit(visit.id)) {
+          updateOfflineActiveVisit(current => ({
+            ...current,
+            checklistResponses: [...(current.checklistResponses || []).filter((r: any) => r.checklistItemId !== checklistItemId), response],
+          }));
+        }
+        setNotice('Resposta salva offline.');
+      } else {
+        setError(getErrorMessage(err, 'Erro ao salvar resposta.'));
+      }
+    }
+  }
+
   async function handleDeleteValidity(validityId: string) {
     if (!visit) return;
     if (validityId.startsWith('offline-')) {
@@ -740,13 +921,20 @@ export default function PontoPage() {
       const existing = photosByItem.get(photo.checklistItemId) || [];
       photosByItem.set(photo.checklistItemId, [...existing, photo]);
     }
-    const isCovered = (item: ChecklistItem) => (photosByItem.get(item.id)?.length || 0) >= 1;
-    const missing = checklistItems.filter(item => !isCovered(item));
-    const firstPendingIndex = checklistItems.findIndex(item => !isCovered(item));
+    const responseByItem = new Map<string, string>();
+    for (const response of visit?.checklistResponses || []) {
+      responseByItem.set(response.checklistItemId, response.value);
+    }
+    const isCovered = (item: ChecklistItem) =>
+      item.type === 'FOTO' ? (photosByItem.get(item.id)?.length || 0) >= 1 : responseByItem.has(item.id);
+    // Item opcional (required=false) nunca trava o próximo nem entra na conta do que falta.
+    const missing = checklistItems.filter(item => item.required && !isCovered(item));
+    const firstPendingIndex = checklistItems.findIndex(item => item.required && !isCovered(item));
     // Foto da fachada = primeiro item do checklist. Sem ela, o resto da visita (produtos,
     // ruptura, preço) fica bloqueado — é o antifraude de presença no lugar do GPS.
     const facadeCovered = checklistItems.length === 0 || isCovered(checklistItems[0]);
-    return { photosByItem, missing, firstPendingIndex, isCovered, facadeCovered };
+    const requiredTotal = checklistItems.filter(item => item.required).length;
+    return { photosByItem, responseByItem, missing, firstPendingIndex, isCovered, facadeCovered, requiredTotal };
   }, [visit, checklistItems]);
 
   return (
@@ -878,7 +1066,7 @@ export default function PontoPage() {
                           </div>
                         </div>
                         <div className={`px-3 py-1 rounded-full text-xs font-black ${checklistItems.length === 0 ? 'bg-gray-100 text-gray-500' : checklistStatus.missing.length === 0 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {checklistItems.length === 0 ? 'Sem checklist' : `${checklistItems.length - checklistStatus.missing.length}/${checklistItems.length} Itens`}
+                          {checklistItems.length === 0 ? 'Sem checklist' : `${checklistStatus.requiredTotal - checklistStatus.missing.length}/${checklistStatus.requiredTotal} Itens`}
                         </div>
                       </div>
 
@@ -893,52 +1081,20 @@ export default function PontoPage() {
                           const covered = checklistStatus.isCovered(item);
                           const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
                           return (
-                            <div key={item.id} className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-bold text-gray-800">{item.label}</p>
-                                <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
-                                  {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {photos.map(photo => (
-                                  <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                    {photo.filePath === 'offline' ? (
-                                      <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
-                                    ) : (
-                                      <img
-                                        src={photo.filePath}
-                                        className="w-full h-full object-cover cursor-pointer"
-                                        onClick={() => setExpandedPhoto(photo.filePath)}
-                                        alt={item.label}
-                                      />
-                                    )}
-                                    <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
-                                      <Trash2 size={10} />
-                                    </button>
-                                  </div>
-                                ))}
-                                {uploadingPreview?.itemId === item.id && (
-                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                    <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                                      <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                  </div>
-                                )}
-                                {photos.length < item.requiredCount && !locked && (
-                                  <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
-                                    <Plus size={18} className="text-gray-300" />
-                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
-                                  </label>
-                                )}
-                                {locked && photos.length === 0 && (
-                                  <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                                    <Lock size={16} className="text-gray-300" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <ChecklistItemRow
+                              key={item.id}
+                              item={item}
+                              photos={photos}
+                              value={checklistStatus.responseByItem.get(item.id)}
+                              covered={covered}
+                              locked={locked}
+                              uploading={uploading}
+                              uploadingPreview={uploadingPreview}
+                              onPhotoChange={e => handlePhotoUpload(e, item.id)}
+                              onDeletePhoto={photoId => setPhotoToDelete(photoId)}
+                              onExpandPhoto={path => setExpandedPhoto(path)}
+                              onSubmitResponse={value => handleChecklistResponseSubmit(item.id, value)}
+                            />
                           );
                         })}
                       </div>
@@ -1051,52 +1207,19 @@ export default function PontoPage() {
                         const locked = !covered && checklistStatus.firstPendingIndex !== -1 && index > checklistStatus.firstPendingIndex;
                         return (
                           <div className="space-y-2 mb-6">
-                            <div className={`border rounded-xl p-2.5 ${locked ? 'bg-gray-50/50 border-gray-100 opacity-60' : 'bg-gray-50 border-gray-100'}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-bold text-gray-800">{item.label}</p>
-                                <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ml-2 ${covered ? 'text-green-600' : locked ? 'text-gray-400' : 'text-amber-600'}`}>
-                                  {locked ? 'Aguardando item anterior' : `${photos.length}/${item.requiredCount}`}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {photos.map(photo => (
-                                  <div key={photo.id} className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                    {photo.filePath === 'offline' ? (
-                                      <div className="w-full h-full bg-amber-50 flex items-center justify-center"><Camera size={16} className="text-amber-400" /></div>
-                                    ) : (
-                                      <img
-                                        src={photo.filePath}
-                                        className="w-full h-full object-cover cursor-pointer"
-                                        onClick={() => setExpandedPhoto(photo.filePath)}
-                                        alt={item.label}
-                                      />
-                                    )}
-                                    <button onClick={() => setPhotoToDelete(photo.id)} className="absolute top-0.5 right-0.5 p-0.5 bg-red-600 text-white rounded-md">
-                                      <Trash2 size={10} />
-                                    </button>
-                                  </div>
-                                ))}
-                                {uploadingPreview?.itemId === item.id && (
-                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-white">
-                                    <img src={uploadingPreview.url} className="w-full h-full object-cover opacity-50" alt="Enviando..." />
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                                      <span className="w-4 h-4 border-2 border-pluma-600 border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                  </div>
-                                )}
-                                {photos.length < item.requiredCount && !locked && (
-                                  <label className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-pluma-300 hover:bg-pluma-50 transition-colors shrink-0">
-                                    <Plus size={18} className="text-gray-300" />
-                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotoUpload(e, item.id)} disabled={uploading} />
-                                  </label>
-                                )}
-                                {locked && photos.length === 0 && (
-                                  <div className="w-14 h-14 rounded-lg border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                                    <Lock size={16} className="text-gray-300" />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <ChecklistItemRow
+                              item={item}
+                              photos={photos}
+                              value={checklistStatus.responseByItem.get(item.id)}
+                              covered={covered}
+                              locked={locked}
+                              uploading={uploading}
+                              uploadingPreview={uploadingPreview}
+                              onPhotoChange={e => handlePhotoUpload(e, item.id)}
+                              onDeletePhoto={photoId => setPhotoToDelete(photoId)}
+                              onExpandPhoto={path => setExpandedPhoto(path)}
+                              onSubmitResponse={value => handleChecklistResponseSubmit(item.id, value)}
+                            />
                           </div>
                         );
                       })()}

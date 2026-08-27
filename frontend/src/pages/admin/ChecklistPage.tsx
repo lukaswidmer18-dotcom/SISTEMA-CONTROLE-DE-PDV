@@ -1,11 +1,144 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { ChecklistItem } from '../../types';
+import { ChecklistItem, ChecklistItemType } from '../../types';
 import { Plus, ToggleLeft, ToggleRight, ArrowUp, ArrowDown, ListChecks, Trash2, Check, X } from 'lucide-react';
 
 interface DraftItem {
   label: string;
+  type: ChecklistItemType;
   requiredCount: string;
+  required: boolean;
+  options: string[];
+}
+
+const TYPE_LABEL: Record<ChecklistItemType, string> = {
+  TEXTO: 'Resposta escrita',
+  MULTIPLA_ESCOLHA: 'Múltipla escolha',
+  SIM_NAO: 'Sim ou Não',
+  FOTO: 'Foto',
+};
+
+function draftFromItem(item: ChecklistItem): DraftItem {
+  return {
+    label: item.label,
+    type: item.type,
+    requiredCount: String(item.requiredCount),
+    required: item.required,
+    options: item.options && item.options.length > 0 ? item.options : ['', ''],
+  };
+}
+
+function TypeSelector({ value, onChange }: { value: ChecklistItemType; onChange: (type: ChecklistItemType) => void }) {
+  return (
+    <select
+      className="input-field py-1.5 text-sm font-semibold w-48"
+      value={value}
+      onChange={e => onChange(e.target.value as ChecklistItemType)}
+    >
+      {(Object.keys(TYPE_LABEL) as ChecklistItemType[]).map(type => (
+        <option key={type} value={type}>{TYPE_LABEL[type]}</option>
+      ))}
+    </select>
+  );
+}
+
+function OptionsEditor({ options, onChange }: { options: string[]; onChange: (options: string[]) => void }) {
+  return (
+    <div className="space-y-2">
+      {options.map((opt, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 w-5 shrink-0">{String.fromCharCode(65 + i)}.</span>
+          <input
+            className="flex-1 text-sm text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent"
+            placeholder={`Opção ${i + 1}`}
+            value={opt}
+            onChange={e => onChange(options.map((o, j) => (j === i ? e.target.value : o)))}
+          />
+          <button
+            onClick={() => onChange(options.filter((_, j) => j !== i))}
+            disabled={options.length <= 2}
+            className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-20 disabled:cursor-not-allowed rounded"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => onChange([...options, ''])}
+        className="text-xs font-bold text-pluma-600 hover:text-pluma-800 ml-7"
+      >
+        + Adicionar opção
+      </button>
+    </div>
+  );
+}
+
+function TypeSpecificFields({ draft, onChange }: { draft: DraftItem; onChange: (draft: DraftItem) => void }) {
+  if (draft.type === 'FOTO') {
+    return (
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Máx. de fotos</label>
+        <input
+          type="number"
+          min="1"
+          className="w-16 text-sm font-semibold text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent text-center"
+          value={draft.requiredCount}
+          onChange={e => onChange({ ...draft, requiredCount: e.target.value })}
+        />
+      </div>
+    );
+  }
+  if (draft.type === 'MULTIPLA_ESCOLHA') {
+    return <OptionsEditor options={draft.options} onChange={options => onChange({ ...draft, options })} />;
+  }
+  if (draft.type === 'SIM_NAO') {
+    return <p className="text-xs text-gray-400">Promotor responde "Sim" ou "Não".</p>;
+  }
+  return <p className="text-xs text-gray-400">Promotor digita uma resposta livre.</p>;
+}
+
+function validateDraft(draft: DraftItem): string | null {
+  if (!draft.label.trim()) return 'Descrição do item é obrigatória.';
+  if (draft.type === 'FOTO') {
+    const count = Number(draft.requiredCount);
+    if (!Number.isFinite(count) || count < 1) return 'Quantidade máxima de fotos inválida.';
+  }
+  if (draft.type === 'MULTIPLA_ESCOLHA') {
+    const filled = draft.options.map(o => o.trim()).filter(Boolean);
+    if (filled.length < 2) return 'Múltipla escolha precisa de pelo menos 2 opções preenchidas.';
+  }
+  return null;
+}
+
+function draftToPayload(draft: DraftItem) {
+  return {
+    label: draft.label.trim(),
+    type: draft.type,
+    requiredCount: draft.requiredCount,
+    required: draft.required,
+    options: draft.type === 'MULTIPLA_ESCOLHA' ? draft.options.map(o => o.trim()).filter(Boolean) : undefined,
+  };
+}
+
+function ChecklistItemEditor({ draft, onChange, error }: { draft: DraftItem; onChange: (draft: DraftItem) => void; error: string }) {
+  return (
+    <div className="flex-1 min-w-0 space-y-4">
+      <input
+        autoFocus
+        className="w-full text-lg font-semibold text-gray-900 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1.5 bg-transparent"
+        placeholder="Descrição do item"
+        value={draft.label}
+        onChange={e => onChange({ ...draft, label: e.target.value })}
+      />
+      <TypeSelector value={draft.type} onChange={type => onChange({ ...draft, type })} />
+      <TypeSpecificFields draft={draft} onChange={onChange} />
+      <label className="flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer w-fit">
+        <input type="checkbox" checked={draft.required} onChange={e => onChange({ ...draft, required: e.target.checked })} />
+        Obrigatório pra concluir a visita
+      </label>
+      {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
+    </div>
+  );
 }
 
 function ChecklistItemCard({
@@ -23,25 +156,27 @@ function ChecklistItemCard({
   onDelete: () => void;
   onToggleActive: () => void;
 }) {
-  const [draft, setDraft] = useState<DraftItem>({ label: item.label, requiredCount: String(item.requiredCount) });
+  const [draft, setDraft] = useState<DraftItem>(() => draftFromItem(item));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Só reseta o rascunho quando o card abre — reload em background (ex: clicar em Ativo)
+  // não pode descartar edição em andamento.
   useEffect(() => {
     if (expanded) {
-      setDraft({ label: item.label, requiredCount: String(item.requiredCount) });
+      setDraft(draftFromItem(item));
       setError('');
     }
-  }, [expanded, item]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
 
-  async function handleDone() {
-    if (!draft.label.trim()) { setError('Descrição do item é obrigatória.'); return false; }
-    const count = Number(draft.requiredCount);
-    if (!Number.isFinite(count) || count < 1) { setError('Quantidade máxima de fotos inválida.'); return false; }
+  async function handleDone(): Promise<boolean> {
+    const validationError = validateDraft(draft);
+    if (validationError) { setError(validationError); return false; }
     setSaving(true);
     setError('');
     try {
-      await onSave({ label: draft.label.trim(), requiredCount: draft.requiredCount });
+      await onSave(draft);
       return true;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao salvar item.');
@@ -68,7 +203,12 @@ function ChecklistItemCard({
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-800 truncate">{item.label}</p>
         </div>
-        <span className="text-xs text-gray-400 font-medium shrink-0">Máx. {item.requiredCount} foto{item.requiredCount > 1 ? 's' : ''}</span>
+        <span className="text-xs text-gray-400 font-medium shrink-0">
+          {item.type === 'FOTO' ? `Máx. ${item.requiredCount} foto${item.requiredCount > 1 ? 's' : ''}` : TYPE_LABEL[item.type]}
+        </span>
+        <span className={`shrink-0 ${item.required ? 'badge-blue' : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500'}`}>
+          {item.required ? 'Obrigatório' : 'Opcional'}
+        </span>
         <span className={`shrink-0 ${item.active ? 'badge-green' : 'badge-red'}`}>{item.active ? 'Ativo' : 'Inativo'}</span>
       </div>
     );
@@ -85,27 +225,7 @@ function ChecklistItemCard({
             <ArrowDown size={13} />
           </button>
         </div>
-        <div className="flex-1 min-w-0 space-y-4">
-          <input
-            autoFocus
-            className="w-full text-lg font-semibold text-gray-900 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1.5 bg-transparent"
-            placeholder="Descrição do item"
-            value={draft.label}
-            onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
-          />
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Máx. de fotos</label>
-            <input
-              type="number"
-              min="1"
-              className="w-16 text-sm font-semibold text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent text-center"
-              value={draft.requiredCount}
-              onChange={e => setDraft(d => ({ ...d, requiredCount: e.target.value }))}
-            />
-          </div>
-          <p className="text-xs text-gray-400">A 1ª foto desse item é sempre obrigatória. Fotos extras, até esse número, são opcionais.</p>
-          {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
-        </div>
+        <ChecklistItemEditor draft={draft} onChange={setDraft} error={error} />
       </div>
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
         <div className="flex items-center gap-2">
@@ -136,18 +256,17 @@ function ChecklistItemCard({
 }
 
 function NewItemCard({ onSave, onCancel }: { onSave: (draft: DraftItem) => Promise<void>; onCancel: () => void }) {
-  const [draft, setDraft] = useState<DraftItem>({ label: '', requiredCount: '1' });
+  const [draft, setDraft] = useState<DraftItem>({ label: '', type: 'FOTO', requiredCount: '1', required: true, options: ['', ''] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   async function handleDone() {
-    if (!draft.label.trim()) { setError('Descrição do item é obrigatória.'); return; }
-    const count = Number(draft.requiredCount);
-    if (!Number.isFinite(count) || count < 1) { setError('Quantidade máxima de fotos inválida.'); return; }
+    const validationError = validateDraft(draft);
+    if (validationError) { setError(validationError); return; }
     setSaving(true);
     setError('');
     try {
-      await onSave({ label: draft.label.trim(), requiredCount: draft.requiredCount });
+      await onSave(draft);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao criar item.');
     } finally {
@@ -157,27 +276,7 @@ function NewItemCard({ onSave, onCancel }: { onSave: (draft: DraftItem) => Promi
 
   return (
     <div className="bg-white rounded-xl border-l-4 border-pluma-600 border-y border-r border-gray-100 shadow-sm px-5 py-4">
-      <div className="space-y-4">
-        <input
-          autoFocus
-          className="w-full text-lg font-semibold text-gray-900 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1.5 bg-transparent"
-          placeholder="Ex: Foto da fachada do PDV"
-          value={draft.label}
-          onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
-        />
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Máx. de fotos</label>
-          <input
-            type="number"
-            min="1"
-            className="w-16 text-sm font-semibold text-gray-800 border-0 border-b-2 border-gray-200 focus:border-pluma-600 focus:outline-none focus:ring-0 py-1 bg-transparent text-center"
-            value={draft.requiredCount}
-            onChange={e => setDraft(d => ({ ...d, requiredCount: e.target.value }))}
-          />
-        </div>
-        <p className="text-xs text-gray-400">A 1ª foto desse item é sempre obrigatória. Fotos extras, até esse número, são opcionais.</p>
-        {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
-      </div>
+      <ChecklistItemEditor draft={draft} onChange={setDraft} error={error} />
       <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100">
         <button onClick={onCancel} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50" title="Cancelar">
           <X size={16} />
@@ -213,12 +312,12 @@ export default function ChecklistPage() {
   useEffect(() => { load(); }, []);
 
   async function saveItem(id: string, draft: DraftItem) {
-    await api.put(`/checklist/${id}`, { label: draft.label, requiredCount: draft.requiredCount });
+    await api.put(`/checklist/${id}`, draftToPayload(draft));
     await load();
   }
 
   async function createItem(draft: DraftItem) {
-    await api.post('/checklist', { label: draft.label, requiredCount: draft.requiredCount });
+    await api.post('/checklist', draftToPayload(draft));
     await load();
     setCreating(false);
   }
@@ -268,7 +367,7 @@ export default function ChecklistPage() {
             Checklist de Fotos
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Define os itens que o promotor precisa fotografar pra concluir uma visita. Vale pra todos os PDVs.
+            Define as perguntas e fotos que o promotor precisa preencher pra concluir uma visita. Vale pra todos os PDVs.
           </p>
         </div>
         <button

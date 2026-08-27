@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { Visit, Photo, FormFieldConfig } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft, Camera, Calendar } from 'lucide-react';
+import { ArrowLeft, Camera, Calendar, ListChecks } from 'lucide-react';
 import PhotoCaption from '../../components/photos/PhotoCaption';
 import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 
@@ -106,6 +106,22 @@ export default function VisitDetailPromotorPage() {
           </div>
         ) : <p className="text-sm text-gray-400">Nenhuma foto.</p>}
       </div>
+
+      {visit.checklistResponses && visit.checklistResponses.length > 0 && (
+        <div className="card mb-4">
+          <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <ListChecks size={16} /> Respostas do Checklist
+          </h3>
+          <div className="space-y-2 text-sm">
+            {visit.checklistResponses.map(r => (
+              <div key={r.id} className="flex justify-between gap-4">
+                <span className="text-gray-500">{r.checklistItem?.label || 'Item removido'}</span>
+                <span className="font-medium text-right">{r.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">

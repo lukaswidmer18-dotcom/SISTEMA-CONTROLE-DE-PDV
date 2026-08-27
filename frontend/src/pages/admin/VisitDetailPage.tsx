@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { Visit, ChecklistItem, FormFieldConfig } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star, ListChecks } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 import PhotoCaption from '../../components/photos/PhotoCaption';
 import { Photo } from '../../types';
@@ -163,6 +163,23 @@ export default function VisitDetailPage() {
           <p className="text-sm text-gray-400">Nenhuma foto registrada.</p>
         )}
       </div>
+
+      {/* Checklist responses (Texto/Sim-Não/Múltipla escolha) */}
+      {visit.checklistResponses && visit.checklistResponses.length > 0 && (
+        <div className="card mb-4">
+          <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <ListChecks size={16} /> Respostas do Checklist
+          </h3>
+          <dl className="space-y-2 text-sm">
+            {visit.checklistResponses.map(r => (
+              <div key={r.id} className="flex justify-between gap-4">
+                <dt className="text-gray-500">{r.checklistItem?.label || 'Item removido'}</dt>
+                <dd className="font-medium text-right">{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
 
       {/* Avaliação de qualidade */}
       <div className="card mb-4">

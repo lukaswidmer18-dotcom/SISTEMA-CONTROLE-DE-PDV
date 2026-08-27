@@ -27,7 +27,7 @@ import { createDegustacaoSolicitacao, listMyDegustacaoSolicitacoes, listAllDegus
 import { getVisitCosts, getPdvCostSummary } from '../controllers/costController';
 import { pingLocation } from '../controllers/locationController';
 import {
-  startVisit, getActiveVisit, addPhoto, deletePhoto, addValidity, deleteValidity,
+  startVisit, getActiveVisit, addPhoto, deletePhoto, addChecklistResponse, addValidity, deleteValidity,
   addRuptura, deleteRuptura, addPriceCheck, deletePriceCheck, finishVisit, getMyVisits, getVisitDetail, listAllVisits, getMapData,
   deleteVisitAdmin,
 } from '../controllers/visitController';
@@ -112,6 +112,7 @@ router.get('/visits/:visitId', authenticate, getVisitDetail);
 router.delete('/visits/:visitId', authenticate, requireAdmin, deleteVisitAdmin);
 router.post('/visits/:visitId/photos', authenticate, upload.single('photo'), addPhoto);
 router.delete('/visits/:visitId/photos/:photoId', authenticate, deletePhoto);
+router.post('/visits/:visitId/checklist-responses', authenticate, addChecklistResponse);
 router.post('/visits/:visitId/validities', authenticate, addValidity);
 router.delete('/visits/:visitId/validities/:validityId', authenticate, deleteValidity);
 router.post('/visits/:visitId/ruptura', authenticate, addRuptura);

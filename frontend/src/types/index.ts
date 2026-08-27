@@ -112,12 +112,26 @@ export interface FormTypeConfig {
   description: string;
 }
 
+export type ChecklistItemType = 'TEXTO' | 'MULTIPLA_ESCOLHA' | 'SIM_NAO' | 'FOTO';
+
 export interface ChecklistItem {
   id: string;
   label: string;
+  type: ChecklistItemType;
   order: number;
   requiredCount: number;
+  required: boolean;
+  options: string[] | null;
   active: boolean;
+  createdAt?: string;
+}
+
+export interface ChecklistResponse {
+  id: string;
+  visitId: string;
+  checklistItemId: string;
+  value: string;
+  checklistItem?: ChecklistItem;
   createdAt?: string;
 }
 
@@ -201,6 +215,7 @@ export interface Visit {
   pdv?: PDV;
   promotor?: Pick<User, 'id' | 'name' | 'email'>;
   photos?: Photo[];
+  checklistResponses?: ChecklistResponse[];
   validities?: Validity[];
   rupturas?: RupturaRegistro[];
   priceChecks?: PriceCheck[];

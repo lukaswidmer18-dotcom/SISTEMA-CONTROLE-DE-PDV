@@ -7,7 +7,7 @@ const DB_VERSION = 1;
 const STORE_NAME = 'queue';
 const VISIT_MAP_KEY = 'pdv-offline-visit-map';
 
-type OfflineKind = 'ponto' | 'startVisit' | 'photo' | 'validity' | 'ruptura' | 'priceCheck' | 'finishVisit';
+type OfflineKind = 'ponto' | 'startVisit' | 'photo' | 'checklistResponse' | 'validity' | 'ruptura' | 'priceCheck' | 'finishVisit';
 
 export interface OfflineActionBase {
   id: string;
@@ -50,6 +50,16 @@ export interface OfflinePhotoAction extends OfflineActionBase {
     latitude: number;
     longitude: number;
     locationAvailable: boolean;
+  };
+}
+
+export interface OfflineChecklistResponseAction extends OfflineActionBase {
+  kind: 'checklistResponse';
+  localVisitId?: string;
+  visitId?: string;
+  payload: {
+    checklistItemId: string;
+    value: string;
   };
 }
 
@@ -110,6 +120,7 @@ export type OfflineAction =
   | OfflinePontoAction
   | OfflineStartVisitAction
   | OfflinePhotoAction
+  | OfflineChecklistResponseAction
   | OfflineValidityAction
   | OfflineRupturaAction
   | OfflinePriceCheckAction
@@ -243,6 +254,13 @@ async function syncAction(action: OfflineAction, visitMap: Record<string, string
     await api.post(`/visits/${visitId}/photos`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return;
+  }
+
+  if (action.kind === 'checklistResponse') {
+    const visitId = resolveVisitId(action, visitMap);
+    if (!visitId) throw new Error('Visita offline ainda não sincronizada.');
+    await api.post(`/visits/${visitId}/checklist-responses`, action.payload);
     return;
   }
 

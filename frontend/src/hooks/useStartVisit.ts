@@ -37,6 +37,7 @@ export function useStartVisit(resolveLocation: () => Promise<ResolvedLocation>) 
           pdv,
           startedAt: new Date().toISOString(),
           photos: [],
+          checklistResponses: [],
           validities: [],
           rupturas: [],
           priceChecks: [],

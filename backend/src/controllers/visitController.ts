@@ -8,6 +8,7 @@ import { prisma } from '../lib/prisma';
 type VisitWithDetails = Prisma.VisitGetPayload<{
   include: {
     photos: { include: { checklistItem: true } };
+    checklistResponses: true;
     validities: true;
     pdv: true;
     promotor: { select: { name: true } };
@@ -29,11 +30,22 @@ async function findMissingFacadePhotoLabel(visit: VisitWithDetails): Promise<str
   return hasPhoto ? null : facadeItem.label;
 }
 
+// Um item do checklist é "coberto" quando o promotor já forneceu o que ele pede:
+// foto (tipo FOTO) ou resposta salva (texto/sim-não/múltipla escolha).
+function isChecklistItemCovered(
+  item: { id: string; type: string },
+  photoCountByItem: Map<string, number>,
+  respondedItemIds: Set<string>
+): boolean {
+  return item.type === 'FOTO' ? (photoCountByItem.get(item.id) || 0) >= 1 : respondedItemIds.has(item.id);
+}
+
 async function validateVisitInProgress(visitId: string, userId: string): Promise<VisitValidationResult> {
   const visit = await prisma.visit.findUnique({
     where: { id: visitId },
     include: {
       photos: { include: { checklistItem: true } },
+      checklistResponses: true,
       validities: true,
       pdv: true,
       promotor: { select: { name: true } },
@@ -111,6 +123,7 @@ export async function getActiveVisit(req: Request, res: Response): Promise<void>
     include: {
       pdv: true,
       photos: { include: { checklistItem: true } },
+      checklistResponses: { include: { checklistItem: true } },
       validities: { include: { product: true } },
       rupturas: { include: { product: true } },
       priceChecks: { include: { product: true } },
@@ -153,10 +166,16 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  if (checklistItem.type !== 'FOTO') {
+    res.status(400).json({ success: false, error: 'Esse item espera resposta, não foto.' });
+    return;
+  }
+
   const photoCountByItem = new Map<string, number>();
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
+  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
 
   const currentCount = photoCountByItem.get(checklistItemId) || 0;
   if (currentCount >= checklistItem.requiredCount) {
@@ -167,12 +186,12 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order);
-  const pendingPreceding = precedingItems.find((item) => (photoCountByItem.get(item.id) || 0) < 1);
+  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order && item.required);
+  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
   if (pendingPreceding) {
     res.status(422).json({
       success: false,
-      error: `Siga a ordem do checklist. Tire antes a foto de "${pendingPreceding.label}".`,
+      error: `Siga a ordem do checklist. Responda antes "${pendingPreceding.label}".`,
     });
     return;
   }
@@ -194,6 +213,78 @@ export async function addPhoto(req: Request, res: Response): Promise<void> {
   });
 
   res.status(201).json({ success: true, data: photo });
+}
+
+export async function addChecklistResponse(req: Request, res: Response): Promise<void> {
+  const authReq = req as any;
+  const { visitId } = req.params;
+  const { checklistItemId, value } = req.body;
+
+  if (!checklistItemId) {
+    res.status(400).json({ success: false, error: 'Item do checklist é obrigatório.' });
+    return;
+  }
+  const trimmedValue = value === undefined || value === null ? '' : String(value).trim();
+  if (!trimmedValue) {
+    res.status(400).json({ success: false, error: 'Resposta não pode ser vazia.' });
+    return;
+  }
+
+  const [validation, activeChecklistItems] = await Promise.all([
+    validateVisitInProgress(visitId, authReq.user.userId),
+    prisma.checklistItem.findMany({ where: { active: true }, orderBy: { order: 'asc' } }),
+  ]);
+  if (!validation.visit) {
+    res.status(validation.status).json({ success: false, error: validation.error });
+    return;
+  }
+  const { visit } = validation;
+
+  const checklistItem = activeChecklistItems.find((item) => item.id === checklistItemId);
+  if (!checklistItem) {
+    res.status(400).json({ success: false, error: 'Item do checklist inválido ou inativo.' });
+    return;
+  }
+  if (checklistItem.type === 'FOTO') {
+    res.status(400).json({ success: false, error: 'Esse item espera foto, não resposta.' });
+    return;
+  }
+  if (checklistItem.type === 'SIM_NAO' && !['Sim', 'Não'].includes(trimmedValue)) {
+    res.status(400).json({ success: false, error: 'Resposta deve ser "Sim" ou "Não".' });
+    return;
+  }
+  if (checklistItem.type === 'MULTIPLA_ESCOLHA') {
+    const options = Array.isArray(checklistItem.options) ? (checklistItem.options as string[]) : [];
+    if (!options.includes(trimmedValue)) {
+      res.status(400).json({ success: false, error: 'Opção inválida pra essa pergunta.' });
+      return;
+    }
+  }
+
+  const photoCountByItem = new Map<string, number>();
+  for (const p of visit.photos) {
+    if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
+  }
+  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
+
+  const precedingItems = activeChecklistItems.filter((item) => item.order < checklistItem.order && item.required);
+  const pendingPreceding = precedingItems.find((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
+  if (pendingPreceding) {
+    res.status(422).json({
+      success: false,
+      error: `Siga a ordem do checklist. Responda antes "${pendingPreceding.label}".`,
+    });
+    return;
+  }
+
+  const response = await prisma.checklistResponse.upsert({
+    where: { visitId_checklistItemId: { visitId, checklistItemId } },
+    create: { visitId, checklistItemId, value: trimmedValue },
+    update: { value: trimmedValue },
+    include: { checklistItem: true },
+  });
+
+  res.status(201).json({ success: true, data: response });
 }
 
 export async function addValidity(req: Request, res: Response): Promise<void> {
@@ -491,16 +582,17 @@ export async function finishVisit(req: Request, res: Response): Promise<void> {
   }
   const parsedBoxes: number = parsedBoxesValue;
 
-  const activeItems = await prisma.checklistItem.findMany({ where: { active: true } });
+  const activeItems = await prisma.checklistItem.findMany({ where: { active: true, required: true } });
   const photoCountByItem = new Map<string, number>();
   for (const p of visit.photos) {
     if (p.checklistItemId) photoCountByItem.set(p.checklistItemId, (photoCountByItem.get(p.checklistItemId) || 0) + 1);
   }
-  const missingItems = activeItems.filter((item) => (photoCountByItem.get(item.id) || 0) < 1);
+  const respondedItemIds = new Set(visit.checklistResponses.map((r) => r.checklistItemId));
+  const missingItems = activeItems.filter((item) => !isChecklistItemCovered(item, photoCountByItem, respondedItemIds));
   if (missingItems.length > 0) {
     res.status(422).json({
       success: false,
-      error: `Faltam fotos do checklist: ${missingItems.map((i) => i.label).join(', ')}.`,
+      error: `Faltam itens obrigatórios do checklist: ${missingItems.map((i) => i.label).join(', ')}.`,
     });
     return;
   }
@@ -561,6 +653,7 @@ export async function getVisitDetail(req: Request, res: Response): Promise<void>
       pdv: true,
       promotor: { select: { id: true, name: true, email: true } },
       photos: { include: { checklistItem: true } },
+      checklistResponses: { include: { checklistItem: true } },
       validities: { include: { product: true } },
       rupturas: { include: { product: true } },
       priceChecks: { include: { product: true } },

@@ -124,14 +124,15 @@ model Visit {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  promotor    User?             @relation(fields: [promotorId], references: [id], onDelete: SetNull)
-  pdv         PDV?              @relation(fields: [pdvId], references: [id], onDelete: SetNull)
-  photos      Photo[]
-  validities  Validity[]
-  pontos      Ponto[]
-  rating      VisitRating?
-  rupturas    RupturaRegistro[]
-  priceChecks PriceCheck[]
+  promotor           User?               @relation(fields: [promotorId], references: [id], onDelete: SetNull)
+  pdv                PDV?                @relation(fields: [pdvId], references: [id], onDelete: SetNull)
+  photos             Photo[]
+  validities         Validity[]
+  pontos             Ponto[]
+  rating             VisitRating?
+  rupturas           RupturaRegistro[]
+  priceChecks        PriceCheck[]
+  checklistResponses ChecklistResponse[]
 
   @@index([promotorId])
   @@index([pdvId])
@@ -177,15 +178,35 @@ model Photo {
 model ChecklistItem {
   id            String   @id @default(uuid())
   label         String
+  type          String   @default("FOTO")
   order         Int      @default(0)
   requiredCount Int      @default(1)
+  required      Boolean  @default(true)
+  options       Json?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  photos Photo[]
+  photos    Photo[]
+  responses ChecklistResponse[]
 
   @@map("checklist_items")
+}
+
+model ChecklistResponse {
+  id              String   @id @default(uuid())
+  visitId         String
+  checklistItemId String
+  value           String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  visit         Visit         @relation(fields: [visitId], references: [id])
+  checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id])
+
+  @@unique([visitId, checklistItemId])
+  @@index([checklistItemId])
+  @@map("checklist_responses")
 }
 
 model RotaVisita {
