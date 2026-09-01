@@ -244,12 +244,17 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
 
   for (const row of parsed.rows) {
     try {
-      const existing = await prisma.pDV.findFirst({
-        where: {
-          name: { equals: row.name, mode: 'insensitive' },
-          address: { equals: row.address, mode: 'insensitive' },
-        },
-      });
+      // Cód. Clifor é o identificador único de loja no ERP do cliente — várias lojas da
+      // mesma rede podem ter nome e endereço iguais/vazios, então ele tem prioridade
+      // sobre name+address (que só serve de fallback pra planilha sem código).
+      const existing = row.cliforCode
+        ? await prisma.pDV.findFirst({ where: { cliforCode: row.cliforCode } })
+        : await prisma.pDV.findFirst({
+            where: {
+              name: { equals: row.name, mode: 'insensitive' },
+              address: { equals: row.address, mode: 'insensitive' },
+            },
+          });
 
       if (existing) {
         await prisma.pDV.update({
