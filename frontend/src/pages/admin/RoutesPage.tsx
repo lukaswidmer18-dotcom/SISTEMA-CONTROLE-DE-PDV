@@ -229,7 +229,11 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
                   <X size={14} />
                 </button>
               </div>
-              {r.pdv?.city && <p className="text-xs text-gray-400 leading-tight ml-4">{r.pdv.city}</p>}
+              {(r.pdv?.address || r.pdv?.city) && (
+                <p className="text-xs text-gray-400 leading-tight ml-4">
+                  {[r.pdv?.address, r.pdv?.city].filter(Boolean).join(' · ')}
+                </p>
+              )}
               {r.justification && (
                 <div className="mt-1.5 ml-4 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
                   <MessageSquareWarning size={12} className="shrink-0 mt-0.5" />
@@ -285,7 +289,7 @@ function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
                 {r.pdv?.name}
               </p>
               <p className="text-xs text-gray-400 leading-tight ml-4">
-                {r.promotor?.name}{r.pdv?.city ? ` · ${r.pdv.city}` : ''}
+                {[r.promotor?.name, r.pdv?.address, r.pdv?.city].filter(Boolean).join(' · ')}
               </p>
             </div>
           ))
