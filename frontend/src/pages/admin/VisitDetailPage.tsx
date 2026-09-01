@@ -4,10 +4,9 @@ import api from '../../services/api';
 import { Visit, ChecklistItem, FormFieldConfig } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowLeft, MapPin, Camera, Calendar, User, Package, Star, ListChecks } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, MapPin, Camera, Calendar, User, Package, Star, ListChecks } from 'lucide-react';
 import StarRating from '../../components/ui/StarRating';
 import PhotoCaption from '../../components/photos/PhotoCaption';
-import { Photo } from '../../types';
 import { getRequiredPhotoTotal } from '../../utils/checklist';
 import { extraFieldsLabelMap, formatExtraFields } from '../../utils/formFields';
 
@@ -15,7 +14,7 @@ export default function VisitDetailPage() {
   const { visitId } = useParams<{ visitId: string }>();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lightbox, setLightbox] = useState<Photo | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [savingRating, setSavingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [requiredPhotoTotal, setRequiredPhotoTotal] = useState(0);
@@ -38,6 +37,18 @@ export default function VisitDetailPage() {
     }
     load();
   }, [visitId]);
+
+  useEffect(() => {
+    if (lightboxIndex === null || !visit?.photos) return;
+    const total = visit.photos.length;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      else if (e.key === 'ArrowLeft') setLightboxIndex(i => (i === null ? null : (i - 1 + total) % total));
+      else if (e.key === 'ArrowRight') setLightboxIndex(i => (i === null ? null : (i + 1) % total));
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, visit?.photos]);
 
   async function handleRate(score: number) {
     if (!visit) return;
@@ -136,10 +147,10 @@ export default function VisitDetailPage() {
         </h3>
         {visit.photos && visit.photos.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {visit.photos.map((photo) => (
+            {visit.photos.map((photo, index) => (
               <div key={photo.id}>
                 <button
-                  onClick={() => setLightbox(photo)}
+                  onClick={() => setLightboxIndex(index)}
                   className="aspect-square w-full rounded-lg overflow-hidden border border-gray-200 hover:border-pluma-400 transition-colors"
                 >
                   <img src={photo.filePath} alt={photo.checklistItem?.label || 'Foto'} className="w-full h-full object-cover" />
@@ -253,25 +264,47 @@ export default function VisitDetailPage() {
       </div>
 
       {/* Lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4" onClick={() => setLightbox(null)}>
+      {lightboxIndex !== null && visit.photos && visit.photos[lightboxIndex] && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4" onClick={() => setLightboxIndex(null)}>
           <div className="flex flex-col gap-2 w-fit max-w-full" onClick={e => e.stopPropagation()}>
-            <img src={lightbox.filePath} alt={lightbox.checklistItem?.label || 'Foto'} className="max-w-full max-h-[75vh] rounded-lg object-contain" />
+            <img
+              src={visit.photos[lightboxIndex].filePath}
+              alt={visit.photos[lightboxIndex].checklistItem?.label || 'Foto'}
+              className="max-w-full max-h-[75vh] rounded-lg object-contain"
+            />
             <PhotoCaption
               variant="lightbox"
               photo={{
-                itemLabel: lightbox.checklistItem?.label,
+                itemLabel: visit.photos[lightboxIndex].checklistItem?.label,
                 pdvName: visit.pdv?.name,
                 pdvCity: visit.pdv?.city,
                 pdvState: visit.pdv?.state,
                 promotorName: visit.promotor?.name,
-                uploadedAt: lightbox.uploadedAt,
-                latitude: lightbox.latitude,
-                longitude: lightbox.longitude,
+                uploadedAt: visit.photos[lightboxIndex].uploadedAt,
+                latitude: visit.photos[lightboxIndex].latitude,
+                longitude: visit.photos[lightboxIndex].longitude,
               }}
             />
           </div>
-          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/80">
+          {visit.photos.length > 1 && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + visit.photos!.length) % visit.photos!.length); }}
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-2 hover:bg-black/80"
+                aria-label="Foto anterior"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % visit.photos!.length); }}
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-2 hover:bg-black/80"
+                aria-label="Próxima foto"
+              >
+                <ChevronRight size={24} />
+              </button>
+            </>
+          )}
+          <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/80">
             ✕
           </button>
         </div>
