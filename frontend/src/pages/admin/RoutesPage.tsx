@@ -183,7 +183,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
   }
 
   return (
-    <div className={`card min-h-[260px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
+    <div className={`card max-h-[520px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <div>
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]} · {format(date, 'dd/MM')}</span>
@@ -196,7 +196,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
         )}
       </div>
 
-      <div className="space-y-2 flex-1">
+      <div className="space-y-2 flex-1 overflow-y-auto min-h-[150px]">
         {orderedRoutes.length === 0 ? (
           <div className="flex items-center gap-1.5 py-3 px-1">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
@@ -257,7 +257,7 @@ function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
   const dayColor = DAY_COLORS[dayOfWeek];
 
   return (
-    <div className={`card min-h-[260px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
+    <div className={`card max-h-[520px] flex flex-col transition-all ${isToday ? 'border-pluma-300 shadow-glow-pluma' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <div>
           <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{DAYS_SHORT[dayOfWeek]} · {format(date, 'dd/MM')}</span>
@@ -270,7 +270,7 @@ function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
         )}
       </div>
 
-      <div className="space-y-2 flex-1">
+      <div className="space-y-2 flex-1 overflow-y-auto min-h-[150px]">
         {routes.length === 0 ? (
           <div className="flex items-center gap-1.5 py-3 px-1">
             <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
