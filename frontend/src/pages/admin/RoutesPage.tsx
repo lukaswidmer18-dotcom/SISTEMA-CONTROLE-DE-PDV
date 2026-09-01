@@ -95,7 +95,10 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
   }, [open]);
 
   const filtered = search.trim()
-    ? options.filter(p => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    ? options.filter(p => {
+        const term = search.trim().toLowerCase();
+        return p.name.toLowerCase().includes(term) || p.cliforCode?.toLowerCase().includes(term);
+      })
     : options;
 
   function handleSelect(pdv: PDV) {
@@ -133,6 +136,7 @@ function PdvSearchAdd({ options, onAdd }: { options: PDV[]; onAdd: (pdvId: strin
                 onClick={() => handleSelect(p)}
                 className="w-full text-left px-3 py-2 text-sm leading-snug text-gray-700 hover:bg-pluma-50 hover:text-pluma-800"
               >
+                {p.cliforCode && <span className="text-gray-400">{p.cliforCode} — </span>}
                 {p.name}{p.city ? ` — ${p.city}` : ''}
               </button>
             ))
@@ -218,6 +222,7 @@ function DayColumn({ dayOfWeek, date, routes, availablePdvs, isToday, onAdd, onR
                     <GripVertical size={12} className="shrink-0 text-gray-300 cursor-grab self-center" />
                   )}
                   <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
+                  {r.pdv?.cliforCode && <span className="text-gray-400 font-medium">{r.pdv.cliforCode} —</span>}
                   {r.pdv?.name}
                 </p>
                 <button onClick={() => onRemove(r)} className="p-0.5 text-gray-300 hover:text-red-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -276,6 +281,7 @@ function GeralDayCard({ dayOfWeek, date, routes, isToday }: {
             <div key={r.id} className="border-b border-gray-100 last:border-b-0 py-2.5">
               <p className="text-sm font-bold text-gray-800 leading-snug break-words flex items-baseline gap-1.5">
                 <span className="shrink-0 text-[10px] font-black" style={{ color: dayColor }}>{i + 1}</span>
+                {r.pdv?.cliforCode && <span className="text-gray-400 font-medium">{r.pdv.cliforCode} —</span>}
                 {r.pdv?.name}
               </p>
               <p className="text-xs text-gray-400 leading-tight ml-4">
