@@ -507,7 +507,11 @@ export default function PromotorHome() {
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{route.pdv.name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          {route.pdv.city && <p className="text-xs text-gray-400 truncate">{route.pdv.city}</p>}
+                          {(route.pdv.address || route.pdv.city) && (
+                            <p className="text-xs text-gray-400 truncate">
+                              {[route.pdv.address, route.pdv.city].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
                           <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${STATUS_COLORS[status]}`}>
                             {STATUS_LABELS[status]}
                           </span>
