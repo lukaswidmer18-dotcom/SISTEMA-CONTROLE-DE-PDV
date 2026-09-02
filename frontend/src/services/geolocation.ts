@@ -61,3 +61,28 @@ export async function getRequiredLocation(): Promise<{ latitude: number; longitu
   }
   return { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy };
 }
+
+const TRACKING_TIMEOUT_MS = 6000;
+const TRACKING_MAX_AGE_MS = 30000;
+
+// Ping de rastreamento em segundo plano (visita em andamento): aceita fix em cache
+// do SO (rede/último GPS) em vez de forçar leitura de alta precisão a cada ciclo,
+// como sampleBestPosition faz. Isso evita acionar o chip GPS a cada 25s (custo de
+// bateria/CPU que deixava o app lento) e resolve sem travar quando o sinal está fraco.
+export function getTrackingLocation(): Promise<OptionalLocation> {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) {
+      resolve({ latitude: null, longitude: null });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }),
+      () => resolve({ latitude: null, longitude: null }),
+      { enableHighAccuracy: false, maximumAge: TRACKING_MAX_AGE_MS, timeout: TRACKING_TIMEOUT_MS }
+    );
+  });
+}
