@@ -123,7 +123,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-pluma-200 text-[11px] mt-6 animate-fade-in" style={{ animationDelay: '240ms' }}>
+        <p className="text-center text-pluma-200 text-sm mt-6 animate-fade-in" style={{ animationDelay: '240ms' }}>
           © 2026 Grupo Pluma • Desenvolvido por Lukas Widmer
         </p>
       </div>
