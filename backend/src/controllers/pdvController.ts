@@ -13,6 +13,10 @@ const GEOCODE_FAILED_MESSAGE =
 const GEOCODE_APPROXIMATE_MESSAGE =
   'Número do endereço não foi localizado com precisão; a coordenada ficou aproximada (nível da rua). Confira no mapa e ajuste manualmente se necessário.';
 
+function fillIfBlank(newValue: string, existingValue: string): string {
+  return newValue.trim() ? newValue : existingValue;
+}
+
 function parseRadiusMeters(value: unknown): number | null | undefined {
   if (value === undefined) return undefined;
   if (value === null || value === '') return null;
@@ -257,15 +261,20 @@ export async function importPdvs(req: Request, res: Response): Promise<void> {
           });
 
       if (existing) {
+        // Linha da planilha vem vazia num campo (ex: sem Endereço Clifor) não pode apagar
+        // dado que o PDV já tem — só atualiza quando a nova linha realmente traz valor.
+        // "name" fica de fora de propósito: pode ter sido corrigido manualmente na tela
+        // de edição do PDV, e o import em massa não deve sobrescrever isso.
         await prisma.pDV.update({
           where: { id: existing.id },
           data: {
-            cliforCode: row.cliforCode,
-            city: row.city,
-            neighborhood: row.neighborhood,
-            state: row.state,
-            channel: row.channel,
-            network: row.network,
+            cliforCode: fillIfBlank(row.cliforCode, existing.cliforCode),
+            address: fillIfBlank(row.address, existing.address),
+            neighborhood: fillIfBlank(row.neighborhood, existing.neighborhood),
+            city: fillIfBlank(row.city, existing.city),
+            state: fillIfBlank(row.state, existing.state),
+            channel: fillIfBlank(row.channel, existing.channel),
+            network: fillIfBlank(row.network, existing.network),
             active: row.active,
             importBatchId,
             importedAt,
