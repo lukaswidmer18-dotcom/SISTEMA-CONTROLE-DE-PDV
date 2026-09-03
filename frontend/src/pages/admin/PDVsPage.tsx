@@ -437,6 +437,7 @@ export default function PDVsPage() {
     cliforCode: p => [p.cliforCode || '-'],
     name: p => [p.name],
     address: p => [p.address || '-'],
+    neighborhood: p => [p.neighborhood || '-'],
     city: p => [p.city || '-'],
     state: p => [p.state || '-'],
     geo: p => [isGeofenceReady(p) ? 'Configurada' : 'Não configurada'],
@@ -564,9 +565,9 @@ export default function PDVsPage() {
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div>
                     <p className="font-semibold text-gray-800 text-sm">{p.cliforCode ? `${p.cliforCode} — ${p.name}` : p.name}</p>
-                    {(p.address || p.city || p.state) && (
+                    {(p.address || p.neighborhood || p.city || p.state) && (
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {[p.address, p.city, p.state].filter(Boolean).join(' — ')}
+                        {[p.address, p.neighborhood, p.city, p.state].filter(Boolean).join(' — ')}
                       </p>
                     )}
                   </div>
@@ -615,6 +616,11 @@ export default function PDVsPage() {
                     </div>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">
+                    <div className="flex items-center gap-1">Bairro Clifor
+                      <ColumnFilter label="Bairro Clifor" values={getUniqueValues('neighborhood')} selected={filters.neighborhood ?? new Set()} onChange={s => setColumnFilter('neighborhood', s)} />
+                    </div>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">
                     <div className="flex items-center gap-1">Cidade
                       <ColumnFilter label="Cidade" values={getUniqueValues('city')} selected={filters.city ?? new Set()} onChange={s => setColumnFilter('city', s)} />
                     </div>
@@ -643,6 +649,7 @@ export default function PDVsPage() {
                     <td className="px-4 py-3 text-gray-500">{p.cliforCode || '-'}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.address || '-'}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.neighborhood || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.city || '-'}</td>
                     <td className="px-4 py-3 text-gray-500">{p.state || '-'}</td>
                     <td className="px-4 py-3">
