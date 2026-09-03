@@ -58,15 +58,18 @@ export async function getPromotorRanking(_req: Request, res: Response): Promise<
     const coverageRate = totalRotas > 0 ? visitadas / totalRotas : null;
     const justificationRate = totalRotas > 0 ? justificadas / totalRotas : 0;
 
+    // Cada componente só entra no cálculo se o promotor realmente tem o dado
+    // (avaliação, rota ou justificativa) — senão promotor sem nenhuma atividade
+    // acaba só com o componente de justificativa e ganha 100 de graça.
     const components: { value: number; weight: number }[] = [];
     if (avgRating != null) components.push({ value: (avgRating / 5) * 100, weight: 0.5 });
     if (coverageRate != null) components.push({ value: coverageRate * 100, weight: 0.3 });
-    components.push({ value: (1 - justificationRate) * 100, weight: 0.2 });
+    if (totalRotas > 0) components.push({ value: (1 - justificationRate) * 100, weight: 0.2 });
 
     const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
     const finalScore = totalWeight > 0
       ? components.reduce((sum, c) => sum + c.value * c.weight, 0) / totalWeight
-      : null;
+      : 0;
 
     return {
       promotorId: promotor.id,
